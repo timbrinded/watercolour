@@ -17,13 +17,14 @@ from collections.abc import Callable, Sequence
 from itertools import pairwise
 from pathlib import Path
 
+from watercolor.brushes import Journey
 from watercolor.pigments import PIGMENTS
 from watercolor.session import Configuration, Session
 
 WIDTH, HEIGHT = 768, 544
 HORIZON = 397.0
 Action = dict[str, object]
-Points = Sequence[Sequence[float]]
+Points = Journey
 
 # The tower, measured from the reference: body, gallery, the collar under the lantern room,
 # the lantern room, its dome and the cupola on top.
@@ -327,12 +328,63 @@ UMBER_DARK = {"burnt_umber": 2.4, "french_ultramarine": 0.5}
 DARK = {"french_ultramarine": 1.5, "burnt_sienna": 1.9, "ivory_black": 0.7}
 
 
-def facet(path: Points, mix: dict[str, float], size: float = 5.0) -> list[Action]:
-    """One crisp-edged plane of shadow, laid with a flat brush on dry paper."""
-    return [load("flat", size, mix), stroke([[x, y, 0.9] for x, y in path], 110)]
+def facet(
+    path: Sequence[Sequence[float]], mix: dict[str, float], size: float = 5.0, twist: float = 0.0
+) -> list[Action]:
+    """One crisp-edged plane of shadow, laid with a flat brush on dry paper.
+
+    Turning the edge of the brush a little gives the plane slanted ends, so it reads as a face
+    seen at an angle and not as a bar.
+    """
+    points = [{"x": x, "y": y, "pressure": 0.9, "twist": twist} for x, y in path]
+    return [load("flat", size, mix), stroke(points, 110)]
 
 
-def broken(path: Points, mix: dict[str, float], size: float = 3.0) -> list[Action]:
+def dragged(
+    spine: Sequence[tuple[float, float]],
+    depth: float,
+    count: int,
+    mixes: Sequence[tuple[dict[str, float], float]],
+    seed: int,
+    sizes: tuple[float, float] = (5.0, 9.0),
+) -> list[Action]:
+    """Dry-brush: the side of a round brush dragged lightly and quickly along the strata.
+
+    Laid over, the brush rides on the grain of the paper and leaves a broken, sparkling mark,
+    which is how rough rock is given its texture without being filled in.
+    """
+    chance = random.Random(seed)
+    (x0, y0), (x1, y1) = spine[0], spine[-1]
+    actions: list[Action] = []
+    for _ in range(count):
+        share = chance.random()
+        x, y = x0 + (x1 - x0) * share, y0 + (y1 - y0) * share + chance.triangular(-1.0, 1.0, 0.0) * depth
+        reach, slope = chance.uniform(14.0, 34.0), chance.uniform(-0.15, 0.15)
+        mix = chance.choices([mix for mix, _ in mixes], [weight for _, weight in mixes])[0]
+        hold = {"angle": chance.uniform(78.0, 90.0), "pressure": chance.uniform(0.35, 0.7)}
+        path = [{"x": x - reach, "y": y - reach * slope, **hold}, {"x": x + reach, "y": y + reach * slope, **hold}]
+        actions += [load("round", chance.uniform(*sizes), mix, 0.7), stroke(path, chance.uniform(200.0, 320.0))]
+    return actions
+
+
+def flicks(
+    roots: Sequence[tuple[float, float]], mix: dict[str, float], seed: int, brush: str = "comber", size: float = 4.0
+) -> list[Action]:
+    """Grasses and stems: each one pressed at its root and flicked upward, fast, as the pressure lifts."""
+    chance = random.Random(seed)
+    actions: list[Action] = []
+    for x, y in roots:
+        lean, height = chance.uniform(-7.0, 7.0), chance.uniform(9.0, 16.0)
+        path = [
+            {"x": x, "y": y, "pressure": 0.9, "t": 0.0},
+            {"x": x + 0.4 * lean, "y": y - 0.5 * height, "pressure": 0.6, "t": 0.25},
+            {"x": x + lean, "y": y - height, "pressure": 0.05, "t": 0.34},
+        ]
+        actions += [load(brush, size, mix, 0.8), stroke(path, 120, smooth=True)]
+    return actions
+
+
+def broken(path: Sequence[Sequence[float]], mix: dict[str, float], size: float = 3.0) -> list[Action]:
     """A dragged, half-dry line that skips on the grain."""
     return [load("round", size, mix, 0.3), stroke([[x, y, 0.6] for x, y in path], 240)]
 
@@ -349,8 +401,9 @@ def touches(
 ) -> list[Action]:
     """Many short, varied touches along a spine, laid wet into each other.
 
-    Each touch has its own length, direction, pressure and colour (mixes are given with weights).
-    Those at the fringe are made with a brush that is nearly dry, which leaves a ragged edge.
+    Each touch has its own length, direction, pressure, speed and colour (mixes are given with
+    weights). Those in the body are made with the belly of the brush; those at the fringe with
+    its side, laid over and nearly dry, which leaves a ragged edge.
     """
     chance = random.Random(seed)
     lengths = [math.dist(a, b) for a, b in pairwise(spine)]
@@ -369,9 +422,14 @@ def touches(
         reach, angle = chance.uniform(0.6, 1.6) * size, chance.uniform(-lean, lean)
         dx, dy = reach * math.cos(angle), reach * math.sin(angle)
         fringe = abs(across) > 0.6
-        actions.append(load(brush, size, mix, 0.35 if fringe else 0.95))
-        path = [[x - dx, y - dy, chance.uniform(0.3, 0.7)], [x, y, 1.0], [x + dx, y + dy, chance.uniform(0.2, 0.6)]]
-        actions.append(stroke(path, 150))
+        actions.append(load(brush, size, mix, 0.5 if fringe else 0.95))
+        hold = chance.uniform(75.0, 90.0) if fringe else chance.uniform(25.0, 45.0)
+        path = [
+            {"x": x - dx, "y": y - dy, "pressure": chance.uniform(0.3, 0.7), "angle": hold},
+            {"x": x, "y": y, "pressure": 1.0, "angle": hold},
+            {"x": x + dx, "y": y + dy, "pressure": chance.uniform(0.2, 0.6), "angle": hold},
+        ]
+        actions.append(stroke(path, chance.uniform(110.0, 240.0)))
     return actions
 
 
@@ -476,12 +534,14 @@ def foreground() -> list[Action]:
     # Foliage, painted wet on a tilted sheet so that the darkest green runs from its lower edge.
     actions.append(tilt(0.16))
     actions += touches([(96, 482), (168, 474)], 4, 26, foliage, seed=2, sizes=(3.0, 5.5))
-    actions += touches([(176, 470), (254, 469)], 8, 46, foliage, seed=12, sizes=(4.0, 7.5))
+    actions += touches([(176, 470), (254, 469)], 8, 46, foliage, seed=12, sizes=(4.0, 7.5), brush="cats_tongue")
     actions.append(tilt(0.28))
     for x, y, dwell in ((114.0, 487.0, 7.0), (160.0, 484.0, 4.0), (178.0, 482.0, 4.0)):
         actions += [load("mop", 4, {"hansa_yellow": 0.9, "ivory_black": 0.8}), dab(x, y, dwell)]
     actions += [wait(20), tilt(0.0)]
-    actions += touches([(364, 456), (440, 452), (524, 456)], 11, 100, hedge, seed=3, sizes=(3.5, 7.5))
+    actions += touches(
+        [(364, 456), (440, 452), (524, 456)], 11, 100, hedge, seed=3, sizes=(3.5, 7.5), brush="cats_tongue"
+    )
     actions += touches([(590, 423), (636, 425)], 11, 44, foliage, seed=4, sizes=(4.0, 7.5))
     right_mass = ((UMBER_DARK, 3.0), (dark_green, 3.0), (OLIVE, 1.5), (ochre_brown, 1.0))
     # The dark mass below the wall, laid in strokes that climb to the right so that light shows between them.
@@ -490,8 +550,13 @@ def foreground() -> list[Action]:
         x, y = 680.0 + slopes.uniform(0.0, 30.0), 418.0 + 3.2 * index + slopes.uniform(-2.0, 2.0)
         reach = slopes.uniform(40.0, 86.0)
         mix = slopes.choices([mix for mix, _ in right_mass], [weight for _, weight in right_mass])[0]
-        path = [[x, y, 0.8], [x + 0.5 * reach, y - 0.2 * reach, 1.0], [x + reach, y - 0.4 * reach, 0.6]]
-        actions += [load("round", slopes.uniform(3.5, 6.5), mix), stroke(path, 150)]
+        hold = slopes.uniform(35.0, 80.0)
+        path = [
+            {"x": x, "y": y, "pressure": 0.8, "angle": hold},
+            {"x": x + 0.5 * reach, "y": y - 0.2 * reach, "pressure": 1.0, "angle": hold},
+            {"x": x + reach, "y": y - 0.4 * reach, "pressure": 0.5, "angle": hold},
+        ]
+        actions += [load("filbert", slopes.uniform(3.5, 6.5), mix), stroke(path, slopes.uniform(120.0, 260.0))]
     actions += touches([(354, 526), (450, 523), (546, 526)], 15, 130, scrub, seed=6, sizes=(4.0, 8.0))
     actions += touches([(216, 538), (228, 537)], 4, 6, foliage, seed=10, sizes=(4.0, 7.0))
     actions += touches([(270, 538), (292, 537)], 4, 8, foliage, seed=11, sizes=(4.0, 7.0))
@@ -504,15 +569,29 @@ def foreground() -> list[Action]:
     actions += touches(
         [(360, 536), (450, 534), (544, 536)], 6, 36, ((UMBER_DARK, 3.0), (RUST, 2.0)), seed=35, sizes=(3.5, 6.5)
     )
-    # The cliff: neutral grey planes of shadow on the pale face, the darkest at its foot.
-    for corners, mix, seed, brush in (
-        ([(238, 477), (320, 476), (344, 483), (338, 492), (240, 492)], scaled(neutral, 1.5), 43, 4.0),
-        ([(239, 496), (300, 495), (308, 516), (240, 517)], scaled(neutral, 0.8), 44, 5.0),
-        ([(239, 516), (320, 514), (315, 526), (241, 527)], scaled(neutral, 1.8), 45, 3.0),
-        ([(169, 511), (238, 509), (238, 526), (173, 526)], scaled(neutral, 1.5), 46, 4.0),
-        ([(404, 493), (428, 492), (430, 506), (406, 507)], scaled(neutral, 1.5), 47, 3.0),
+    # The texture of the rock: pale ochre and grey dragged over it with the side of the brush.
+    rough = (
+        ({"yellow_ochre": 0.6, "burnt_sienna": 0.3}, 3.0),
+        (scaled(neutral, 0.7), 2.0),
+        ({"burnt_sienna": 0.6}, 1.0),
+    )
+    actions += dragged([(96, 512), (232, 518)], 22, 30, rough, seed=81)
+    actions += dragged([(250, 536), (350, 534)], 8, 8, rough, seed=82)
+    actions += dragged([(366, 482), (560, 478)], 10, 18, rough, seed=83)
+    actions += dragged([(392, 432), (548, 434)], 5, 10, rough, seed=84, sizes=(4.0, 6.0))
+    actions += dragged([(676, 500), (704, 500)], 30, 8, rough, seed=85, sizes=(4.0, 6.0))
+    actions += dragged([(280, 444), (344, 448)], 12, 10, ((ROCK_DARK, 1.0),), seed=86, sizes=(5.0, 8.0))
+    actions.append(DRY)
+    # The cliff: grey planes of shadow on the pale face, each one stroke of a flat brush whose edge
+    # is turned a little so the plane ends on a slant; the darkest at its foot.
+    for path, mix, size, twist in (
+        ([[240, 485], [342, 484]], scaled(neutral, 1.5), 7.5, 28.0),
+        ([[241, 506], [304, 505]], scaled(neutral, 0.8), 10.5, -22.0),
+        ([[241, 521], [318, 520]], scaled(neutral, 1.8), 5.5, 30.0),
+        ([[171, 518], [236, 518]], scaled(neutral, 1.5), 8.5, 0.0),
+        ([[406, 500], [427, 499]], scaled(neutral, 1.5), 6.5, 15.0),
     ):
-        actions += plane(corners, mix, seed=seed, brush=brush)
+        actions += facet(path, mix, size, twist)
     # Smaller marks in the rock: a pale wedge beside the shadowed face, dashes under the rock, hairline runs.
     actions += plane([(320, 500), (346, 498), (344, 512), (322, 514)], scaled(neutral, 0.6), seed=48, brush=3.0)
     actions += plane([(382, 496), (404, 495), (404, 507), (384, 508)], scaled(neutral, 0.7), seed=52, brush=3.0)
@@ -534,8 +613,8 @@ def foreground() -> list[Action]:
     # The path's shadow: one stroke of a very large round brush, with the fence posts standing along its edge.
     path_shadow = scaled(neutral, 1.5)
     actions += [
-        load("round", 20, path_shadow),
-        stroke([[580, 440, 0.15], [584, 480, 0.45], [589, 548, 1.0]], 90, smooth=True),
+        load("dagger", 19, path_shadow),
+        stroke([[580, 440, 0.1], [584, 480, 0.45], [589, 548, 1.0]], 90, smooth=True),
     ]
     for index in range(9):
         y = 448.0 + 11.0 * index
@@ -563,15 +642,26 @@ def foreground() -> list[Action]:
         x, y = 690.0 + steps.uniform(0.0, 16.0), 470.0 + 5.6 * step + steps.uniform(-1.5, 1.5)
         reach = steps.uniform(50.0, 80.0)
         mix = UMBER_DARK if step % 2 == 0 else steps.choice((ochre_brown, UMBER, scaled(OLIVE, 0.8)))
-        path = [[x, y, 0.9], [x + reach, y - 0.45 * reach, steps.uniform(0.6, 0.9)]]
-        actions += [load("flat", steps.uniform(2.5, 4.5), mix, steps.uniform(0.6, 0.95)), stroke(path, 180)]
+        path = [
+            {"x": x, "y": y, "pressure": 0.9, "twist": 0.0, "t": 0.0},
+            {"x": x + 0.6 * reach, "y": y - 0.27 * reach, "pressure": 0.8, "twist": 35.0, "t": 0.45},
+            {"x": x + reach, "y": y - 0.45 * reach, "pressure": 0.5, "twist": 70.0, "t": 0.6},
+        ]
+        actions += [
+            load("flat", steps.uniform(3.0, 5.0), mix, steps.uniform(0.6, 0.95)),
+            stroke(path, 180, smooth=True),
+        ]
+    # Grasses flicked up from the scrub, the hedge and the head of the cliff.
+    actions += flicks([(x, 513.0) for x in range(366, 540, 19)], scaled(RUST, 0.8), seed=91)
+    actions += flicks([(x, 446.0) for x in range(374, 520, 24)], scaled(OLIVE, 0.9), seed=92)
+    actions += flicks([(x, 464.0) for x in range(182, 252, 17)], scaled(OLIVE, 0.9), seed=93)
     actions += facet([[730, 494], [735, 514]], UMBER_DARK, 5.0)
     actions += facet([[716, 478], [720, 518]], UMBER_DARK, 3.0)
     actions += facet([[752, 490], [757, 546]], UMBER_DARK, 5.0)
     return [*actions, DRY]
 
 
-def line(path: Points, mix: dict[str, float], size: float = 1.2) -> list[Action]:
+def line(path: Sequence[Sequence[float]], mix: dict[str, float], size: float = 1.2) -> list[Action]:
     return [load("rigger", size, mix), stroke([[x, y, 0.7] for x, y in path], 70)]
 
 
