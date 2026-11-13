@@ -30,7 +30,13 @@ git clone https://github.com/timbrinded/watercolour && cd watercolour && uv sync
 
 Inside a clone, put `uv run` before each command (`uv run watercolor ...`). The package is not on PyPI; install it from this repository.
 
-**To teach a model to paint with it,** copy the skill in [.claude/skills/paint-watercolour](.claude/skills/paint-watercolour) into `~/.claude/skills/`. It is found automatically when working inside a clone.
+**To teach a model to paint with it,** install the skill in [.claude/skills/paint-watercolour](.claude/skills/paint-watercolour) for your user. This needs Node.js:
+
+```bash
+npx -y skills add https://github.com/timbrinded/watercolour -g -y
+```
+
+Inside a clone the skill is found automatically and needs no installing. The skill teaches the painting; the `watercolor` command above must be installed as well.
 
 ## Painting
 
