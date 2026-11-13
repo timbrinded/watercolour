@@ -1,6 +1,6 @@
 """Watercolor painting simulator and harness."""
 
-ENGINE_VERSION = "0.4.0"
+ENGINE_VERSION = "0.4.1"
 
 
 def main() -> None:
