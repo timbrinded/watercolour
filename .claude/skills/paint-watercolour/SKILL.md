@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.4.1"
+  version: "0.4.2"
 ---
 
 # Painting with the watercolour harness
@@ -13,6 +13,7 @@ Supporting references in this skill directory:
 
 - `references/actions.md` — Read before writing any pass: the exact fields of every action, the nineteen brush heads, the nine hairs, and the paint box.
 - `references/glazing-and-economy.md` — Read when planning transparent layered washes, painting white or pale subjects against bare paper, working to a tight stroke count, or diagnosing why an attempt looks opaque, stripey, or overworked.
+- `references/faces-and-detail.md` — Read before painting portraits, faces, figures, or intricate focal passages: bare-paper skin washes, proportion and plumb-line checks, brush-radius inset, eye and expression mechanics, negative-space noses and mouths, hair masses, and crisp adjacent trim.
 
 ## Getting the command
 
@@ -145,7 +146,7 @@ Give every point a time `t` in seconds, or give none. With none, the brush trave
 
 ## Paint strength and the brush load
 
-- **Strength** is the sum of the pigment amounts in a load. Watercolour gets its life from the white of the sheet shining up through thin layers, not from covering power. Keep first washes around `0.25` to `0.65` and dry glazes around `0.75` to `1.25`: the paper grain stays luminous and each transparent overlap builds depth like stained glass. Reserve `1.4` to `2.0` for small focal darks in deep crevices. Broad passages above `2.5` smother the paper and look like gouache or acrylic; above `3.5` the paint is thick paste, holds less water, skips on the grain and runs out sooner.
+- **Strength** is the sum of the pigment amounts in a load, and sets **concentration per unit of water** — raising `water` to `1.0` fills the reservoir with more of that mix rather than diluting it. Watercolour gets its life from the white of the sheet shining up through thin layers, not from covering power. Keep first washes around `0.25` to `0.65` for landscapes and bold subjects (**`0.05` to `0.15` for sunlit skin and bare-paper portraits**), and dry glazes around `0.75` to `1.25` (`0.20` to `0.45` on pale skin): the paper grain stays luminous and each transparent overlap builds depth like stained glass. Reserve `1.4` to `2.0` for small focal darks in deep crevices. Broad passages above `2.5` smother the paper and look like gouache or acrylic; above `3.5` the paint is thick paste, holds less water, skips on the grain and runs out sooner.
 - **For a rich dark, layer transparent washes** (`0.5` then `1.0`) with `dry` between them and touch `1.5` to `1.8` only into the deepest core — not one coat of paste.
 - **A brush runs out.** A long stroke from a small brush ends dry and streaky. Reload before each large stroke; `status` shows how full the brush is.
 - **Greys and darks are mixed, not bought.** A blue with an earth (cobalt blue with burnt sienna, ultramarine with burnt umber) gives a grey that leans warm or cool as you change the proportion. Ivory black alone looks dead.
@@ -163,6 +164,15 @@ Give every point a time `t` in seconds, or give none. With none, the brush trave
 - **Lifting:** `blot` takes up most of the water and loose pigment under it. It only works while the paint is wet.
 - **Fine lines:** a rigger of size about 1, moderate strength, full water. Reload for each line.
 - **Lights you could not reserve:** `opaque_white` at strength about 4.5, in two coats, as the very last thing. It is for glints and small figures, not for repairs.
+
+## Faces, likeness and fine detail
+
+Portraits and close detail magnify small errors in value, proportion and brush width that a landscape forgives. Read `references/faces-and-detail.md` before starting one; the core rules are:
+
+- **Let bare paper carry the lit skin.** Leave 60 to 80% of a sunlit face unpainted — forehead, nose bridge and ball, lit cheekbone, lip highlight, chin boss — and link the shaded side in one whisper-pale wash (`0.06` to `0.15`) so the viewer's eye completes the form.
+- **Lock one axis, drop plumb lines, and slim close-up perspective.** Rotate reference measurements to a single cranial axis before transferring points. Drop vertical plumb lines from the pupils rather than trusting high-contrast tonal maps where adjacent shadows merge (lip corners stop near the pupils, with clean cheek space before any smile fold). Close-up lenses widen faces and bare white cheeks expand optically into a white margin; match long-lens skull width (`~0.75` to `0.85×` horizontal on close-up photos) and contain the lit temple or cheekbone with a whisper `0.06` to `0.09` inward-softened turning wash or external counterchange.
+- **Inset for the brush radius, and flood or one-side-soften concave planes.** Tracing *on* a jawline or nose edge with a `size 24` brush bloats the form by `24` pixels on every side. Inset paths by the effective radius; for tight concave shadow shapes, trace the inset boundary with a pointed squirrel `round` (`size 7` to `10`) and flood the interior within the shiny window, or lay a one-sided dry glaze and immediately melt its form-turning edge with damp clean hair (`"pigments": {}, "water": 0.30`).
+- **Save peak contrast for the eyes, and drive expression with geometry.** Reserve your deepest dark (`1.3` to `2.0` in two dried passes) meeting bare paper or a pinpoint `size 1.5` `opaque_white` glint strictly for the pupils and upper lash blades, keeping nostrils and lip fissures a step softer (`0.45` to `0.85`). Expression comes from a few pixels of lid, iris, pupil and brow geometry — not from heavier washes across the face.
 
 ## Looking, and judging what you see
 

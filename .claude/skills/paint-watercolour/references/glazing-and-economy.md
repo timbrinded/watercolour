@@ -31,7 +31,7 @@ Cutting stroke count is not a linear dial: down to a point it removes waste and 
 
 | Range (single subject) | What happens | When to use it |
 |---|---|---|
-| **Above ~90–110 strokes** | **Overworking.** Almost always a sign of brushes half the width of the shape, multi-row clear-water grids where one wide pale wash would do, patching tiny breathing highlights, and striping narrow darks over dry paint. Cutting by a third to a half here is pure gain with no loss of likeness. | Multi-figure scenes or intricate architecture only. |
+| **Above ~90–110 strokes** | **Overworking on simple masses.** On a single open subject this is usually a sign of brushes half the width of the shape, multi-row clear-water grids where one wide pale wash would do, patching tiny breathing highlights, and striping narrow darks over dry paint. | Multi-figure scenes, intricate architecture, or detailed portrait busts that flood tight concave polygons (`references/faces-and-detail.md`). |
 | **~55 to 75 strokes** | **The general sweet spot.** About 15 to 20 wide wet strokes establish 85% of the light and colour; 12 to 18 sweeping dry glazes turn the major shadow planes; 15 to 25 lifted strokes remain for broken surface texture (dappled fur, foliage, rough stone), crevice darks, and fine detail. | Most portraits, animals, still lifes, and landscapes. |
 | **Below ~45 strokes (down to ~30)** | **Calligraphic / sumi-e economy.** Distinct parts must be chained into single unbroken paths — hopping at `pressure: 0.08–0.12` across gaps, J-looping down one limb and up its neighbour, rimming several contours in one `sword` journey — and mottled texture simplifies into one or two smooth ribbons. | Deliberately loose, airy, illustrative or minimalist studies. |
 
