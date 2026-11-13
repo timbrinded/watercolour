@@ -1,6 +1,6 @@
 [project]
 name = "watercolor"
-version = "0.4.1"
+version = "0.4.2"
 description = "A watercolour painting harness: a simulated sheet, brushes and paint, driven stroke by stroke with no undo."
 license = "MIT"
 readme = "README.md"
