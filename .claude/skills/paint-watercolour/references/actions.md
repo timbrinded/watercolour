@@ -18,7 +18,7 @@ A pass is a JSON file holding a list of actions, carried out in order.
 
 | Action | Fields | Notes |
 |---|---|---|
-| `load` | `brush`, `size`, `pigments`, `water`, `rinse` | `size` is the radius in pixels, 0.5 to 80. `pigments` maps paint names to amounts totalling at most 8. `water` is how full the brush is, 0 to 1. With `"rinse": false` the new mix is added to what the same brush already holds. |
+| `load` | `brush`, `hair`, `size`, `pigments`, `water`, `rinse` | `size` is the radius in pixels, 0.5 to 80. `pigments` maps paint names to amounts totalling at most 8. `water` is how full the brush is, 0 to 1. With `"rinse": false` the new mix is added to what the same brush already holds. |
 | `stroke` | `path`, `speed`, `smooth`, `dwell`, `sheet` | `path` is a list of `[x, y]` or `[x, y, pressure]`; pressure defaults to 0.7. `speed` is pixels per second, default 120; above about 150 the brush starts to skip. `smooth` curves the path through its points. A single point is a dab held for `dwell` seconds (default 0.3, at most 10); a longer dwell releases more water. |
 | `blot` | `path`, `radius`, `sheet` | Radius 1 to 80. Takes up most surface water and loose pigment. |
 | `pencil` | `path`, `darkness`, `smooth`, `sheet` | Underdrawing. Allowed only until paint first touches the painting. |
@@ -33,14 +33,43 @@ Each load picks up slightly more or less pigment and water than asked for, as a 
 
 ## Brushes
 
-| Brush | Edge | Width at no pressure | Holds | Use |
-|---|---|---|---|---|
-| `round` | fairly crisp | 20% of full | standard | Most strokes; swells and tapers strongly with pressure. |
-| `flat` | crisp, chisel-ended | 90% of full | standard | Planes, bands and blocks with square ends; parts into streaks soonest when dry. |
-| `mop` | soft | 70% of full | two and a half times a round | Large washes and wetting the paper. |
-| `rigger` | soft, fine | 40% of full | twice a round | Lines and fine detail. |
+A brush is the shape of its head, the hair it is made of, and its size. `hair` is optional; left out, the head is made of the hair usual for its shape. The full guide, with a chart of every mark, is `docs/brushes.md`.
 
-A brush that is running dry, moving fast, or carrying thick paint parts into clumps and leaves streaks along the stroke. A full brush presses paint along less than a damp one does.
+| Shape | Head | Use |
+|---|---|---|
+| `round` | round, pointed; a fifth of its width at no pressure | Most strokes; swells and tapers strongly. |
+| `designer` | round, long and slim | Drawing and long expressive lines; widest range of width. |
+| `spotter` | round, short | Small precise touches; holds little. |
+| `rigger` | round, very long and thin | Lines. Holds twice a round. |
+| `extended_point` | fine point on a large reservoir | Long fine lines without reloading. |
+| `mop` | round, soft (squirrel) | Large washes; holds two and a half times a round. |
+| `stippler` | round, stiff, hairs apart (badger) | Broken texture. |
+| `flat` | flat, square end | Planes and bands with square ends; keeps 90% of its width at no pressure. |
+| `bright` | flat, short | Short controlled planes. |
+| `flat_wash` | flat, wide, soft (squirrel) | Broad even washes. |
+| `hake` | flat, wide, thin (goat) | Background washes. |
+| `comber` | flat, hairs apart | Several fine lines in one stroke: grass, fur. |
+| `fan` | flat, thin, spread | Sparse streaks. |
+| `angular` | flat, end cut at an angle | Strokes that begin and end on a slant. |
+| `dagger` | slanted, tapering (sable blend) | Fine line to broad stroke by pressure. |
+| `sword` | long slanted point (Kolinsky) | Lining; the widest change of width. |
+| `filbert` | flat, rounded end | Petal and leaf marks. |
+| `cats_tongue` | rounded end drawn to a point | As a filbert, with a point. |
+| `oval_wash` | rounded, large, soft (squirrel) | Washes with a soft rounded edge. |
+
+| Hair | Holds | Character |
+|---|---|---|
+| `kolinsky_sable` | most of the sables | Finest point, strong spring. |
+| `red_sable` | standard | The baseline. |
+| `sable_blend` | a little less | Firmer; parts sooner. |
+| `squirrel` | more than twice a sable | Very soft; lays a lot of water, soft edge. |
+| `goat` | nearly twice a sable | Soft, no point; for washes. |
+| `badger` | little | Stiff; breaks the mark up. |
+| `golden_synthetic` | least | Springy; runs dry and streaks soonest. |
+| `synthetic_sable` | slightly less than sable | Behaves as sable. |
+| `synthetic_squirrel` | nearly twice a sable | Behaves as squirrel. |
+
+A brush that is running dry, moving fast, or carrying thick paint parts into clumps and leaves streaks along the stroke. A full brush presses paint along less than a damp one does. A flat head always meets the paper square to its direction of travel.
 
 ## Paints
 

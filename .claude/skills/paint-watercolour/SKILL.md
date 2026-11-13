@@ -59,8 +59,36 @@ The commonest failure is building shapes from many small strokes. They come out 
 
 - **Size the brush to the shape.** `size` is the radius in pixels, so a band 20 pixels deep is one stroke of a size 10 brush, not six strokes of a size 3.
 - **Use pressure to shape the stroke.** Each point is `[x, y, pressure]`. A round brush is a fifth of its width at no pressure and full width at 1.0, so `[[x0,y0,0.3],[x1,y1,1.0],[x2,y2,0.4]]` with `"smooth": true` swells and tapers like a leaf. This is where expression comes from.
-- **Choose the brush for its edge.** The mop lays soft broad washes. The round does most things. The flat has a chisel edge: its strokes end square, so one flat stroke makes a crisp-cornered plane (a wall, a shadow, a band of colour). The rigger draws lines.
+- **Choose the head for its edge.** The mop lays soft broad washes. The round does most things. The flat has a chisel edge: its strokes end square, so one flat stroke makes a crisp-cornered plane (a wall, a shadow, a band of colour). A filbert ends in a curve, an angular head on a slant, a comber draws several lines at once, and the rigger draws one.
+- **Choose the hair for how far it must carry.** Squirrel holds more than twice what sable does and leaves a soft edge, so it suits washes; sable keeps a point and a crisp edge; a golden synthetic runs dry and streaks soonest, which is useful for dry-brush and a nuisance for a wash.
 - **Vary neighbouring marks.** A row of identical touches reads as a pattern. Change length, direction, pressure and colour from one touch to the next when painting foliage or rock.
+
+## Pressure and speed, head by head
+
+A stroke has two controls beyond its path: the pressure at each point, and one speed for the whole stroke. They do different jobs, and the head decides how much each one matters.
+
+**Pressure sets the width.** How far a head narrows as you lighten it is the main thing that distinguishes one shape from another:
+
+| Narrowest, as a share of full width | Heads | So use pressure to |
+|---|---|---|
+| about 5 to 10% | `sword`, `designer` | Draw: a hairline that opens into a broad stroke and closes again. |
+| about 20 to 30% | `round`, `dagger` | Shape leaves, petals, tapering branches and shadows in one stroke. |
+| about 40% | `spotter`, `rigger`, `extended_point`, `cats_tongue` | Vary a line's weight without losing it. |
+| about 70 to 75% | `mop`, `oval_wash`, `filbert` | Soften the start and end of a stroke; the body stays broad. |
+| 85% and above | `flat`, `bright`, `angular`, `hake`, `flat_wash`, `comber`, `fan`, `stippler` | Almost nothing. These hold their width; choose the size you want and keep pressure steady. |
+
+Light pressure also lays less water and lets the brush skip on the grain; firm pressure closes the hairs and presses wet paint along in the direction of travel.
+
+**Speed sets how much paint the stroke leaves, and whether it breaks.** It is a gentler control than pressure:
+
+- A slow stroke (about 50 pixels per second) leaves roughly a third more paint than a fast one, so it dries darker and wetter. Use it where you want a full, even passage.
+- Up to about 250 there is little visible difference with a well-loaded brush.
+- At about 500 the stroke starts to break up, and how much depends on the head. Thin, long or gapped heads go first: `designer`, `dagger`, `sword`, `rigger` and `comber` skip and scatter at their ends. Broad full heads (`round`, `flat`, `filbert`, `mop`) stay solid until they are also running dry.
+- For a large wash, speed matters for a different reason: the wash must be finished before its first rows lose their shine. Go fast (250 to 300) with a mop or flat wash and it will not break.
+
+**For dry-brush, do not rely on speed alone.** A broken, sparkling mark comes far more readily from a brush loaded with little water (0.3 or so), from strong paint, or from a hair that runs dry quickly (`golden_synthetic`, `badger`) than from hurrying a full sable.
+
+**What you cannot do yet.** A stroke has no angle of attack and no twist. You cannot lay the brush over to drag its side, and a flat head always meets the paper square to its direction of travel, so to turn a flat edge you change the direction of the stroke. Speed is also fixed for a whole stroke: to slow down for part of a passage, split it into two strokes.
 
 ## Paint strength and the brush load
 

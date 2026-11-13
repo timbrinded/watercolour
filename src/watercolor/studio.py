@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import torch
 from torch import Tensor
 
-from .brushes import BRUSH_TYPES, STRONGEST_CONCENTRATION, Brush, Path, arrange_hairs, trace_path
+from .brushes import BRUSH_TYPES, HAIRS, STRONGEST_CONCENTRATION, Brush, Path, arrange_hairs, trace_path
 from .pigments import PIGMENTS
 from .recording import FrameRecorder
 from .rendering import render, to_image
@@ -75,7 +75,13 @@ class Studio:
     # ---------------------------------------------------------------- actions
 
     def load_brush(
-        self, type_name: str, size: float, pigments: dict[str, float], water: float, rinse: bool = True
+        self,
+        type_name: str,
+        size: float,
+        pigments: dict[str, float],
+        water: float,
+        rinse: bool = True,
+        hair: str = "",
     ) -> None:
         """Charge the brush with a mix; without rinsing, the mix joins what the brush already holds."""
         # What the brush picks up differs a little from what was asked for, repeatably for this painting.
@@ -87,11 +93,12 @@ class Studio:
             min(float(pigments.get(name, 0.0)) * pigment_share, STRONGEST_CONCENTRATION) for name in self.palette
         ]
         # The hairs settle differently each time the brush is charged.
-        brush = Brush(type_name, size, concentration, reservoir=0.0, hairs=arrange_hairs(size, chance.getrandbits(32)))
+        hairs = arrange_hairs(size, chance.getrandbits(32))
+        brush = Brush(type_name, size, concentration, reservoir=0.0, hairs=hairs, hair=hair)
         brush.reservoir = min(water * water_share, 1.0) * brush.capacity
         held = self.brush
         if not rinse and held is not None:
-            if (held.type_name, held.size) != (type_name, size):
+            if (held.type_name, held.size, held.hair) != (type_name, size, hair):
                 raise ValueError("a different brush must be loaded with a rinse")
             total = held.reservoir + brush.reservoir
             if total > 0:
@@ -175,10 +182,12 @@ class Studio:
 
 
 def validate_brush_request(
-    type_name: str, size: float, pigments: dict[str, float], water: float, palette: list[str]
+    type_name: str, size: float, pigments: dict[str, float], water: float, palette: list[str], hair: str = ""
 ) -> None:
     if type_name not in BRUSH_TYPES:
         raise ValueError(f"unknown brush {type_name!r}; available: {', '.join(BRUSH_TYPES)}")
+    if hair and hair not in HAIRS:
+        raise ValueError(f"unknown hair {hair!r}; available: {', '.join(HAIRS)}")
     if not 0.5 <= size <= 80:
         raise ValueError("brush size must be between 0.5 and 80 pixels")
     if not 0.0 <= water <= 1.0:

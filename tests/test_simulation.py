@@ -179,3 +179,49 @@ def test_stroke_on_dry_paper_dries_darker_at_its_edge(studio: Studio) -> None:
     studio.dry()
     across = studio.sheets["painting"].deposited[1, 48:80, 36:92].mean(dim=1)
     assert float(across[:6].max()) > 1.15 * float(across[12:20].mean())
+
+
+def laid_water(studio: Studio, kind: str, hair: str = "") -> torch.Tensor:
+    """Water left by one level stroke of a full brush, from x = 40 to x = 88 at y = 64."""
+    sheet = studio.sheets["painting"]
+    for field in (sheet.water, sheet.saturation, sheet.suspended, sheet.deposited):
+        field.zero_()
+    studio.load_brush(kind, 10, {"french_ultramarine": 1.0}, 1.0, hair=hair)
+    studio.stroke("painting", [[40, 64, 1.0], [88, 64, 1.0]], 120, smooth=False)
+    return sheet.water.clone()
+
+
+def test_shape_of_the_head_sets_how_a_stroke_ends(studio: Studio) -> None:
+    # Every flat head once ended the same way. Just past the end of the stroke, at the corner
+    # of the head: a square end reaches it, a rounded end does not, and a slanted end reaches
+    # it on one side of the stroke only.
+    upper, lower = (64 - 9, 90), (64 + 9, 90)
+    flat = laid_water(studio, "flat")
+    assert float(flat[upper]) > 0.1 and float(flat[lower]) > 0.1
+    filbert = laid_water(studio, "filbert")
+    assert float(filbert[upper]) < 0.5 * float(flat[upper]) and float(filbert[lower]) < 0.5 * float(flat[lower])
+    angular = laid_water(studio, "angular")
+    assert (float(angular[upper]) > 0.1) != (float(angular[lower]) > 0.1)
+
+
+def test_comber_leaves_bare_lines_even_when_full(studio: Studio) -> None:
+    # A comber's hairs stand apart whatever it holds; a flat brush of the same size lays an unbroken band.
+    def emptiest_line(kind: str) -> float:
+        across = laid_water(studio, kind)[56:73, 48:80].mean(dim=1)
+        return float(across.min() / across.max())
+
+    assert emptiest_line("flat") > 0.6
+    assert emptiest_line("comber") < 0.3
+
+
+def test_squirrel_carries_a_wash_further_than_synthetic(studio: Studio) -> None:
+    # The hair decides how much water a brush of a given size holds, and so how far it paints.
+    def left_in_brush(hair: str) -> float:
+        laid_water(studio, "round", hair)
+        brush = studio.brush
+        assert brush is not None
+        for _ in range(4):
+            studio.stroke("painting", [[20, 30, 1.0], [108, 30, 1.0]], 120, smooth=False)
+        return brush.fullness
+
+    assert left_in_brush("squirrel") > left_in_brush("red_sable") > left_in_brush("golden_synthetic")

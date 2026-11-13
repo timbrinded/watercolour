@@ -155,7 +155,7 @@ class Session:
         strokes = self.strokes_used
         paint_applied = self.paint_applied
         held = self.studio.brush
-        brush_in_hand = (held.type_name, held.size) if held else None
+        brush_in_hand = (held.type_name, held.size, held.hair) if held else None
         for number, action in enumerate(actions, start=1):
             try:
                 kind = action["action"]
@@ -169,10 +169,16 @@ class Session:
                 if kind in ("stroke", "blot", "pencil", "erase") and not action["path"]:
                     raise ValueError("path is empty")
                 if kind == "load":
+                    hair = action.get("hair", "")
                     validate_brush_request(
-                        action["brush"], action["size"], action.get("pigments", {}), action["water"], config.palette
+                        action["brush"],
+                        action["size"],
+                        action.get("pigments", {}),
+                        action["water"],
+                        config.palette,
+                        hair,
                     )
-                    requested = (action["brush"], action["size"])
+                    requested = (action["brush"], action["size"], hair)
                     if not action.get("rinse", True) and brush_in_hand not in (None, requested):
                         raise ValueError("a different brush must be loaded with a rinse")
                     brush_in_hand = requested
@@ -227,7 +233,12 @@ class Session:
         sheet = action.get("sheet", "painting")
         if kind == "load":
             studio.load_brush(
-                action["brush"], action["size"], action.get("pigments", {}), action["water"], action.get("rinse", True)
+                action["brush"],
+                action["size"],
+                action.get("pigments", {}),
+                action["water"],
+                action.get("rinse", True),
+                action.get("hair", ""),
             )
         elif kind == "stroke":
             studio.stroke(
@@ -295,6 +306,7 @@ class Session:
             if brush is None
             else {
                 "type": brush.type_name,
+                "hair": brush.hair_type.name,
                 "size": brush.size,
                 "water_remaining": round(brush.fullness, 2),
                 "pigments": {n: c for n, c in zip(studio.palette, brush.concentration) if c > 0},

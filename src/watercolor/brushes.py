@@ -12,7 +12,45 @@ Path = Sequence[Sequence[float]]
 
 
 @dataclass(frozen=True)
+class Hair:
+    """What a brush is made of. Every value is relative to red sable."""
+
+    name: str
+    holding: float  # water the hair holds
+    release: float  # how freely it gives that water up to the paper
+    softness: float  # softness it adds to the edge of a mark, as a fraction of the radius
+    spring: float  # how firmly the hairs recover and carry wet paint along
+    firmness: float  # how much they disturb pigment already settled on the paper
+    clumping: float  # how readily they part into clumps as the brush runs dry
+    point: float  # how fine a point the hair takes, which scales how far the brush narrows
+
+
+# The maker's descriptions give the order of these properties (Kolinsky holds the most and takes
+# the finest point; red sable holds more than golden synthetic; squirrel and goat are soft hairs
+# for washes). The numbers themselves are estimates.
+HAIRS: dict[str, Hair] = {
+    hair.name: hair
+    for hair in (
+        Hair("kolinsky_sable", holding=1.15, release=1.0, softness=0.0, spring=1.05, firmness=1.0, clumping=0.85, point=1.05),
+        Hair("red_sable", holding=1.0, release=1.0, softness=0.0, spring=1.0, firmness=1.0, clumping=1.0, point=1.0),
+        Hair("sable_blend", holding=0.85, release=0.95, softness=0.0, spring=1.05, firmness=1.5, clumping=1.15, point=0.95),
+        Hair("squirrel", holding=2.2, release=1.3, softness=0.15, spring=0.33, firmness=0.2, clumping=0.6, point=0.95),
+        Hair("goat", holding=1.8, release=1.3, softness=0.2, spring=0.25, firmness=0.4, clumping=1.0, point=0.5),
+        Hair("badger", holding=0.6, release=0.7, softness=0.1, spring=0.7, firmness=2.0, clumping=1.5, point=0.3),
+        Hair("golden_synthetic", holding=0.7, release=1.1, softness=0.0, spring=1.15, firmness=2.4, clumping=1.35, point=0.95),
+        Hair("synthetic_sable", holding=0.9, release=1.0, softness=0.0, spring=1.05, firmness=1.6, clumping=1.1, point=1.0),
+        Hair("synthetic_squirrel", holding=1.8, release=1.25, softness=0.12, spring=0.45, firmness=0.4, clumping=0.7, point=0.95),
+    )
+}  # fmt: skip
+
+
+@dataclass(frozen=True)
 class BrushType:
+    """The shape of a brush's head: its section, the length of its hair and the form of its end.
+
+    The values are for a head of red sable; the hair it is actually made of scales them.
+    """
+
     name: str
     softness: float  # soft edge as a fraction of the radius
     taper: float  # how far the width shrinks as pressure falls to zero
@@ -21,18 +59,39 @@ class BrushType:
     firmness: float  # how much the hairs disturb pigment already on the paper
     sweep: float  # share of the brush's speed imparted to wet paint, at full pressure with an empty brush
     clumping: float  # how readily the hairs part into clumps as the brush runs dry
-    tip: float = 1.0  # depth of the tip along its travel as a fraction of its radius; a flat brush has a chisel edge
+    tip: float = 1.0  # depth of the tip along its travel as a fraction of its radius; below 1.0 it is a flat head
+    rounded: bool = False  # a flat head with a rounded end, as a filbert has
+    slant: float = 0.0  # how far the end of a flat head is cut at an angle, as a fraction of its width
+    gaps: float = 0.0  # share of the width where the hairs never meet the paper, as in a fan or a comber
+    hair: str = "red_sable"  # what a head of this shape is usually made of
 
 
 BRUSH_TYPES: dict[str, BrushType] = {
     brush.name: brush
     for brush in (
-        BrushType("round", softness=0.12, taper=0.8, holding=1.0, depth=1.0, firmness=0.05, sweep=0.9, clumping=0.6),
-        BrushType(
-            "flat", softness=0.06, taper=0.1, holding=1.0, depth=0.9, firmness=0.15, sweep=0.95, clumping=1.0, tip=0.3
-        ),
-        BrushType("mop", softness=0.35, taper=0.3, holding=2.5, depth=1.3, firmness=0.01, sweep=0.3, clumping=0.35),
-        BrushType("rigger", softness=0.2, taper=0.6, holding=2.0, depth=0.8, firmness=0.02, sweep=0.6, clumping=0.2),
+        # Round heads, from short to long.
+        BrushType("spotter", 0.10, 0.60, 0.45, 0.90, 0.08, 1.00, 0.60),
+        BrushType("round", 0.12, 0.80, 1.00, 1.00, 0.05, 0.90, 0.60),
+        BrushType("designer", 0.12, 0.90, 1.10, 0.95, 0.04, 0.75, 0.50),
+        BrushType("rigger", 0.20, 0.60, 2.00, 0.80, 0.02, 0.60, 0.20),
+        BrushType("extended_point", 0.20, 0.55, 3.20, 0.85, 0.02, 0.55, 0.20),
+        BrushType("mop", 0.20, 0.316, 1.136, 1.00, 0.05, 0.909, 0.583, hair="squirrel"),
+        BrushType("stippler", 0.15, 0.20, 0.30, 0.60, 0.25, 1.00, 1.00, gaps=0.6, hair="badger"),
+        # Flat heads with a square end.
+        BrushType("flat", 0.06, 0.10, 1.00, 0.90, 0.15, 0.95, 1.00, tip=0.3),
+        BrushType("bright", 0.06, 0.08, 0.60, 0.85, 0.20, 1.00, 1.00, tip=0.35),
+        BrushType("flat_wash", 0.15, 0.10, 0.90, 1.10, 0.05, 0.90, 0.70, tip=0.3, hair="squirrel"),
+        BrushType("hake", 0.10, 0.05, 1.00, 1.10, 0.05, 0.90, 0.90, tip=0.2, hair="goat"),
+        BrushType("comber", 0.08, 0.10, 0.70, 0.85, 0.12, 0.95, 1.00, tip=0.3, gaps=0.5),
+        BrushType("fan", 0.20, 0.05, 0.35, 0.70, 0.10, 0.90, 1.00, tip=0.12, gaps=0.45),
+        # Flat heads cut at an angle.
+        BrushType("angular", 0.06, 0.15, 0.90, 0.90, 0.12, 0.95, 0.90, tip=0.3, slant=0.5),
+        BrushType("dagger", 0.08, 0.75, 1.20, 0.90, 0.06, 0.80, 0.60, tip=0.3, slant=0.6, hair="sable_blend"),
+        BrushType("sword", 0.10, 0.90, 1.60, 0.90, 0.03, 0.60, 0.40, tip=0.3, slant=0.8, hair="kolinsky_sable"),
+        # Flat heads with a rounded end.
+        BrushType("filbert", 0.10, 0.25, 1.00, 0.95, 0.10, 0.90, 0.80, tip=0.45, rounded=True),
+        BrushType("cats_tongue", 0.10, 0.60, 1.00, 0.95, 0.08, 0.90, 0.70, tip=0.45, rounded=True),
+        BrushType("oval_wash", 0.20, 0.30, 0.60, 1.10, 0.04, 0.90, 0.60, tip=0.5, rounded=True, hair="squirrel"),
     )
 }
 
@@ -53,10 +112,23 @@ class Brush:
     concentration: list[float]  # pigment per unit of water, in palette order
     reservoir: float  # water remaining
     hairs: list[float]  # how closely the hairs hold together at each position across the brush, in [0, 1]
+    hair: str = ""  # what the head is made of; empty means the usual hair for its shape
 
     @property
     def brush_type(self) -> BrushType:
         return BRUSH_TYPES[self.type_name]
+
+    @property
+    def hair_type(self) -> Hair:
+        return HAIRS[self.hair or self.brush_type.hair]
+
+    @property
+    def taper(self) -> float:
+        return min(0.95, self.brush_type.taper * self.hair_type.point)
+
+    @property
+    def clumping(self) -> float:
+        return self.brush_type.clumping * self.hair_type.clumping
 
     @property
     def solids(self) -> float:
@@ -67,38 +139,48 @@ class Brush:
     @property
     def capacity(self) -> float:
         """Water the brush can hold. Strong paint leaves less room for it."""
-        return CAPACITY_PER_SQUARE_RADIUS * self.size**2 * self.brush_type.holding * (1.0 - self.solids) ** 1.5
+        return (
+            CAPACITY_PER_SQUARE_RADIUS
+            * self.size**2
+            * self.brush_type.holding
+            * self.hair_type.holding
+            * (1.0 - self.solids) ** 1.5
+        )
 
     @property
     def fullness(self) -> float:
         return self.reservoir / self.capacity
 
     def radius(self, pressure: np.ndarray) -> np.ndarray:
-        return self.size * (1.0 - self.brush_type.taper * (1.0 - pressure))
+        return self.size * (1.0 - self.taper * (1.0 - pressure))
 
     def contact(self, pressure: float, speed: float) -> Contact:
-        kind = self.brush_type
+        kind, hair = self.brush_type, self.hair_type
         fullness = self.fullness
+        depth = kind.depth * hair.release
         haste = max(0.0, speed / 150.0 - 1.0)
         # Thick paint leaves a shallower film of water and catches on the grain of the paper.
         thin = 1.0 - self.solids
+        # A brush with water in it is held to a single body. As it runs dry, or is hurried,
+        # or carries thick paint, the hairs part; pressing them to the paper closes them a little.
+        parting = min(0.9, max(0.0, 0.95 - 2.0 * fullness + 0.25 * haste + 0.6 * self.solids - 0.2 * pressure))
         return Contact(
-            softness=kind.softness,
+            softness=min(0.6, kind.softness + hair.softness),
             tip=kind.tip,
-            target_depth=kind.depth * fullness**0.6 * (0.6 + 0.4 * pressure) * (0.4 + 0.6 * thin),
+            rounded=kind.rounded,
+            slant=kind.slant,
+            target_depth=depth * fullness**0.6 * (0.6 + 0.4 * pressure) * (0.4 + 0.6 * thin),
             # However dry or thick, a brush pressed to the paper still catches the highest grain.
             contact_level=max(0.15, 0.1 + 1.8 * fullness + 0.2 * pressure - 0.15 * haste - 2.2 * self.solids**2),
             exchange=0.5 * min(1.0, 2.0 * fullness),
-            scrub=kind.firmness,
-            release=0.08 * kind.depth * fullness * (0.5 + 0.5 * pressure) * thin,
+            scrub=min(0.6, kind.firmness * hair.firmness),
+            release=0.08 * depth * fullness * (0.5 + 0.5 * pressure) * thin,
             thirst=0.4 * (1.0 - fullness),
             # A full brush rides on its own bead of paint; a damp one pressed to the paper sweeps it along.
-            push=kind.sweep * (0.3 + 0.7 * pressure) * (1.0 - 0.7 * fullness),
-            # A brush with water in it is held to a single body. As it runs dry, or is hurried,
-            # or carries thick paint, the hairs part; pressing them to the paper closes them a little.
-            splay=kind.clumping
-            * min(0.9, max(0.0, 0.95 - 2.0 * fullness + 0.25 * haste + 0.6 * self.solids - 0.2 * pressure)),
-            streaking=0.3 * kind.clumping,
+            push=min(1.0, kind.sweep * hair.spring) * (0.3 + 0.7 * pressure) * (1.0 - 0.7 * fullness),
+            # A fan or a comber has gaps between its hairs however full it is.
+            splay=min(0.9, max(kind.gaps, self.clumping * parting)),
+            streaking=min(0.5, 0.3 * self.clumping),
         )
 
 

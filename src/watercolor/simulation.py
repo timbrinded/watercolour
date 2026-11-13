@@ -69,6 +69,8 @@ class Contact:
 
     softness: float  # width of the soft edge as a fraction of the radius
     tip: float  # depth of the brush's tip along its travel, as a fraction of its radius; 1.0 is a round tip
+    rounded: bool  # whether a flat head ends in a curve, as a filbert does, and not square
+    slant: float  # how far the end of a flat head is cut at an angle, as a fraction of its width
     target_depth: float  # water depth the brush tries to leave behind
     contact_level: float  # below about 1.0 the brush touches only the paper's peaks
     exchange: float  # how strongly the brush mixes with paint already on the sheet
@@ -533,14 +535,16 @@ class Sheet:
         irregular: bool = False,
         margin: float = 0.0,
         tip: float = 1.0,
+        rounded: bool = False,
+        slant: float = 0.0,
     ) -> tuple[slice, slice, Tensor]:
         """Soft coverage in [0, 1] of a swept path of circles, within its bounding box.
 
         An irregular edge follows the grain and the undulation of the sheet, as a wet edge does.
-        A tip shallower than 1.0 is a chisel edge: the mark ends square, not round, and a brush
-        held still leaves a bar across the sheet.
+        A tip shallower than 1.0 is a flat head: the mark ends square (or in a curve if rounded, or
+        at an angle if slanted) and a brush held still leaves a bar across the sheet.
         """
-        reach = float(radii.max()) + 2.0 + margin
+        reach = float(radii.max()) * (1.0 + abs(slant)) + 2.0 + margin
         x0 = max(int(float(points[:, 0].min()) - reach), 0)
         x1 = min(int(float(points[:, 0].max()) + reach) + 1, self.width)
         y0 = max(int(float(points[:, 1].min()) - reach), 0)
@@ -559,10 +563,14 @@ class Sheet:
         fraction = position.clamp(0, 1)
         distance = (offset - fraction[..., None] * along).norm(dim=-1)
         if tip < 1.0:
+            # Across the head, signed, and along the stroke in pixels. A slanted end moves along
+            # the stroke in proportion to the position across it.
+            across = (along[..., 0] * offset[..., 1] - along[..., 1] * offset[..., 0]) / (length + 1e-9)
+            travelled = position * length + slant * across
+            fraction = (travelled / (length + 1e-9)).clamp(0, 1)
             # Beyond either end of a segment the mark reaches only as far as the tip is deep.
-            beyond = (position - fraction).abs() * length
-            sideways = (offset - position[..., None] * along).norm(dim=-1)
-            distance = torch.maximum(sideways, beyond / tip)
+            beyond = (travelled - travelled.clamp(min=0).minimum(length)).abs() / tip
+            distance = torch.hypot(across, beyond) if rounded else torch.maximum(across.abs(), beyond)
         radius = radii[:-1, None, None] + fraction * (radii[1:, None, None] - radii[:-1, None, None])
         if irregular:
             roughness = (radius / 8.0).clamp(max=1.0) * 2.0  # fine marks keep a clean edge
@@ -589,7 +597,14 @@ class Sheet:
         travel = points[-1] - points[0]
         distance = float(travel.norm())
         rows, columns, coverage = self._coverage(
-            points, radii, contact.softness, irregular=True, margin=distance, tip=contact.tip
+            points,
+            radii,
+            contact.softness,
+            irregular=True,
+            margin=distance,
+            tip=contact.tip,
+            rounded=contact.rounded,
+            slant=contact.slant,
         )
         if coverage.numel() == 0:
             return 0.0, torch.zeros_like(concentration)

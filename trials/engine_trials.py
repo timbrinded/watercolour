@@ -14,6 +14,7 @@ from pathlib import Path
 import torch
 from PIL import Image, ImageDraw
 
+from watercolor.brushes import BRUSH_TYPES, HAIRS
 from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
 from watercolor.rendering import render, render_view, to_image
@@ -456,7 +457,7 @@ def paint_strength(studio: Studio) -> None:
     studio.dry()
 
 
-SIZES = {"lighthouse_study": 640}
+SIZES = {"lighthouse_study": 640, "brush_shapes": 640, "brush_hairs": 640}
 
 
 def wet_edges(studio: Studio) -> None:
@@ -488,13 +489,48 @@ def bristle_marks(studio: Studio) -> None:
     studio.dry()
 
 
+CHART_MIX = {"french_ultramarine": 1.2, "burnt_sienna": 1.0}
+CHART_ROW = 32
+
+
+def brush_shapes(studio: Studio) -> None:
+    """Every shape of brush head in its usual hair: a pressed stroke, a dab, and a stroke from a nearly dry brush."""
+    for row, kind in enumerate(BRUSH_TYPES):
+        y = 22 + CHART_ROW * row
+        studio.load_brush(kind, 9, CHART_MIX, 1.0)
+        studio.stroke("painting", [[120, y, 0.15], [250, y - 5, 1.0], [390, y + 3, 0.25]], 120, smooth=True)
+        studio.load_brush(kind, 9, CHART_MIX, 1.0)
+        studio.stroke("painting", [[440, y]], 100, smooth=False, dwell=0.4)
+        studio.load_brush(kind, 9, CHART_MIX, 0.3)
+        studio.stroke("painting", [[490, y, 0.8], [625, y, 0.8]], 160, smooth=False)
+    studio.dry()
+
+
+def brush_hairs(studio: Studio) -> None:
+    """One round brush in every hair, drawn out and back until it runs dry: how far each carries its paint."""
+    for row, hair in enumerate(HAIRS):
+        y = 30 + 66 * row
+        studio.load_brush("round", 9, CHART_MIX, 1.0, hair=hair)
+        for line in range(3):
+            ends = (120, 625) if line % 2 == 0 else (625, 120)
+            studio.stroke("painting", [[ends[0], y + 18 * line, 0.8], [ends[1], y + 18 * line, 0.8]], 140, smooth=False)
+    studio.dry()
+
+
+# Trials that are charts: each row of the sheet is labelled with the name of what was used on it.
+CHART_LABELS: dict[str, tuple[int, int, list[str]]] = {
+    "brush_shapes": (22, CHART_ROW, list(BRUSH_TYPES)),
+    "brush_hairs": (30, 66, list(HAIRS)),
+}
+
+
 TRIALS: dict[str, Callable[[Studio], None]] = {
     trial.__name__: trial
     for trial in (
         flat_wash, graded_wash, wet_in_wet, wet_on_dry_beside_wet, glaze,
         backrun, dry_brush, granulation, lifting, brush_marks, loose_pools, softened_edge, lighthouse_study,
         dabs_into_clear_water, dabs_into_pale_wash, dabs_into_moist_wash, thick_and_thin_dabs, layered_dabs,
-        brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks,
+        brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs,
     )
 }  # fmt: skip
 
@@ -513,6 +549,10 @@ def main() -> None:
         for name, studio in zip(group, studios):
             sheet = studio.sheets["painting"]
             pictures[name] = to_image(render(sheet))
+            if name in CHART_LABELS:
+                first, spacing, labels = CHART_LABELS[name]
+                for row, label in enumerate(labels):
+                    ImageDraw.Draw(pictures[name]).text((6, first + spacing * row - 5), label, fill="black")
             pictures[name].save(OUTPUT / f"{name}.png")
             print(f"{name:24s} simulated {studio.clock:7.1f} s, pigment on paper {float(sheet.deposited.sum()):9.1f}")
             if name == "wet_in_wet":
