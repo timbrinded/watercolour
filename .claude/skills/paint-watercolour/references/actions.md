@@ -90,7 +90,7 @@ A brush that is running dry, moving fast, or carrying thick paint parts into clu
 | `ivory_black` | black | use sparingly, in mixes |
 | `opaque_white` | covering white | for final lights only |
 
-Granulating paints settle into the grain of the paper and look speckled in a wash. Staining paints sink in and will not lift.
+Granulating paints settle into the grain of the paper and look speckled in a wash; in a film of water deeper than about 0.6 (a wash laid twice, a deep sky) they gather into distinct dark specks. Staining paints sink in and will not lift.
 
 ## Looking
 

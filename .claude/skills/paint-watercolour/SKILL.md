@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.5.0"
+  version: "0.5.1"
 ---
 
 # Painting with the watercolour harness
@@ -42,19 +42,23 @@ watercolor finish paintings/<name>              # dries, exports painting.png an
 - `paint` checks the whole pass before any of it touches the sheet. A pass with a mistake in it is refused whole, so a refusal costs nothing.
 - `look` is free and changes nothing. Look after every pass, and always Read the image: you cannot judge a wash from the numbers you sent.
 - Coordinates are pixels, x to the right and y downward, origin top left.
-- Painting takes real time: a full sheet of this size is seven to nine minutes of computing across its passes. Run long passes in the background.
+- Painting takes real time: about half a second of computing for every second painted on a sheet of this size with a graphics card, and `dry` and `finish` each paint five minutes or more. A pass that ends in `dry` therefore takes three to five minutes.
+- **Never let a `paint` or `finish` command be cut short.** A pass killed part-way, by a tool's timeout or by you, leaves the painting unusable: every later command is refused with `the saved state does not match the last checkpoint in the log`, and the only way on is a new directory with everything painted again. Give these two commands a timeout of at least ten minutes, or run them in the background and wait for them to end before doing anything else with that painting. Never run two commands on one painting at once.
 
 ## Plan before the first stroke
 
 You get one go at each passage, so decide these first:
 
-1. **The value plan.** Where is the lightest light, which is bare paper, and where is the darkest dark? Three or four values are enough.
-2. **The order.** Pale and broad first, dark and small last: drawing, big light washes, middle shapes, darks, fine detail, then opaque white for the few lights you could not save.
-3. **The layout, in numbers.** Write down the coordinates of the main shapes before painting. If you are working from a reference, measure it (put a labelled grid over it) rather than judging by eye; by-eye layouts drift further than you expect.
-4. **What stays white.** There is no masking fluid. A white shape is made by painting around it, so the washes next to it must be planned to stop at its edge.
-5. **How few strokes will carry it.** Aim for roughly 50 to 75 strokes for a single subject, with 15 to 20 in the first wet wash. Look after that base pass: if the light and big values do not already read, adding a hundred small strokes on top will only muddy the sheet.
+1. **The idea, in a sentence.** What the picture is of (its subject, what the subject is doing or holding, what lies behind), the feeling it should carry, and the one manner it will be painted in. Everything after this is judged against that sentence, and detail that does not serve it is left out.
+2. **A few paints.** Choose three to five pigments and start the painting with `--palette` naming only those (plus `opaque_white` if you will need final lights), so nothing else can be loaded. Every mix then comes from the same few paints and the picture holds together. A different pigment for each object does the opposite.
+3. **The size of the sheet.** Give the focal subject enough pixels. A face needs to be about 200 pixels across before eyes and a mouth can be painted into it; at 90 it cannot hold them. If the thing that matters most would come out smaller than that, use a larger sheet or crop closer.
+4. **The value plan.** Where is the lightest light, which is bare paper, and where is the darkest dark? Three or four values are enough.
+5. **The order.** Pale and broad first, dark and small last: drawing, big light washes, middle shapes, darks, fine detail, then opaque white for the few lights you could not save.
+6. **The layout, in numbers.** Write down the coordinates of the main shapes before painting. If you are working from a reference, measure it (put a labelled grid over it) rather than judging by eye; by-eye layouts drift further than you expect.
+7. **What stays white.** There is no masking fluid. A white shape is made by painting around it, so the washes next to it must be planned to stop at its edge.
+8. **How few strokes will carry it.** Aim for roughly 50 to 75 strokes for a single subject, with 15 to 20 in the first wet wash. Look after that base pass: if the light and big values do not already read, adding a hundred small strokes on top will only muddy the sheet.
 
-If the session has a scrap sheet, try any mix or stroke you are unsure of there first (`"sheet": "scrap"`). It does not count against the stroke budget.
+**Rehearse the hard passage before the sheet that matters.** Paint the one or two things you are least sure of (an eye, a hand, the sky, a blend of two colours) on small sheets of their own, as many times as it takes to get them. A study costs a few minutes; a passage that fails on the full sheet costs the sheet. For a single mix or stroke, the scrap sheet is enough (`"sheet": "scrap"`); it does not count against the stroke budget.
 
 ## Water is the clock
 
@@ -90,7 +94,14 @@ The commonest failure is building shapes from many small strokes. They come out 
 - **Use pressure to shape the stroke.** Each point is `[x, y, pressure]`. A round brush is a fifth of its width at no pressure and full width at 1.0, so `[[x0,y0,0.3],[x1,y1,1.0],[x2,y2,0.4]]` with `"smooth": true` swells and tapers like a leaf. When glazing on dry paper, start and end at light pressure (`0.10` to `0.15` on a `cats_tongue`, `sword`, or `round`) so the ends feather to a point rather than stamp a bevel. This is where expression comes from.
 - **Choose the head for its edge.** The mop lays soft broad washes. The round does most things. The flat has a chisel edge: its strokes end square, so one flat stroke makes a crisp-cornered plane (a wall, a shadow, a band of colour). A filbert ends in a curve, an angular head on a slant, a comber draws several lines at once, and the rigger draws one.
 - **Choose the hair for how far it must carry.** Squirrel holds more than twice what sable does and leaves a soft edge, so it suits washes; sable keeps a point and a crisp edge; a golden synthetic runs dry and streaks soonest, which is useful for dry-brush and a nuisance for a wash.
-- **Vary neighbouring marks.** A row of identical touches reads as a pattern. Change length, direction, pressure and colour from one touch to the next when painting foliage or rock.
+- **Vary neighbouring marks.** A row of identical touches reads as a pattern. Change length, direction, pressure and colour from one touch to the next when painting foliage or rock. Vary their spacing as well: towers, posts or trees set at even intervals read as a fence, where overlapping some and leaving wider gaps between others reads as a place.
+
+## Edges, and what makes a thing read
+
+- **Hard edges belong to things; soft edges belong to light.** The outline of an object, the overlap of one thing in front of another and a cast shadow get a crisp edge, laid on dry paper. Shadow turning round a form, distance and air get a soft one, laid wet-in-wet or softened along one side. A tonal map of a photograph shows where the shadow is, not where the hard edges go: painted as hard-edged islands of tone it gives a picture by numbers.
+- **Neighbouring things meet.** Where two objects touch, their washes touch or overlap. A hairline of paper between two shapes is fine; a gap a brush wide reads as a hole, and white paper is for light, not for keeping things apart. When you inset a shape's path by the brush radius, inset it only where it borders bare paper.
+- **A group of small things is one wash first.** Roofs, stones, a skyline, a mass of foliage: lay one pale wash over the whole group, `dry`, then paint the darks between and beneath its members. Painted one at a time they keep white cracks between them, and patching the cracks afterwards leaves rings.
+- **A thing reads when it has a light side, a dark side and at least one crisp edge.** Soft pale washes everywhere read as mist, however well each is laid. Keep them for the distance, and give the foreground the strongest contrast, the hardest edges and the roughest texture (dry-brush set against smooth wash).
 
 ## The stroke as a journey
 
@@ -167,16 +178,18 @@ Give every point a time `t` in seconds, or give none. With none, the brush trave
 ## Techniques that work here
 
 - **Graded wash:** rows from the top, each load a little weaker (or warmer) than the last, all laid before the first loses its shine.
+- **A sky:** one wet pass from edge to edge, in three or four broad strokes of a large mop, strongest at the top, and then left alone. Going back to wet part of it again dries with a watermark across the sky. For a warm glow under the blue, lay that first as its own pale graded wash and `dry` it, so that the blue glazes over it and does not mix with it into green; then wet the whole sky with clear water and lay the blue into that. Clouds are lifted out of the wet wash with `blot` (radius about 60, their edges then softened with a mop drained to 0.55) or left as bare paper; clouds painted on as extra patches make a blotchy sky. French ultramarine and cerulean gather into specks in a wash this deep, so use cobalt blue where the sky should be smooth.
+- **Cutting in round a shape, then filling:** cut the edge with a small brush and flood the rest from it at once, a stretch at a time, while the cut edge still has a film on it (read it: 0.3 or more). An edge left to dry before the fill reaches it blooms at the join, and an edge tidied afterwards with strokes over dry paint dries with a darker tramline along it. Wetting the area with clear water first also works, but stop the water exactly at any contour that must stay crisp: carried past it, it turns that edge to fog.
 - **Soft edge on one side:** lay the stroke, then run a clean brush drained to about 0.45 (`"pigments": {}, "water": 0.45`) along the edge you want softened, just touching it. Repeat a little further out for a longer fade.
 - **Form on a cylinder or a box:** the shadow tone down the shadow side right to the edge, softened inward as above.
 - **Dark into wet (charging):** while a shape still has a film of 0.3 or more, touch a stronger mix into it with a brush drained to 0.6, in two or three strokes, and leave it to spread. Do not stir. Deeper film, further spread; see `references/wet-in-wet.md`.
 - **Several colours in one shape (a variegated wash):** lay the whole shape pale and deep, then each colour over its own part as patches that touch, then a few much stronger touches once the film is down to 0.3. The full method, with a leaf as its example, is in `references/wet-in-wet.md`.
 - **Varied masses (foliage, scrub):** many short touches of two or three related colours laid wet into each other, the outer ones from a nearly dry brush for a ragged edge.
-- **Gravity pooling and runs:** a gentle `tilt` (`0.05` to `0.08`) on a high-water pale wash (`"water": 0.80` to `0.84`) drains the sunlit upper edge airy while settling pigment cleanly toward the shadow side, often saving a separate clear-water grid pass. Tilts above `0.18` break into visible vertical runs and drips. Set the tilt back to zero before drying.
+- **Gravity pooling and runs:** a gentle `tilt` (`0.05` to `0.08`) on a high-water pale wash (`"water": 0.80` to `0.84`) drains the sunlit upper edge airy while settling pigment cleanly toward the shadow side, often saving a separate clear-water grid pass. Tilts above `0.18` break into visible vertical runs and drips. A tilt moves everything that is wet anywhere on the sheet, so tilt only while the passages that must stay put (a face, a crisp edge) are dry or not yet painted. Set the tilt back to zero before drying.
 - **Contact shadow into a wet ground wash:** sweep a fast `hake` ground stroke first and touch the darker contact shadow under feet, paws, or a base directly into it while it is still wet; laid onto dry paper later, a narrow contact line dries as an isolated grey worm.
 - **Lifting:** a brush drained to 0.2, twice along the same line while the film is between 0.3 and 0.1, takes off a third or more of the colour: veins, a highlight on water, the light side of a stem. `blot` takes up most of the water and loose pigment under it. Neither works once the film has gone.
 - **Fine lines:** a rigger of size about 1, moderate strength, full water. Reload for each line.
-- **Lights you could not reserve:** `opaque_white` at strength about 4.5, in two coats, as the very last thing. It is for glints and small figures, not for repairs.
+- **Lights you could not reserve:** `opaque_white` at strength about 4.5, in two coats, as the very last thing. It is for glints and small figures, not for repairs. A fine white line (a whisker, a thread) needs a rigger of size 1.3 or more and two coats, and even then it dries pale grey over a dark wash, not white; a finer brush or a single coat barely shows, and drawing it slowly does not help. Where a fine light matters, plan to leave it as paper.
 
 ## Faces, likeness and fine detail
 
@@ -195,8 +208,11 @@ After each pass, look, and ask in this order:
 2. Do the values read? Use `look --view value`. If the picture works in grey, colour will not sink it.
 3. Did the shape land where I planned? Use `look --region x0,y0,x1,y1 --grid` to read coordinates off the sheet.
 4. Is the next step still the one I planned, or has the painting changed what it needs?
+5. Does the sheet still say what the idea said: one subject, one manner, the feeling you meant?
 
 When something goes wrong you cannot remove it. You can glaze over it once dry, lose it in a darker shape, or accept it. Deciding which is part of painting; reaching for a fix that the medium does not have is not.
+
+The same holds across attempts. When a picture has been through several sheets, each answering the criticisms of the last, look at the newest one whole. Corrections applied one by one can leave a painting in which every fault was answered and nothing holds together: several manners at once, detail without a subject. Do not patch that again. Go back to the sentence you started with and paint a fresh sheet from it, keeping what the earlier sheets taught about how, and dropping what they accumulated.
 
 ## Before you finish
 
