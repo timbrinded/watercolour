@@ -1,6 +1,6 @@
 ---
 name: paint-watercolour
-description: Paint a watercolour with this repository's `watercolor` harness - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
+description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 ---
 
 # Painting with the watercolour harness
@@ -9,14 +9,24 @@ You are the painter. The harness gives you paper, water, pigment and brushes tha
 
 Read `references/actions.md` for the exact fields of every action, the brushes, and the paint box. This file is about how to paint well with them.
 
+## Getting the command
+
+The harness is the repository https://github.com/timbrinded/watercolour. Before painting, find out how to run it, in this order:
+
+1. If `watercolor --help` works, the command is installed; use it as written below, from any directory.
+2. If you are inside a clone of the repository (it has `src/watercolor/`), run `uv sync` once and put `uv run` before every command: `uv run watercolor ...`.
+3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
+
+A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
+
 ## The loop
 
 ```bash
-uv run watercolor new paintings/<name> --prompt "<the brief>" --size 768 --height 544
-uv run watercolor paint paintings/<name> pass.json     # a JSON list of actions
-uv run watercolor look paintings/<name> --grid         # then Read the picture it names
-uv run watercolor status paintings/<name>
-uv run watercolor finish paintings/<name>              # dries, exports painting.png and timelapse.mp4
+watercolor new paintings/<name> --prompt "<the brief>" --size 768 --height 544
+watercolor paint paintings/<name> pass.json     # a JSON list of actions
+watercolor look paintings/<name> --grid         # then Read the picture it names
+watercolor status paintings/<name>
+watercolor finish paintings/<name>              # dries, exports painting.png and timelapse.mp4
 ```
 
 - A painting is a directory and is never started over. A new attempt is a new directory.

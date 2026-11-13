@@ -6,34 +6,50 @@ It was built so that a language model can be given a brief, paint it, look at wh
 
 ![Engine trials: flat wash, graded wash, wet in wet, loose pools, dabs into a wash, wet edges and blooms, bristle marks, softened edge](docs/images/engine_trials.png)
 
-## Requirements
+## Install
 
-- Python 3.13 and [uv](https://docs.astral.sh/uv/)
-- PyTorch (installed by `uv sync`); a CUDA graphics card is used when present and makes painting several times faster
-- `ffmpeg` on the path, for the time-lapse
+You need Python 3.13 or newer, [uv](https://docs.astral.sh/uv/), and `ffmpeg` on the path for the time-lapse. PyTorch is installed with the package and is a download of several gigabytes the first time. A CUDA graphics card is used when present and makes painting several times faster.
+
+**To paint with it,** install the `watercolor` command for your user. It then works from any directory:
 
 ```bash
-uv sync
+uv tool install git+https://github.com/timbrinded/watercolour
 ```
+
+To try it once without installing anything:
+
+```bash
+uvx --from git+https://github.com/timbrinded/watercolour watercolor --help
+```
+
+**To work on it,** or to run the trials, the tests and the lighthouse study, clone the repository:
+
+```bash
+git clone https://github.com/timbrinded/watercolour && cd watercolour && uv sync
+```
+
+Inside a clone, put `uv run` before each command (`uv run watercolor ...`). The package is not on PyPI; install it from this repository.
+
+**To teach a model to paint with it,** copy the skill in [.claude/skills/paint-watercolour](.claude/skills/paint-watercolour) into `~/.claude/skills/`. It is found automatically when working inside a clone.
 
 ## Painting
 
 A painting lives in a directory. It is started once, painted in passes, looked at as often as wanted, and finished once.
 
 ```bash
-uv run watercolor new paintings/first --prompt "A tree on a hill at dusk" --size 512 --height 360
+watercolor new paintings/first --prompt "A tree on a hill at dusk" --size 512 --height 360
 ```
 
 ```bash
-uv run watercolor paint paintings/first actions.json
+watercolor paint paintings/first actions.json
 ```
 
 ```bash
-uv run watercolor look paintings/first --view wetness --grid
+watercolor look paintings/first --view wetness --grid
 ```
 
 ```bash
-uv run watercolor finish paintings/first
+watercolor finish paintings/first
 ```
 
 A pass is a JSON list of actions carried out in order:
@@ -84,6 +100,8 @@ The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface
 Sheets of the same size can be advanced together on one graphics card (`watercolor.together`), which is how the trials run.
 
 ## Trials and tests
+
+These need a clone of the repository.
 
 ```bash
 uv run python trials/engine_trials.py

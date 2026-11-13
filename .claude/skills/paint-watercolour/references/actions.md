@@ -3,7 +3,7 @@
 ## Starting a painting
 
 ```bash
-uv run watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--seed 0] \
+watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--seed 0] \
     [--palette name,name,...] [--stroke-budget 150] [--no-scrap] [--no-pencil]
 ```
 
@@ -94,7 +94,7 @@ Granulating paints settle into the grain of the paper and look speckled in a was
 ## Looking
 
 ```bash
-uv run watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] [--grid] [--scrap]
+watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] [--grid] [--scrap]
 ```
 
 - `color` is the painting as it appears; wet paint looks a little darker than it will dry.
