@@ -3,8 +3,10 @@
     watercolor new    <directory> --prompt "..." [--size 512] [--height 360] [--stroke-budget 150] ...
     watercolor paint  <directory> <actions.json>
     watercolor look   <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] [--grid] [--scrap]
+                                  [--at x,y ...]
     watercolor status <directory>
     watercolor finish <directory>
+    watercolor --version
 
 There is deliberately no command that previews, rehearses or reverses an action.
 """
@@ -14,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import ENGINE_VERSION
 from .pigments import PIGMENTS
 from .session import Configuration, RuleViolation, Session
 
@@ -25,8 +28,14 @@ def _region(text: str) -> tuple[int, int, int, int]:
     return x0, y0, x1, y1
 
 
+def _point(text: str) -> tuple[float, float]:
+    x, y = (float(part) for part in text.split(","))
+    return x, y
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="watercolor")
+    parser.add_argument("--version", action="version", version=ENGINE_VERSION)
     commands = parser.add_subparsers(dest="command", required=True)
 
     new = commands.add_parser("new", help="start a painting on a fresh sheet")
@@ -50,6 +59,7 @@ def _parser() -> argparse.ArgumentParser:
     look.add_argument("--region", type=_region)
     look.add_argument("--grid", action="store_true")
     look.add_argument("--scrap", action="store_true")
+    look.add_argument("--at", type=_point, action="append", default=[], metavar="x,y", help="read the wetness here")
 
     for name, text in (
         ("status", "report the state of the painting"),
@@ -79,7 +89,10 @@ def _run(arguments: argparse.Namespace) -> dict:
         return session.report() | {"look": str(session.look())}
     if arguments.command == "look":
         sheet = "scrap" if arguments.scrap else "painting"
-        return {"look": str(session.look(sheet, arguments.view, arguments.region, arguments.grid))}
+        seen: dict = {"look": str(session.look(sheet, arguments.view, arguments.region, arguments.grid))}
+        if arguments.at:
+            seen["wetness"] = session.wetness(arguments.at, sheet)
+        return seen
     if arguments.command == "finish":
         picture, video = session.finish()
         return session.report() | {"picture": str(picture), "video": str(video)}

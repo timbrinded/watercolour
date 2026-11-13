@@ -51,6 +51,7 @@ class SimulationParameters:
     pigment_diffusion: float = 2.0
     resolubility: float = 0.4  # scale of lifting relative to settling
     granulation_strength: float = 0.4
+    sedimentation: float = 22.0  # how fast a granulating pigment in deep water rolls down the grain
     settling_rate: float = 0.5  # scale of both settling and lifting
     evaporation_rate: float = 0.005
     edge_evaporation: float = 4.0  # extra evaporation at the edge of a wet area
@@ -73,12 +74,15 @@ class Contact:
     slant: float  # how far the end of a flat head is cut at an angle, as a fraction of its width
     twist: float  # how far the edge of a flat head is turned from square to its travel, in radians
     target_depth: float  # water depth the brush tries to leave behind
+    draw_depth: float  # depth of film below which the brush no longer soaks water up
     contact_level: float  # below about 1.0 the brush touches only the paper's peaks
     exchange: float  # how strongly the brush mixes with paint already on the sheet
     scrub: float  # how strongly the brush disturbs deposited pigment
     release: float  # water depth a resting brush adds per time step
     thirst: float  # how strongly the brush soaks up standing water
     push: float  # share of the brush's speed that it imparts to the wet paint under its hairs
+    carry: float  # share of the wet paint under the hairs that the tip takes up and carries along
+    uptake: float  # share of what the hairs loosen or carry that is drawn up into the body of the brush
     splay: float  # share of the brush's width where the hairs have parted and do not touch the paper
     streaking: float  # how unevenly paint is held across the hairs
 
@@ -110,6 +114,23 @@ STABLE_SPREADING = 0.12
 
 # A resting brush stops releasing water once the puddle beneath it is this deep.
 MAXIMUM_DEPTH = 2.0
+
+# Distance, in widths of the brush, over which its tip gives back the wet paint it has carried off,
+# and the share it gives back in one time step when it is resting.
+CARRY_REACH = 2.5
+RESTING_SHED = 0.1
+
+# Depth of film below which settled pigment does not roll at all, and the depth at which it
+# rolls freely. A granulating paint in an ordinary wash stays where it settles; charged into
+# deep water it gathers in the hollows of the grain.
+SEDIMENT_ONSET_DEPTH = 0.5
+SEDIMENT_FREE_DEPTH = 1.0
+
+# How readily settled grains roll, as a share of how readily grains in suspension drift.
+SETTLED_ROLLING = 0.1
+
+# Depth of film at which water already on the sheet joins the hairs to the paper across the whole grain.
+BRIDGING_FILM = 0.05
 
 
 def _faces(field: Tensor, axis: int) -> tuple[Tensor, Tensor]:
@@ -314,6 +335,19 @@ def _pigment_flux(concentration: Tensor, water: Tensor, wet: Tensor, flux: Tenso
     return carried + spread * depth * depth * (lower - upper)
 
 
+def _sediment_flux(suspended: Tensor, water: Tensor, wet: Tensor, downhill: Tensor, axis: int) -> Tensor:
+    """Pigment rolling down the grain across each face: a share of what the higher cell holds.
+
+    It rolls only where there is depth of water to carry it. In the film of an ordinary wash
+    it stays where it settled; in deep water a granulating paint gathers in the hollows.
+    """
+    lower, upper = _faces(suspended, axis)
+    wet_lower, wet_upper = _faces(wet, axis)
+    depth = torch.minimum(*_faces(water, axis)) * (wet_lower & wet_upper)
+    freedom = ((depth - SEDIMENT_ONSET_DEPTH) / (SEDIMENT_FREE_DEPTH - SEDIMENT_ONSET_DEPTH)).clamp(0, 1)
+    return torch.where(downhill > 0, downhill * lower, downhill * upper) * freedom * freedom
+
+
 class Sheet:
     """A sheet of paper and everything on it.
 
@@ -402,6 +436,28 @@ class Sheet:
         fractions["dry"] = 1.0 - sum(fractions.values())
         return fractions
 
+    def wetness_at(self, x: float, y: float, radius: int = 2) -> dict[str, float]:
+        """How wet the sheet is about a point, on two continuous scales.
+
+        The film is the depth of water standing on the surface; the paper is how full of water
+        the sheet itself is, from 0 (dry) to 1 (it can take up no more).
+        """
+        rows = slice(max(round(y) - radius, 0), min(round(y) + radius + 1, self.height))
+        columns = slice(max(round(x) - radius, 0), min(round(x) + radius + 1, self.width))
+        fullness = (self.saturation / self.capacity).clamp(0, 1)
+        return {"film": float(self.water[rows, columns].mean()), "paper": float(fullness[rows, columns].mean())}
+
+    def wetness_summary(self) -> dict[str, float]:
+        """The film at its deepest and at its usual depth where there is one, and how full the damp paper is."""
+        film = self.water[self.water > self.parameters.wet_threshold]
+        fullness = (self.saturation / self.capacity).clamp(0, 1)
+        damp = fullness[fullness > 0.01]
+        return {
+            "film_deepest": float(film.max()) if film.numel() else 0.0,
+            "film_typical": float(film.median()) if film.numel() else 0.0,
+            "paper_fullness": float(damp.mean()) if damp.numel() else 0.0,
+        }
+
     # ------------------------------------------------------------- simulation
 
     def advance(self, duration: float) -> None:
@@ -417,7 +473,7 @@ class Sheet:
             suspended = self.suspended[used][..., *region]
             deposited = self.deposited[used][..., *region]
             if bool((self.water[..., *region] > 0).any()):
-                self._flow(region, p.time_step, suspended)
+                self._flow(region, p.time_step, suspended, used)
                 self._settle(region, p.time_step, suspended, deposited, used)
                 self._dry(region, p.time_step, suspended, deposited)
                 remaining -= p.time_step
@@ -442,7 +498,7 @@ class Sheet:
             slice(max(int(columns[0]) - margin, 0), min(int(columns[-1]) + margin + 1, self.width)),
         )
 
-    def _flow(self, region: Region, dt: float, suspended: Tensor) -> None:
+    def _flow(self, region: Region, dt: float, suspended: Tensor, used: list[int]) -> None:
         """Move the water film and the pigment in it.
 
         The film obeys a thin-film equation: flux is mobility times the gradient of a
@@ -475,6 +531,13 @@ class Sheet:
         rate = p.flow_rate * dt / p.flow_substeps
         spread = p.pigment_diffusion * dt / p.flow_substeps
         surface_rate = p.marangoni * dt / p.flow_substeps
+        # Heavy pigment sinks through the film and rolls down the slopes of the grain into its
+        # hollows. The paper's own relief is fixed, so its slope across each face is too. Only a
+        # paint that really granulates does this: the effect falls away as the square of the tendency.
+        per_pigment = (-1, *([1] * (suspended.dim() - 1)))
+        drift = p.sedimentation * dt / p.flow_substeps * self._granulation[used].reshape(per_pigment) ** 2
+        downhill_y = drift * torch.sub(*_faces(tooth, 0))
+        downhill_x = drift * torch.sub(*_faces(tooth, 1))
 
         for _ in range(p.flow_substeps):
             wet = water > p.wet_threshold
@@ -506,6 +569,8 @@ class Sheet:
 
             pigment_y = _pigment_flux(concentration, water, wet, flux_y + stream_y, spread, 0)
             pigment_x = _pigment_flux(concentration, water, wet, flux_x + stream_x, spread, 1)
+            pigment_y = pigment_y + _sediment_flux(suspended, water, wet, downhill_y, 0)
+            pigment_x = pigment_x + _sediment_flux(suspended, water, wet, downhill_x, 1)
             # Flow, stream and diffusion together must not take more of a pigment than a cell holds.
             pigment_y, pigment_x = _limit_outflow(pigment_y, pigment_x, suspended)
             _transport(water, flux_y, flux_x)
@@ -521,10 +586,18 @@ class Sheet:
         density = self._density[used].reshape(per_pigment)
         staining = self._staining[used].reshape(per_pigment)
         granulation = p.granulation_strength * self._granulation[used].reshape(per_pigment)
+        water = self.water[..., *region]
+        wet = water > p.wet_threshold
+        # Under deep water the grains of a granulating paint that have settled go on rolling
+        # into the hollows of the grain, and there they stay: nothing spreads them out again.
+        rolling = SETTLED_ROLLING * p.sedimentation * dt * self._granulation[used].reshape(per_pigment) ** 2
+        roll_y = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 0)), 0)
+        roll_x = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 1)), 1)
+        _transport(deposited, *_limit_outflow(roll_y, roll_x, deposited))
         dt = dt * p.settling_rate
         down = suspended * (1.0 - tooth * granulation) * density * dt
         up = deposited * (1.0 + (tooth - 1.0) * granulation) * (density / staining) * (p.resolubility * dt)
-        transfer = (down - up) * (self.water[..., *region] > p.wet_threshold)
+        transfer = (down - up) * wet
         transfer = torch.maximum(torch.minimum(transfer, suspended), -deposited)
         suspended -= transfer
         deposited += transfer
@@ -628,12 +701,15 @@ class Sheet:
         concentration: Tensor,
         available_water: float,
         hairs: Tensor,
-    ) -> tuple[float, Tensor]:
+        on_tip: Tensor,
+    ) -> tuple[float, Tensor, Tensor]:
         """Work the brush along a short piece of a stroke.
 
         The hairs are a profile in [0, 1] across the width of the brush: how closely the hairs
-        at each position hold together. Returns the net water and the net amount of each pigment that left the brush.
-        Either can be negative: a brush takes up wet paint as well as laying it down.
+        at each position hold together. The other argument is the amount of each pigment riding on the tip
+        of the brush, taken up from wet paint earlier in the stroke. Returns the net water and
+        the net amount of each pigment that left the body of the brush, and what the tip now
+        carries. The first two can be negative: a brush takes up wet paint as well as laying it down.
         """
         travel = points[-1] - points[0]
         distance = float(travel.norm())
@@ -649,9 +725,13 @@ class Sheet:
             twist=contact.twist,
         )
         if coverage.numel() == 0:
-            return 0.0, torch.zeros_like(concentration)
+            return 0.0, torch.zeros_like(concentration), on_tip
         tooth = self.tooth[rows, columns]
+        water = self.water[rows, columns]
         touching = torch.sigmoid((tooth - (1.0 - contact.contact_level)) / 0.06)
+        # A dry or thick load catches only the peaks of dry paper. Where water already stands on
+        # the sheet it bridges the grain, and the hairs meet it everywhere they pass.
+        touching = torch.maximum(touching, (water / BRIDGING_FILM).clamp(0, 1))
         # Position of each cell across the width of the brush, and the hairs that pass over it.
         # They keep their places along a stroke, so whatever they do is drawn out into streaks.
         heading = travel / distance if distance > 0 else torch.tensor([1.0, 0.0], device=points.device)
@@ -665,7 +745,6 @@ class Sheet:
         # As a brush runs dry its hairs part into clumps, and the gaps between them leave the paper bare.
         touching = touching * ((hair - contact.splay) / 0.1 + 1.0).clamp(0, 1)
         footprint = coverage * touching
-        water = self.water[rows, columns]
         suspended = self.suspended[:, rows, columns]
         deposited = self.deposited[:, rows, columns]
         paint = concentration.reshape(-1, 1, 1) * (1.0 + contact.streaking * (2.0 * hair - 1.0))
@@ -689,27 +768,32 @@ class Sheet:
                     field -= carried
                     field += _translate(carried, float(step[0]), float(step[1]))
 
-        # The hairs stir up pigment that has settled.
+        # The hairs stir up pigment that has settled. A brush with room in it wipes up much of
+        # what it loosens, which is how a drained brush lifts paint; a full one only stirs it.
         loosened = deposited * (contact.scrub * footprint * (water > 0)) / self._staining
         deposited -= loosened
-        suspended += loosened
+        wiped = contact.uptake * loosened
+        suspended += loosened - wiped
 
         # Paint in the brush and paint on the sheet mix where they meet.
         mixed = contact.exchange * footprint * (paint * water - suspended)
         # Paint passes from brush to sheet readily; only the tip of the brush takes paint back up.
         mixed = torch.where(mixed < 0, PICKUP_SHARE * mixed, mixed)
         suspended += mixed
-        pigment_out = mixed.sum(dim=(1, 2))
+        pigment_out = (mixed - wiped).sum(dim=(1, 2))
 
-        # A brush that is not full soaks up standing water and the paint in it.
-        soaked = contact.thirst * footprint * (water - contact.target_depth).clamp(min=0)
+        # A brush that is not full soaks up standing water and the paint in it, and the emptier
+        # the brush the thinner the film it can draw from.
+        soaked = contact.thirst * footprint * (water - contact.draw_depth).clamp(min=0)
         taken = suspended * (soaked / water.clamp(min=1e-6))
         suspended -= taken
         water -= soaked
         pigment_out -= taken.sum(dim=(1, 2))
 
-        # The brush fills the paper to its target depth, and keeps releasing while it rests.
-        fill = (contact.target_depth * footprint - water).clamp(min=0) * 0.7
+        # The brush fills the paper to its target depth, and keeps releasing while it rests. It
+        # gives water only to paper drier than itself: a film deep enough for the brush to draw
+        # from is left as it is, so a drained brush wipes a moist wash and does not wet it.
+        fill = (contact.target_depth * footprint - water).clamp(min=0) * 0.7 * (water <= contact.draw_depth)
         added = torch.maximum(fill, contact.release * footprint * (water < MAXIMUM_DEPTH))
         used = float(added.sum())
         if used > available_water:
@@ -718,7 +802,27 @@ class Sheet:
         water += added
         suspended += added * paint
         pigment_out += (added * paint).sum(dim=(1, 2))
-        return used - float(soaked.sum()), pigment_out
+
+        # The tip carries off some of the wet paint it passes through and gives it back along the
+        # next stretch of the stroke. This is what draws one colour out into another, pulls paint
+        # from the edge of a wash, and mixes two colours stirred together in standing water.
+        kept = math.exp(-distance / (CARRY_REACH * 2.0 * float(radii.max()))) * (1.0 - RESTING_SHED)
+        released = on_tip * (1.0 - kept)
+        # The emptier the brush, the more of what its tip carries is drawn up into its body and
+        # the less goes back onto the sheet: a damp brush blends, a drained one lifts.
+        drawn_up = contact.uptake * released
+        on_tip = on_tip - drawn_up
+        pigment_out -= drawn_up
+        # The tip takes paint up as it sweeps through it: a brush at rest takes none.
+        swept = min(1.0, distance / float(radii.max()))
+        taken_up = (contact.carry * swept) * footprint * suspended
+        suspended -= taken_up
+        receiving = footprint * (water > 0)
+        if float(receiving.sum()) > 0:
+            shed = released - drawn_up
+            suspended += shed.reshape(-1, 1, 1) * (receiving / receiving.sum())
+            on_tip = on_tip - shed
+        return used - float(soaked.sum()), pigment_out, on_tip + taken_up.sum(dim=(1, 2))
 
     def blot(self, points: Tensor, radii: Tensor) -> None:
         """Press absorbent tissue onto the sheet."""

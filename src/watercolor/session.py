@@ -182,6 +182,11 @@ class Session:
                     if not action.get("rinse", True) and brush_in_hand not in (None, requested):
                         raise ValueError("a different brush must be loaded with a rinse")
                     brush_in_hand = requested
+                elif kind == "drain":
+                    if brush_in_hand is None:
+                        raise ValueError("no brush is loaded")
+                    if not 0.0 <= action["water"] <= 1.0:
+                        raise ValueError("water must be between 0 and 1")
                 elif kind == "stroke":
                     if brush_in_hand is None:
                         raise ValueError("no brush is loaded")
@@ -201,6 +206,15 @@ class Session:
                 elif kind == "wait":
                     if not 0 < action["seconds"] <= 3600:
                         raise ValueError("seconds must be between 0 and 3600")
+                    if "film" in action:
+                        if sheet == "scrap" and not config.scrap_allowed:
+                            raise RuleViolation("this painting has no scrap sheet")
+                        watched = self.studio.sheets[sheet]
+                        x, y = action["at"]
+                        if not (0 <= x < watched.width and 0 <= y < watched.height):
+                            raise ValueError(f"point {x:g},{y:g} is off the sheet")
+                        if action["film"] < 0:
+                            raise ValueError("film depth cannot be negative")
                 elif kind == "tilt":
                     if max(abs(action["x"]), abs(action["y"])) > 0.3:
                         raise ValueError("tilt must be within 0.3 on each axis")
@@ -241,6 +255,8 @@ class Session:
                 action.get("rinse", True),
                 action.get("hair", ""),
             )
+        elif kind == "drain":
+            studio.drain(action["water"])
         elif kind == "stroke":
             studio.stroke(
                 sheet,
@@ -255,6 +271,9 @@ class Session:
             studio.pencil(sheet, action["path"], action.get("darkness", 0.6), action.get("smooth", True))
         elif kind == "erase":
             studio.erase(sheet, action["path"], action.get("radius", 4.0))
+        elif kind == "wait" and "film" in action:
+            x, y = action["at"]
+            studio.wait_for_film(sheet, x, y, action["film"], action["seconds"])
         elif kind == "wait":
             studio.wait(action["seconds"])
         elif kind == "tilt":
@@ -281,6 +300,17 @@ class Session:
         path = directory / f"{sum(1 for _ in directory.iterdir()):04d}_{sheet}_{view}.png"
         inspection_image(self.studio.sheets[sheet], view, region, grid).save(path)
         return path
+
+    def wetness(self, points: list[tuple[float, float]], sheet: str = "painting") -> list[dict[str, float]]:
+        """Read how wet the sheet is at each point: the depth of the film on it and how full the paper is."""
+        target = self.studio.sheets[sheet]
+        readings = []
+        for x, y in points:
+            if not (0 <= x < target.width and 0 <= y < target.height):
+                raise ValueError(f"point {x:g},{y:g} is off the sheet")
+            reading = target.wetness_at(x, y)
+            readings.append({"x": x, "y": y} | {name: round(value, 3) for name, value in reading.items()})
+        return readings
 
     def finish(self) -> tuple[Path, Path]:
         """Let the painting dry, export it with its time-lapse, and close it for good."""
@@ -314,6 +344,10 @@ class Session:
             },
             "paper": {
                 name: {stage: round(share, 3) for stage, share in sheet.stage_fractions().items()}
+                for name, sheet in studio.sheets.items()
+            },
+            "wetness": {
+                name: {measure: round(value, 3) for measure, value in sheet.wetness_summary().items()}
                 for name, sheet in studio.sheets.items()
             },
             "finished": self.sealed,

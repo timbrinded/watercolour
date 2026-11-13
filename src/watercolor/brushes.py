@@ -119,6 +119,8 @@ CAPACITY_PER_SQUARE_RADIUS = 250.0
 # Paint is a mixture: pigment and binder take up room in the brush that water would otherwise
 # have. At this concentration half of what the brush holds is solids.
 HALF_SOLIDS_CONCENTRATION = 3.5
+# Share of the wet paint swept by the hairs that the tip of the brush takes up, in one time step.
+CARRIED_SHARE = 0.4
 # The strongest paint a brush can carry: paste straight from the pan.
 STRONGEST_CONCENTRATION = 8.0
 
@@ -204,6 +206,9 @@ class Brush:
         # The edge of a flat head can be turned to the direction of travel. A head cut at an
         # angle is one whose edge is already turned.
         turn = math.radians(twist) + (math.atan(kind.slant) if twist else 0.0)
+        target = depth * fullness**0.6 * (0.6 + 0.4 * pressure) * (0.4 + 0.6 * thin)
+        # A full brush rides on its own bead of paint; a damp one pressed to the paper sweeps it along.
+        push = min(1.0, kind.sweep * hair.spring * (1.0 + 0.3 * over)) * (0.3 + 0.7 * pressure) * (1.0 - 0.7 * fullness)
         level = 0.1 + 1.8 * fullness + 0.2 * pressure - 0.15 * haste - 2.2 * self.solids**2 - 0.9 * over + 0.2 * upright
         return Contact(
             softness=min(0.6, kind.softness + hair.softness),
@@ -211,17 +216,20 @@ class Brush:
             rounded=kind.rounded,
             slant=0.0 if twist else kind.slant,
             twist=turn if tip < 1.0 else 0.0,
-            target_depth=depth * fullness**0.6 * (0.6 + 0.4 * pressure) * (0.4 + 0.6 * thin),
+            target_depth=target,
+            # The suction of the hairs rises steeply as they empty: a drained brush draws up a film
+            # far thinner than the one it would lay.
+            draw_depth=target * fullness,
             # However dry or thick, a brush pressed to the paper still catches the highest grain.
             contact_level=max(0.15, level),
             exchange=0.5 * min(1.0, 2.0 * fullness),
             scrub=min(0.6, kind.firmness * hair.firmness),
             release=0.08 * depth * fullness * (0.5 + 0.5 * pressure) * thin,
             thirst=0.4 * (1.0 - fullness),
-            # A full brush rides on its own bead of paint; a damp one pressed to the paper sweeps it along.
-            push=min(1.0, kind.sweep * hair.spring * (1.0 + 0.3 * over))
-            * (0.3 + 0.7 * pressure)
-            * (1.0 - 0.7 * fullness),
+            push=push,
+            # What the hairs sweep along, their tip also takes up; a full brush has no room for it.
+            carry=CARRIED_SHARE * push,
+            uptake=(1.0 - fullness) ** 2,
             # A fan or a comber has gaps between its hairs however full it is.
             splay=min(0.9, max(kind.gaps, self.clumping * parting)),
             streaking=min(0.5, 0.3 * self.clumping),

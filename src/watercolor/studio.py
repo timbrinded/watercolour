@@ -41,6 +41,8 @@ DRYING_FRAME_INTERVAL = 8.0
 DRYING_LIMIT = 3600.0
 DEFAULT_STROKE_SPEED = 120.0  # pixels per second
 DAB_DURATION = 0.3
+DRAIN_DURATION = 1.0  # seconds taken to touch the brush to a cloth
+FILM_WATCH_INTERVAL = 1.0  # seconds between looks at the film while waiting for it to thin
 PENCIL_RADIUS = 0.9
 # A brush never picks up exactly the mix asked for. Spread of pigment and of water from load to load.
 PIGMENT_VARIATION = 0.12
@@ -125,6 +127,19 @@ class Studio:
             brush.reservoir = min(total, brush.capacity)
         self.brush = brush
 
+    def drain(self, water: float) -> None:
+        """Touch the brush to a cloth until it holds no more than this share of what it can.
+
+        The cloth draws out paint as it is, pigment and water together, so the brush keeps its
+        colour and strength and loses only fullness. A drained brush lays less, pushes paint
+        along and soaks up standing water: it is the damp brush that softens, pulls out and lifts.
+        """
+        brush = self.brush
+        if brush is None:
+            raise ValueError("no brush is loaded")
+        brush.reservoir = min(brush.reservoir, water * brush.capacity)
+        self._pass_time(DRAIN_DURATION)
+
     def stroke(self, sheet_name: str, path: Journey, speed: float, smooth: bool, dwell: float = DAB_DURATION) -> None:
         """Take the brush on a journey across the sheet.
 
@@ -139,6 +154,7 @@ class Studio:
         traced = trace_journey(path, smooth, speed, dwell)
         concentration = self._tensor(brush.concentration)
         hairs = self._tensor(brush.hairs)
+        on_tip = torch.zeros_like(concentration)  # wet paint riding on the tip of the brush
         dt = self._time_step
         for step in range(max(1, round(float(traced[-1, TIME]) / dt))):
             piece = journey_between(traced, step * dt, (step + 1) * dt)
@@ -146,8 +162,8 @@ class Studio:
             travelled = float(np.linalg.norm(np.diff(piece[:, :2], axis=0), axis=1).sum())
             radii = brush.radius(piece[:, PRESSURE], angle)
             contact = brush.contact(pressure, travelled / dt, angle, twist)
-            used, pigment_out = sheet.apply_brush(
-                self._tensor(piece[:, :2]), self._tensor(radii), contact, concentration, brush.reservoir, hairs
+            used, pigment_out, on_tip = sheet.apply_brush(
+                self._tensor(piece[:, :2]), self._tensor(radii), contact, concentration, brush.reservoir, hairs, on_tip
             )
             pigment_held = (concentration * brush.reservoir - pigment_out).clamp(min=0)
             brush.reservoir = min(max(brush.reservoir - used, 0.0), brush.capacity)
@@ -158,6 +174,9 @@ class Studio:
             if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
                 self._since_frame = 0.0
                 self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
+        # When the brush leaves the sheet, what its tip still carries is drawn up into its body.
+        pigment_held = concentration * brush.reservoir + on_tip
+        brush.concentration = (pigment_held / max(brush.reservoir, 1e-3 * brush.capacity)).clamp(max=20.0).tolist()
 
     def blot(self, sheet_name: str, path: Path, radius: float) -> None:
         samples = trace_path(path, smooth=False)
@@ -189,6 +208,21 @@ class Studio:
             self._pass_time(chunk)
             remaining -= chunk
             self._record()
+
+    def wait_for_film(self, sheet_name: str, x: float, y: float, film: float, longest: float) -> float:
+        """Wait until the film of water about a point has thinned to a depth, and return how long that took.
+
+        This is the painter watching the shine go off a wash. The wait ends at the longest time
+        allowed if the film has not thinned by then.
+        """
+        sheet = self.sheets[sheet_name]
+        waited = 0.0
+        while waited < longest - 1e-9 and sheet.wetness_at(x, y)["film"] > film:
+            chunk = min(FILM_WATCH_INTERVAL, longest - waited)
+            self._pass_time(chunk)
+            waited += chunk
+            self._record()
+        return waited
 
     def dry(self) -> float:
         """Wait until every sheet is dry and return how long that took."""

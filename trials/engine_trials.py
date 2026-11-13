@@ -6,6 +6,7 @@ Pictures are written to trials/output/. These exercise the engine directly and
 are not paintings, so the rules of a painting session do not apply.
 """
 
+import math
 import sys
 import time
 from collections.abc import Callable
@@ -91,7 +92,8 @@ def glaze(studio: Studio) -> None:
 
 def backrun(studio: Studio) -> None:
     wash(studio, "round", 18, {"burnt_umber": 0.6}, 60, 320, 60, 320)
-    studio.wait(110)
+    # Water runs back into a wash that has all but lost its film: wait for that by its depth.
+    studio.wait_for_film("painting", 190, 190, 0.03, 300)
     print("   backrun: paper when water is dropped in:", studio.sheets["painting"].stage_fractions())
     studio.load_brush("round", 12, {}, 1.0)
     studio.stroke("painting", [[190, 190]], 100, smooth=False)
@@ -457,7 +459,14 @@ def paint_strength(studio: Studio) -> None:
     studio.dry()
 
 
-SIZES = {"lighthouse_study": 640, "brush_shapes": 640, "brush_hairs": 640, "stroke_gestures": 640}
+SIZES = {
+    "lighthouse_study": 640,
+    "brush_shapes": 640,
+    "brush_hairs": 640,
+    "stroke_gestures": 640,
+    "charging_by_wetness": 640,
+    "blending_methods": 640,
+}
 
 
 def wet_edges(studio: Studio) -> None:
@@ -466,7 +475,8 @@ def wet_edges(studio: Studio) -> None:
         studio.load_brush("mop", 24, {"quinacridone_rose": 1.2}, 1.0)
         studio.stroke("painting", [[100, 95]], 100, smooth=False, dwell=4.0)
     wash(studio, "round", 18, {"burnt_umber": 0.6}, 30, 354, 200, 360)
-    studio.wait(80)
+    # A bloom needs the last of the film: wait for it by its depth, not by the clock.
+    studio.wait_for_film("painting", 110, 280, 0.03, 300)
     report_paper(studio, "wet_edges, when the water is dropped in")
     studio.load_brush("round", 10, {}, 1.0)
     studio.stroke("painting", [[110, 280]], 100, smooth=False, dwell=0.6)
@@ -567,12 +577,324 @@ def stroke_gestures(studio: Studio) -> None:
     studio.dry()
 
 
+def film_at(studio: Studio, x: float, y: float) -> float:
+    return studio.sheets["painting"].wetness_at(x, y)["film"]
+
+
+def damp_brush(studio: Studio, kind: str, size: float, water: float, hair: str = "") -> None:
+    """A rinsed brush touched to a cloth until it holds this share of what it can."""
+    studio.load_brush(kind, size, {}, 1.0, hair=hair)
+    studio.drain(water)
+
+
+WETNESS_ROWS = ("film 0.7", "film 0.5", "film 0.3", "film 0.15", "film 0.06", "damp, no film", "dry paper")
+
+
+def charging_by_wetness(studio: Studio) -> None:
+    """One charge of strong paint, repeated as the film on a pale wash thins from deep to none.
+
+    The film of water is a continuous scale. How far the charge spreads, how soft its edge
+    is and how much it granulates all follow from how deep the film is when the brush lands.
+    """
+
+    def row(index: int) -> float:
+        return 44.0 + 82.0 * index
+
+    for index in range(6):
+        for _ in range(2):
+            studio.load_brush("mop", 26, {"yellow_ochre": 0.15}, 1.0)
+            studio.stroke("painting", [[130, row(index), 0.9], [610, row(index), 0.9]], 220, smooth=False)
+    for index, film in enumerate((0.7, 0.5, 0.3, 0.15, 0.06, 0.004, None)):
+        y = row(index)
+        if film is not None:
+            studio.wait_for_film("painting", 590, y, film, 900)
+        print(f"   charging_by_wetness: row {index} charged at film {film_at(studio, 590, y):.3f}")
+        studio.load_brush("round", 8, {"french_ultramarine": 4.5}, 1.0)
+        studio.drain(0.6)
+        studio.stroke("painting", [[170, y, 0.8], [540, y, 0.8]], 110, smooth=False)
+    studio.dry()
+
+
+def charged_wash(studio: Studio) -> None:
+    """A granulating blue touched into a deep wet yellow wash and left to spread on its own."""
+    centre, radius, size = (192.0, 196.0), 124.0, 20.0
+    for _ in range(2):
+        y = centre[1] - radius + size * 0.9
+        while y < centre[1] + radius - size * 0.5:
+            half = (radius**2 - (y - centre[1]) ** 2) ** 0.5 - size * 0.7
+            studio.load_brush("oval_wash", size, {"hansa_yellow": 0.45}, 1.0)
+            studio.stroke("painting", [[centre[0] - half, y, 0.9], [centre[0] + half, y, 0.9]], 200, smooth=False)
+            y += size * 1.05
+    print(f"   charged_wash: film when the blue goes in {film_at(studio, *centre):.2f}")
+    blue = {"cerulean_blue": 4.0, "cobalt_blue": 2.5}
+    for path in (
+        [[100, 266, 0.5], [92, 204, 0.9], [116, 142, 0.9], [172, 104, 0.9], [240, 108, 0.5]],
+        [[124, 256, 0.6], [118, 200, 0.9], [140, 152, 0.9], [192, 126, 0.9], [236, 130, 0.5]],
+        [[146, 244, 0.6], [142, 200, 0.9], [162, 166, 0.9], [204, 150, 0.6]],
+        [[108, 240, 0.8], [106, 196, 0.9], [118, 168, 0.7]],
+    ):
+        studio.load_brush("round", 9, blue, 1.0)
+        studio.drain(0.6)
+        studio.stroke("painting", path, 90, smooth=True)
+    # One more load into one place, so that a streak of it stays blue and does not turn to the mixture.
+    studio.load_brush("round", 9, {"cobalt_blue": 5.0, "french_ultramarine": 2.0}, 1.0)
+    studio.drain(0.6)
+    studio.stroke("painting", [[110, 248, 0.7], [106, 206, 0.9], [116, 170, 0.6]], 90, smooth=True)
+    studio.dry()
+
+
+def block(
+    studio: Studio, kind: str, size: float, mix: dict[str, float],
+    x0: float, x1: float, y0: float, y1: float, water: float = 1.0,
+) -> None:  # fmt: skip
+    """Rows of one brush across a rectangle, with a fresh load for every row."""
+    y = y0 + size * 0.6
+    while y < y1:
+        studio.load_brush(kind, size, mix, water)
+        studio.stroke("painting", [[x0, y, 0.9], [x1, y, 0.9]], 160, smooth=False)
+        y += size * 1.1
+
+
+BLENDING_NOTES = (
+    (20, 16, "two colours laid on wet paper and left alone"),
+    (330, 16, "a join: lower half stroked with a damp brush"),
+    (20, 226, "an edge: right half pulled out with a drained brush"),
+    (330, 226, "lifted with a drained brush at film 0.3, 0.12 and none"),
+    (20, 436, "two colours in deep water, swirled with a damp brush"),
+    (330, 436, "a dry wash wetted again, then charged"),
+)
+
+
+def blending_methods(studio: Studio) -> None:
+    """The ways painters blend, each on its own patch of one sheet."""
+    sheet = "painting"
+    rose, yellow, blue = {"quinacridone_rose": 2.2}, {"hansa_yellow": 2.2}, {"cobalt_blue": 2.0}
+    # Bottom right: a wash that will be dry by the time everything else is done.
+    block(studio, "round", 16, {"quinacridone_rose": 0.8}, 350, 600, 460, 610)
+
+    # Bottom left: deep water, two colours, and a damp brush swirled through both.
+    for _ in range(2):
+        block(studio, "mop", 20, {}, 40, 290, 460, 610)
+    block(studio, "round", 13, rose, 60, 150, 478, 596, water=0.8)
+    block(studio, "round", 13, yellow, 180, 270, 478, 596, water=0.8)
+    print(f"   blending_methods: film where the colours are swirled {film_at(studio, 165, 535):.2f}")
+    damp_brush(studio, "round", 12, 0.6)
+    turns = [
+        [165 + 78 * math.cos(step / 10 * math.tau), 535 + 42 * math.sin(step / 10 * math.tau), 0.9]
+        for step in range(41)
+    ]
+    studio.stroke(sheet, turns, 150, smooth=True)
+
+    # Top left: clear water first, then a colour at each side, brought together and left.
+    block(studio, "mop", 20, {}, 40, 290, 50, 200)
+    block(studio, "round", 13, rose, 54, 160, 62, 190, water=0.7)
+    block(studio, "round", 13, yellow, 170, 276, 62, 190, water=0.7)
+
+    # Top right: two colours side by side on dry paper; the lower half of their join is stroked.
+    block(studio, "round", 13, rose, 350, 468, 50, 200)
+    block(studio, "round", 13, blue, 482, 600, 50, 200)
+    for _ in range(3):
+        damp_brush(studio, "round", 10, 0.6)
+        studio.stroke(sheet, [[475, 130, 0.8], [475, 196, 0.8]], 110, smooth=False)
+        studio.stroke(sheet, [[475, 196, 0.8], [475, 130, 0.8]], 110, smooth=False)
+
+    # Middle left: a strong stroke; a rinsed and drained brush run three times below its right half.
+    studio.load_brush("round", 12, {"french_ultramarine": 4.0}, 0.8)
+    studio.stroke(sheet, [[40, 270, 0.9], [290, 270, 0.9]], 130, smooth=False)
+    for step in range(3):
+        damp_brush(studio, "round", 12, 0.45)
+        studio.stroke(sheet, [[165, 284 + 16 * step, 0.9], [290, 284 + 16 * step, 0.9]], 130, smooth=False)
+
+    # Middle right: lines lifted from a wash as its film thins, and once it has gone.
+    block(studio, "flat", 16, {"burnt_sienna": 1.4, "cobalt_blue": 0.8}, 350, 600, 250, 400)
+    for x, film in ((410, 0.3), (475, 0.12), (540, 0.004)):
+        studio.wait_for_film(sheet, 380, 325, film, 600)
+        for _ in range(2):
+            damp_brush(studio, "round", 3, 0.2)
+            studio.stroke(sheet, [[x, 262, 0.8], [x, 392, 0.8]], 120, smooth=False)
+
+    studio.dry()
+    # Bottom right again: clear water over the dry wash, then a stronger colour into it.
+    block(studio, "mop", 20, {}, 356, 594, 466, 604)
+    studio.load_brush("round", 10, {"french_ultramarine": 5.0}, 1.0)
+    studio.drain(0.6)
+    studio.stroke(sheet, [[390, 510, 0.8], [475, 492, 0.8], [560, 510, 0.8]], 90, smooth=True)
+    studio.dry()
+
+
+# Outline of a maple leaf, clockwise from the tip of its upper lobe, and the vertices that are points of lobes.
+LEAF_OUTLINE = (
+    (212, 22), (222, 62), (232, 102), (246, 98), (262, 84), (290, 62), (318, 56), (344, 58),
+    (336, 78), (326, 96), (318, 118), (304, 134), (330, 128), (352, 126), (378, 142),
+    (366, 158), (356, 178), (366, 206), (340, 204), (308, 206), (276, 200), (268, 212),
+    (296, 236), (326, 258), (338, 282), (342, 312), (316, 306), (296, 290), (282, 296),
+    (268, 318), (262, 300), (250, 284), (222, 266), (206, 270), (204, 300), (196, 330),
+    (178, 352), (168, 374), (160, 352), (146, 340), (140, 318), (128, 310), (108, 336),
+    (104, 312), (108, 286), (104, 262), (84, 258), (62, 276), (66, 250), (74, 234),
+    (68, 206), (86, 190), (104, 176), (122, 166), (140, 160), (132, 142), (128, 118),
+    (136, 96), (140, 74), (158, 66), (176, 62), (190, 44),
+)  # fmt: skip
+LEAF_POINTS = (0, 7, 14, 17, 25, 29, 37, 42, 47, 50)
+LEAF_CENTRE = (182.0, 176.0)
+LEAF_VEINS = (
+    ((182, 176), (200, 110), (210, 40)),
+    ((182, 176), (250, 120), (330, 66)),
+    ((182, 176), (270, 160), (366, 144)),
+    ((182, 176), (250, 230), (334, 300)),
+    ((182, 176), (176, 260), (168, 360)),
+    ((182, 176), (120, 230), (70, 268)),
+    ((182, 176), (120, 180), (76, 200)),
+)
+LEAF_ORANGE = {"cadmium_red": 1.8, "hansa_yellow": 2.2}
+LEAF_RED = {"cadmium_red": 3.6, "quinacridone_rose": 0.7}
+LEAF_GREEN = {"hookers_green": 2.2, "hansa_yellow": 1.8}
+LEAF_SIENNA = {"burnt_sienna": 3.0}
+LEAF_OCHRE = {"yellow_ochre": 2.4, "burnt_sienna": 0.6}
+LEAF_YELLOW = {"hansa_yellow": 3.2}
+LEAF_BROWN = {"burnt_sienna": 2.2, "cadmium_red": 1.1, "french_ultramarine": 0.4}
+# Each colour over the part of the leaf it belongs to, with its strength as a share of the mix
+# and how full the brush is. The patches touch and overlap so that colour meets colour, they
+# differ in size, strength and wetness so that no two joins are alike, and some of the first
+# pale wash is left alone as the lightest passages.
+LEAF_PATCHES = (
+    (LEAF_OCHRE, 0.35, 0.6, ([(168, 150), (166, 104), (170, 76)],)),
+    (LEAF_SIENNA, 1.0, 0.6, ([(204, 150), (212, 100), (210, 40)], [(218, 140), (222, 108), (218, 72)])),
+    (LEAF_ORANGE, 0.8, 0.6, ([(226, 150), (258, 116), (286, 92)], [(244, 150), (280, 124), (306, 112)])),
+    (LEAF_GREEN, 1.0, 0.75, ([(296, 82), (318, 70), (338, 64)], [(300, 100), (318, 90), (330, 78)])),
+    (LEAF_ORANGE, 0.9, 0.6, ([(232, 160), (270, 160)], [(244, 176), (286, 172)])),
+    (LEAF_RED, 1.0, 0.6, ([(286, 140), (330, 134), (368, 142)], [(300, 152), (342, 152)])),
+    (LEAF_GREEN, 1.0, 0.7, ([(304, 188), (340, 192), (362, 202)], [(322, 172), (352, 178)])),
+    (LEAF_YELLOW, 0.7, 0.7, ([(214, 196), (244, 220)], [(178, 226), (174, 290)])),
+    (LEAF_OCHRE, 0.6, 0.6, ([(262, 246), (300, 276), (322, 294)],)),
+    (LEAF_BROWN, 1.0, 0.55, ([(318, 284), (338, 306)], [(290, 276), (310, 298)], [(134, 226), (100, 254), (70, 270)])),
+    (LEAF_YELLOW, 1.0, 0.6, ([(196, 214), (192, 270), (186, 326)],)),
+    (LEAF_ORANGE, 0.8, 0.6, ([(160, 236), (154, 300), (150, 336)], [(150, 200), (112, 222), (80, 240)], [(146, 182), (110, 200), (84, 218)])),
+    (LEAF_OCHRE, 1.0, 0.6, ([(172, 340), (168, 368)],)),
+    (LEAF_RED, 1.0, 0.6, ([(146, 216), (128, 268), (112, 326)],)),
+    (LEAF_GREEN, 1.0, 0.7, ([(136, 168), (104, 182), (74, 204)],)),
+)  # fmt: skip
+# The colour that runs along each stretch of the edge, by the vertices of the outline it spans.
+LEAF_EDGES = (
+    (0, 3, LEAF_SIENNA), (3, 5, LEAF_ORANGE), (5, 9, LEAF_GREEN), (9, 12, LEAF_ORANGE), (12, 15, LEAF_RED),
+    (15, 17, LEAF_RED), (17, 21, LEAF_GREEN), (24, 29, LEAF_BROWN), (29, 33, LEAF_OCHRE),
+    (33, 36, LEAF_YELLOW), (36, 38, LEAF_OCHRE), (38, 41, LEAF_ORANGE), (41, 44, LEAF_RED), (44, 48, LEAF_BROWN),
+    (48, 50, LEAF_ORANGE), (50, 54, LEAF_GREEN), (61, 62, LEAF_SIENNA),
+)  # fmt: skip
+# A few much stronger touches, put in once the film has thinned so that they keep their place.
+LEAF_ACCENTS = (
+    (LEAF_GREEN, ([(300, 196), (340, 202), (362, 204)], [(104, 180), (78, 200)], [(312, 66), (338, 60)])),
+    (LEAF_RED, ([(300, 134), (350, 132), (372, 140)], [(124, 280), (112, 320)])),
+    (LEAF_BROWN, ([(212, 60), (212, 32)], [(330, 296), (340, 310)], [(72, 266), (64, 274)], [(168, 356), (168, 372)])),
+)  # fmt: skip
+
+
+def spans(outline: tuple[tuple[int, int], ...], y: float) -> list[tuple[float, float]]:
+    """The stretches of a horizontal line that lie inside an outline."""
+    crossings = []
+    for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]):
+        if (y0 <= y) != (y1 <= y):
+            crossings.append(x0 + (y - y0) * (x1 - x0) / (y1 - y0))
+    crossings.sort()
+    return list(zip(crossings[::2], crossings[1::2]))
+
+
+def set_in(outline: tuple[tuple[int, int], ...], index: int, distance: float) -> tuple[float, float]:
+    """A vertex of an outline moved inward by a distance, along the line that halves its corner."""
+    count = len(outline)
+    (xa, ya), (x, y), (xb, yb) = outline[(index - 1) % count], outline[index % count], outline[(index + 1) % count]
+    before, after = math.hypot(x - xa, y - ya), math.hypot(xb - x, yb - y)
+    dx, dy = (xa - x) / before + (xb - x) / after, (ya - y) / before + (yb - y) / after
+    length = math.hypot(dx, dy) or 1.0
+    for sign in (1.0, -1.0):
+        px, py = x + sign * distance * dx / length, y + sign * distance * dy / length
+        if any(left <= px <= right for left, right in spans(outline, py)):
+            return px, py
+    return float(x), float(y)
+
+
+def variegated_leaf(studio: Studio) -> None:
+    """A leaf with a crisp outline and soft colour inside it: a variegated wash.
+
+    The whole shape is laid in a pale wash deep enough to stay wet. Each colour is laid over
+    its own part of it, touching its neighbours, and left to run into them. Stronger touches
+    follow once the film has thinned, and the veins are lifted with a drained brush once it
+    has nearly gone.
+    """
+    sheet = "painting"
+    studio.pencil(sheet, [[140, 158], [92, 112], [28, 62]], 0.35)
+    base = {"hansa_yellow": 0.3, "yellow_ochre": 0.2}
+    # The edge with the point of a small round, pressed less at each tip so the lobes end sharply.
+    edge = [[x, y, 0.35 if index in LEAF_POINTS else 0.9] for index, (x, y) in enumerate(LEAF_OUTLINE)]
+    edge.append(edge[0])
+    for start in range(0, len(edge) - 1, 10):
+        studio.load_brush("round", 3.5, base, 1.0)
+        studio.stroke(sheet, edge[start : start + 11], 110, smooth=False)
+    # The middle with the belly of a larger round, twice over, so the film is deep. The second
+    # time it is kept back from the edge: water added there would creep out and blunt the points.
+    for inset in (5, 12):
+        count = 0
+        for y in range(6, SIZE, 8):
+            for left, right in spans(LEAF_OUTLINE, y):
+                if right - left < 2 * inset + 2:
+                    continue
+                if count % 3 == 0:
+                    studio.load_brush("round", 8, base, 1.0)
+                studio.stroke(sheet, [[left + inset, y, 0.9], [right - inset, y, 0.9]], 180, smooth=False)
+                count += 1
+    print(f"   variegated_leaf: film when the colours go in {film_at(studio, *LEAF_CENTRE):.2f}")
+    # Paint of about the strength of cream on a brush that is not full: it gives up its colour
+    # to the film without flooding it.
+    for mix, strength, water, strokes in LEAF_PATCHES:
+        for points in strokes:
+            studio.load_brush("round", 11, {name: strength * amount for name, amount in mix.items()}, water)
+            path = [[x, y, 0.9] for x, y in points]
+            path[-1][2] = 0.4
+            studio.stroke(sheet, path, 150, smooth=True)
+    for first, last, mix in LEAF_EDGES:
+        studio.load_brush("round", 5, mix, 0.6)
+        along = [[*set_in(LEAF_OUTLINE, index, 5.0), 0.4 if index % len(LEAF_OUTLINE) in LEAF_POINTS else 0.8]
+                 for index in range(first, last + 1)]  # fmt: skip
+        studio.stroke(sheet, along, 150, smooth=False)
+    print(f"   variegated_leaf: film when the colours are in {film_at(studio, *LEAF_CENTRE):.2f}")
+    studio.wait_for_film(sheet, *LEAF_CENTRE, 0.3, 600)
+    for mix, strokes in LEAF_ACCENTS:
+        for points in strokes:
+            studio.load_brush("round", 6, {name: 2.2 * amount for name, amount in mix.items()}, 0.5)
+            path = [[x, y, 0.8] for x, y in points]
+            path[-1][2] = 0.3
+            studio.stroke(sheet, path, 120, smooth=True)
+    # Two touches of clear water from a full brush as the shine goes: each pushes the paint
+    # around it outward and leaves a pale bloom, which is what breaks up an even blend.
+    studio.wait_for_film(sheet, *LEAF_CENTRE, 0.2, 600)
+    for point in ([206, 242], [156, 126]):
+        studio.load_brush("round", 5, {}, 1.0)
+        studio.stroke(sheet, [point], 100, smooth=False, dwell=0.4)
+    waited = studio.wait_for_film(sheet, *LEAF_CENTRE, 0.12, 600)
+    print(
+        f"   variegated_leaf: veins lifted {waited:.0f} s after the blooms, at film {film_at(studio, *LEAF_CENTRE):.2f}"
+    )
+    # The veins, with a small soft round drained until it lifts: twice along the main ones and
+    # once along the rest, starting a little out from where they meet so that the lifting does
+    # not pile up there.
+    for passes, veins in ((2, LEAF_VEINS[:3]), (1, LEAF_VEINS[3:])):
+        for _ in range(passes):
+            for hub, middle, tip in veins:
+                reach = math.hypot(middle[0] - hub[0], middle[1] - hub[1])
+                start = (hub[0] + 14 * (middle[0] - hub[0]) / reach, hub[1] + 14 * (middle[1] - hub[1]) / reach)
+                damp_brush(studio, "round", 2.5, 0.2)
+                studio.stroke(sheet, [[x, y, 0.7] for x, y in (start, middle, tip)], 120, smooth=True)
+    studio.dry()
+
+
 # Trials that are charts: each row of the sheet is labelled with the name of what was used on it.
 CHART_LABELS: dict[str, tuple[int, int, list[str]]] = {
     "brush_shapes": (22, CHART_ROW, list(BRUSH_TYPES)),
     "brush_hairs": (30, 66, list(HAIRS)),
     "stroke_gestures": (24, 50, list(GESTURES)),
+    "charging_by_wetness": (44, 82, list(WETNESS_ROWS)),
 }
+# Charts whose labels sit wherever their patches are.
+CHART_NOTES: dict[str, tuple[tuple[int, int, str], ...]] = {"blending_methods": BLENDING_NOTES}
 
 
 TRIALS: dict[str, Callable[[Studio], None]] = {
@@ -582,6 +904,7 @@ TRIALS: dict[str, Callable[[Studio], None]] = {
         backrun, dry_brush, granulation, lifting, brush_marks, loose_pools, softened_edge, lighthouse_study,
         dabs_into_clear_water, dabs_into_pale_wash, dabs_into_moist_wash, thick_and_thin_dabs, layered_dabs,
         brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs, stroke_gestures,
+        charging_by_wetness, charged_wash, variegated_leaf, blending_methods,
     )
 }  # fmt: skip
 
@@ -604,6 +927,8 @@ def main() -> None:
                 first, spacing, labels = CHART_LABELS[name]
                 for row, label in enumerate(labels):
                     ImageDraw.Draw(pictures[name]).text((6, first + spacing * row - 5), label, fill="black")
+            for x, y, note in CHART_NOTES.get(name, ()):
+                ImageDraw.Draw(pictures[name]).text((x, y), note, fill="black")
             pictures[name].save(OUTPUT / f"{name}.png")
             print(f"{name:24s} simulated {studio.clock:7.1f} s, pigment on paper {float(sheet.deposited.sum()):9.1f}")
             if name == "wet_in_wet":

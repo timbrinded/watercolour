@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.4.2"
+  version: "0.5.0"
 ---
 
 # Painting with the watercolour harness
@@ -12,6 +12,7 @@ You are the painter. The harness gives you paper, water, pigment and brushes tha
 Supporting references in this skill directory:
 
 - `references/actions.md` — Read before writing any pass: the exact fields of every action, the nineteen brush heads, the nine hairs, and the paint box.
+- `references/wet-in-wet.md` — Read before any passage where colours must run into one another or an edge must be softened: charging a colour into a wet wash, a variegated wash inside a crisp shape, blending a join, pulling out an edge, lifting a pale line. It gives the film depths and brush fullness each one needs.
 - `references/glazing-and-economy.md` — Read when planning transparent layered washes, painting white or pale subjects against bare paper, working to a tight stroke count, or diagnosing why an attempt looks opaque, stripey, or overworked.
 - `references/faces-and-detail.md` — Read before painting portraits, faces, figures, or intricate focal passages: bare-paper skin washes, proportion and plumb-line checks, brush-radius inset, eye and expression mechanics, negative-space noses and mouths, hair masses, and crisp adjacent trim.
 
@@ -19,9 +20,11 @@ Supporting references in this skill directory:
 
 The harness is the repository https://github.com/timbrinded/watercolour. Before painting, find out how to run it, in this order:
 
-1. If `watercolor --help` works, the command is installed; use it as written below, from any directory.
-2. If you are inside a clone of the repository (it has `src/watercolor/`), run `uv sync` once and put `uv run` before every command: `uv run watercolor ...`.
+1. If you are inside a clone of the repository (it has `src/watercolor/`), run `uv sync` once and put `uv run` before every command: `uv run watercolor ...`. That runs the clone's own version, which may be newer than an installed one.
+2. Otherwise, if `watercolor --help` works, the command is installed; use it as written below, from any directory.
 3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
+
+Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`.
 
 A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
 
@@ -55,20 +58,29 @@ If the session has a scrap sheet, try any mix or stroke you are unsure of there 
 
 ## Water is the clock
 
-Everything depends on how wet the paper is where your brush lands. `status` reports the share of the sheet at each stage, and `look --view wetness` shows where.
+Everything depends on how wet the paper is where your brush lands, and wetness is a scale, not a set of states. The harness gives it as two numbers: `film`, the depth of water standing on the surface, and `paper`, how full the sheet itself is, from 0 to 1. Read them where you are about to paint, before you paint there:
 
-| Paper | What a new stroke does there |
+```bash
+watercolor look paintings/<name> --view wetness --at 240,180 --at 400,300
+```
+
+| Where the brush lands | What a new stroke does there |
 |---|---|
-| **Dry** | Keeps a hard edge, and dries darker at that edge than in its middle. Use for crisp shapes and glazes. |
-| **Shiny** (standing water) | Spreads and blends softly into what is there. Use for wet-in-wet. |
-| **Moist** (sheen gone) | Spreads a little and holds a soft edge. Good for soft shadows and for deepening a wash. |
-| **Damp** (no surface water) | Dangerous. Wetter paint or clean water floods back into the drying wash and leaves a bloom. Wanted sometimes, a ruined sky otherwise. |
+| **Paper dry, no film** | Keeps a hard edge, and dries darker at that edge than in its middle. Use for crisp shapes and glazes. |
+| **Film of 0.5 and deeper** (a wash just laid, or laid twice) | Spreads to twice its width or more and blends softly into what is there; strong paint is diluted to half its strength or less. Wet-in-wet at its loosest. |
+| **Film of 0.15 to 0.5** (the shine is still on) | Spreads to about one and a half times its width and holds a soft edge. Good for soft shadows, for deepening a wash and for accents that must stay put. |
+| **Film under about 0.1** (the shine is going) | Dangerous. Paint or water from a brush wetter than the paper floods back into the drying wash and leaves a bloom. Wanted sometimes, a ruined sky otherwise. |
+| **Paper damp, no film** (`paper` above about 0.6) | The same danger, with a ragged edge. Wait for `dry`. |
 
-A full wash stays shiny for roughly a minute and a half of painting time, and strokes take time to make. So:
+`status` also names four stages (shiny, moist, damp, dry). They are only landmarks on these scales: shiny is a film over 0.15, moist a thinner one, damp is no film on paper more than 0.6 full. Act on the numbers.
+
+A wash laid once with a round starts with a film of about 0.5 (about 0.8 from a mop) and is down to 0.12 in about a minute; laid twice over it starts at 0.6 to 1.2 and lasts a minute and a half or more. Strokes take time to make, and that time comes out of it. So:
 
 - **Lay a wash quickly.** Use a big brush, fast strokes (`"speed": 280`), and overlapping rows about one brush radius apart. Rows that only just touch leave a line between them.
-- **Do not go back into a wash that has lost its shine** unless you want the bloom.
-- **Use `{"action": "dry"}` before a glaze or a crisp shape**, and `wait` when you want the paper moist rather than dry.
+- **Time the next stroke by the film, not by a guess at the seconds.** `{"action": "wait", "seconds": 300, "at": [240, 180], "film": 0.12}` waits until the film at that point has thinned to 0.12, or 300 seconds at most. It is the painter watching the shine go off.
+- **Do not go back into a wash whose film is under about 0.1** with a wet brush unless you want the bloom.
+- **Use `{"action": "dry"}` before a glaze or a crisp shape.**
+- **The brush has a scale too.** `{"action": "drain", "water": 0.6}` touches it to a cloth: it keeps its colour and loses fullness. Full, it floods; at about 0.6 it gives colour to a wet wash and blends a join; at about 0.45 it pulls out an edge; at 0.2 it lifts paint. The brush must never be wetter than the paper it touches. `references/wet-in-wet.md` has the method for each.
 
 ## Make each mark with a brush that fits it
 
@@ -155,13 +167,14 @@ Give every point a time `t` in seconds, or give none. With none, the brush trave
 ## Techniques that work here
 
 - **Graded wash:** rows from the top, each load a little weaker (or warmer) than the last, all laid before the first loses its shine.
-- **Soft edge on one side:** lay the stroke, then run a clean brush loaded with little water (`"pigments": {}, "water": 0.4`) along the edge you want softened.
+- **Soft edge on one side:** lay the stroke, then run a clean brush drained to about 0.45 (`"pigments": {}, "water": 0.45`) along the edge you want softened, just touching it. Repeat a little further out for a longer fade.
 - **Form on a cylinder or a box:** the shadow tone down the shadow side right to the edge, softened inward as above.
-- **Dark into wet:** while a shape is still shiny, touch a stronger mix into its shadow side and let it spread.
+- **Dark into wet (charging):** while a shape still has a film of 0.3 or more, touch a stronger mix into it with a brush drained to 0.6, in two or three strokes, and leave it to spread. Do not stir. Deeper film, further spread; see `references/wet-in-wet.md`.
+- **Several colours in one shape (a variegated wash):** lay the whole shape pale and deep, then each colour over its own part as patches that touch, then a few much stronger touches once the film is down to 0.3. The full method, with a leaf as its example, is in `references/wet-in-wet.md`.
 - **Varied masses (foliage, scrub):** many short touches of two or three related colours laid wet into each other, the outer ones from a nearly dry brush for a ragged edge.
 - **Gravity pooling and runs:** a gentle `tilt` (`0.05` to `0.08`) on a high-water pale wash (`"water": 0.80` to `0.84`) drains the sunlit upper edge airy while settling pigment cleanly toward the shadow side, often saving a separate clear-water grid pass. Tilts above `0.18` break into visible vertical runs and drips. Set the tilt back to zero before drying.
 - **Contact shadow into a wet ground wash:** sweep a fast `hake` ground stroke first and touch the darker contact shadow under feet, paws, or a base directly into it while it is still wet; laid onto dry paper later, a narrow contact line dries as an isolated grey worm.
-- **Lifting:** `blot` takes up most of the water and loose pigment under it. It only works while the paint is wet.
+- **Lifting:** a brush drained to 0.2, twice along the same line while the film is between 0.3 and 0.1, takes off a third or more of the colour: veins, a highlight on water, the light side of a stem. `blot` takes up most of the water and loose pigment under it. Neither works once the film has gone.
 - **Fine lines:** a rigger of size about 1, moderate strength, full water. Reload for each line.
 - **Lights you could not reserve:** `opaque_white` at strength about 4.5, in two coats, as the very last thing. It is for glints and small figures, not for repairs.
 
@@ -178,7 +191,7 @@ Portraits and close detail magnify small errors in value, proportion and brush w
 
 After each pass, look, and ask in this order:
 
-1. Is the paper where I think it is (wet, moist, dry)? Check before the next pass, not after.
+1. Is the paper as wet as I think it is? Read the film where the next strokes go (`look --at x,y`) before the pass, not after.
 2. Do the values read? Use `look --view value`. If the picture works in grey, colour will not sink it.
 3. Did the shape land where I planned? Use `look --region x0,y0,x1,y1 --grid` to read coordinates off the sheet.
 4. Is the next step still the one I planned, or has the painting changed what it needs?

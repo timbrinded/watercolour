@@ -268,3 +268,91 @@ def test_pause_in_a_stroke_leaves_more_paint_where_the_brush_rested(studio: Stud
     assert studio.clock - before == pytest.approx(3.8, abs=0.11)
     paint = (sheet.suspended + sheet.deposited)[1]
     assert float(paint[58:71, 58:71].sum()) > 1.5 * float(paint[58:71, 30:43].sum())
+
+
+def paint(studio: Studio, pigment: int) -> torch.Tensor:
+    sheet = studio.sheets["painting"]
+    return sheet.suspended[pigment] + sheet.deposited[pigment]
+
+
+@pytest.mark.parametrize(("wet", "unbroken"), [(True, True), (False, False)])
+def test_thick_paint_from_a_drained_brush_breaks_on_dry_paper_and_not_on_a_wet_film(
+    studio: Studio, wet: bool, unbroken: bool
+) -> None:
+    # Thick paint on a half-drained brush is a dry-brush load. It was laid the same way into a
+    # wet wash, catching only the peaks of the grain: charging the way painters do it left beads.
+    if wet:
+        lay_wet_patch(studio)
+        studio.wait_for_film("painting", 64, 64, 0.12, 300)
+    studio.load_brush("round", 6, {"cadmium_red": 5.0}, 1.0)
+    studio.drain(0.5)
+    studio.stroke("painting", [[34, 64, 0.7], [94, 64, 0.7]], 90, smooth=False)
+    line = paint(studio, 0)[62:67, 40:80].mean(dim=0)
+    bare = float((line < 0.3 * line.median()).float().mean())
+    assert (bare == 0.0) == unbroken
+
+
+def test_drained_brush_lifts_paint_from_a_wash_that_is_losing_its_shine(studio: Studio) -> None:
+    # A damp brush soaked up water only from a film deeper than the one it would lay, so on a
+    # thin film it took nothing, and what it loosened it left where it was.
+    for y in (40, 64, 88):
+        studio.load_brush("mop", 16, {"french_ultramarine": 1.5}, 1.0)
+        studio.stroke("painting", [[24, y], [104, y]], 120, smooth=False)
+    studio.wait_for_film("painting", 64, 64, 0.12, 400)
+    for _ in range(2):
+        studio.load_brush("round", 3, {}, 1.0)
+        studio.drain(0.2)
+        studio.stroke("painting", [[64, 36, 0.8], [64, 92, 0.8]], 120, smooth=False)
+    brush = studio.brush
+    assert brush is not None
+    assert brush.concentration[1] * brush.reservoir > 5.0
+    studio.dry()
+    blue = paint(studio, 1)
+    assert float(blue[44:86, 63:66].mean()) < 0.8 * float(blue[44:86, 76:84].mean())
+
+
+def test_damp_brush_draws_one_wet_colour_into_the_next(studio: Studio) -> None:
+    # The brush moved wet paint only about its own width, so no amount of stroking across a
+    # join, or stirring in standing water, mixed two colours.
+    for name, left, right in (("cadmium_red", 20, 60), ("french_ultramarine", 68, 108)):
+        for y in (48, 64, 80):
+            studio.load_brush("round", 10, {name: 2.0}, 1.0)
+            studio.stroke("painting", [[left, y], [right, y]], 120, smooth=False)
+    beyond = (slice(56, 73), slice(78, 100))
+    before = float(paint(studio, 0)[beyond].sum())
+    studio.load_brush("round", 9, {}, 1.0)
+    studio.drain(0.6)
+    studio.stroke("painting", [[30, 64, 0.9], [100, 64, 0.9]], 110, smooth=False)
+    assert float(paint(studio, 0)[beyond].sum()) > before + 20.0
+
+
+def test_granulating_paint_gathers_in_the_hollows_of_the_grain(studio: Studio) -> None:
+    sheet = studio.sheets["painting"]
+    for y in (40, 64, 88):
+        studio.load_brush("mop", 16, {"cadmium_red": 1.0, "french_ultramarine": 1.0}, 1.0)
+        studio.stroke("painting", [[24, y], [104, y]], 120, smooth=False)
+    studio.dry()
+    region = (slice(50, 80), slice(40, 90))
+    tooth = sheet.tooth[region]
+
+    def gathering(pigment: int) -> float:
+        amount = paint(studio, pigment)[region]
+        return float(amount[tooth < 0.4].mean() / amount[tooth > 0.6].mean())
+
+    # Ultramarine granulates and cadmium red hardly does.
+    assert gathering(1) > 1.25
+    assert gathering(1) > gathering(0) + 0.1
+
+
+def test_granulating_paint_in_an_ordinary_wash_stays_where_it_settles(studio: Studio) -> None:
+    # With nothing to stop it in a thin film, the rolling of settled paint into the hollows
+    # turned a plain flat wash of ultramarine into coarse blotches and hid the blooms in it.
+    sheet = studio.sheets["painting"]
+    for y in (36, 58, 80):
+        studio.load_brush("flat", 12, {"french_ultramarine": 0.8}, 1.0)
+        studio.stroke("painting", [[24, y, 0.9], [104, y, 0.9]], 150, smooth=False)
+    assert sheet.wetness_at(64, 58)["film"] < 0.7
+    studio.dry()
+    region = (slice(40, 76), slice(34, 94))
+    tooth, amount = sheet.tooth[region], paint(studio, 1)[region]
+    assert float(amount[tooth < 0.4].mean() / amount[tooth > 0.6].mean()) < 1.25

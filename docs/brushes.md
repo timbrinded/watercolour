@@ -107,6 +107,6 @@ A slow stroke leaves more paint than a fast one. At high speed, thin, long or ga
 
 - **Handles and packaging:** triangular handles, travel and pocket brushes, and sets use heads already listed.
 - **Japanese and sumi brushes**, the rotary tree brush, the smooshing brush and the gilder's tip.
-- **The eradicator**, a stiff brush for lifting dried paint; use `blot` on wet paint instead.
+- **The eradicator**, a stiff brush for lifting dried paint. While a wash still has a thin film on it, a brush drained to 0.2 or less lifts paint from it (`{"action": "drain", "water": 0.2}`), and the stiffer the hair the more settled paint it loosens; `blot` takes up wet paint.
 - **Softeners and blenders used dry** to feather wet paint. A clean damp brush run along an edge does that job here.
 - **Which way the brush leans.** The angle of the brush is modelled, but not its direction: laid over, a brush always drags its side squarely across its travel.

@@ -73,14 +73,21 @@ A pass is a JSON list of actions carried out in order:
 | Action | Fields |
 |---|---|
 | `load` | `brush` (one of 19 shapes of head, such as `round`, `flat`, `mop`, `rigger`, `filbert`, `dagger`), `hair` (optional, one of 9, such as `kolinsky_sable`, `squirrel`, `golden_synthetic`), `size` (radius in pixels, 0.5 to 80), `pigments` (name to strength, totalling at most 8), `water` (0 to 1), `rinse` |
+| `drain` | `water` (0 to 1): touch the brush to a cloth until it holds no more than this share of what it can; it keeps its colour and loses only fullness |
 | `stroke` | `path` of points, each `[x, y]`, `[x, y, pressure]`, or a mapping with `x`, `y` and any of `pressure`, `angle` (0 upright to 90 laid flat), `twist` (the edge of a flat head, -90 to 90 degrees) and `t` (seconds); `speed` in pixels per second when no times are given; `smooth`; `dwell` in seconds for a single-point dab |
 | `blot` | `path`, `radius` |
 | `pencil`, `erase` | `path`; the underdrawing can change only until paint touches the sheet |
-| `wait` | `seconds` |
+| `wait` | `seconds`; with `at` (a point) and `film` (a depth) the wait ends as soon as the film of water there has thinned to that depth |
 | `dry` | wait until the sheet is dry |
 | `tilt` | `x`, `y` (up to 0.3); paint runs downhill |
 
-`look` saves a picture of the sheet as it is now: in colour, as values only, or as a wetness map showing where the paper is shiny, moist, damp or dry. Looking changes nothing.
+`look` saves a picture of the sheet as it is now: in colour, as values only, or as a wetness map. Looking changes nothing.
+
+Wetness is two continuous scales, not a set of states: the depth of the film of water standing on the surface, and how full of water the paper is. The wetness map shows both with a scale beneath it, `look --at x,y` reads them as numbers at a point, and `status` gives the film at its deepest and at its usual depth.
+
+```bash
+watercolor look paintings/first --view wetness --at 240,180 --at 400,300
+```
 
 ### Rules the harness enforces
 
@@ -98,12 +105,28 @@ The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface
 - **Drying** carries pigment to the edge of a wash, which dries darker than its middle; water dropped into a damp wash leaves a bloom.
 - **Paper** has grain, broad undulation, uneven sizing and limited absorbency.
 - **Brushes** hold a finite load of paint, run dry, part into streaks, push wet paint the way they travel, and take paint back up. Each load differs slightly from the last.
+- **How full the brush is decides what it does to wet paint.** A full brush floods; a damp one carries wet paint on its tip and gives it back further along, so it draws one colour into the next, pulls out an edge and stirs colours together in standing water; a drained one draws up what it loosens and lifts paint from a wash.
+- **Granulating paints gather in the hollows of the grain under deep water**, in suspension and after they have settled, so a granulating colour charged into a deep wash dries as fine specks that thin out toward its front. In the film of an ordinary wash they stay where they settle.
 - **A stroke is a journey.** Every point can set pressure, the angle of the brush to the paper and the twist of a flat head, and can be given a time, so the brush can land on its point, press into its belly, turn its edge, pause and flick away.
 - **A brush is a shape, a hair and a size.** Nineteen shapes of head (round, flat, slanted and rounded, from spotter to hake) and nine hairs (sables, squirrel, goat, badger and synthetics) set how much it holds, how fine a point it takes, how it ends a stroke and how soon it runs dry. See [docs/brushes.md](docs/brushes.md).
 - **Paint** is a mixture: strong paint leaves less room for water and catches on the grain.
 - **Colour** is rendered with Kubelka-Munk mixing over the paper, so glazes darken and opaque white covers.
 
 Sheets of the same size can be advanced together on one graphics card (`watercolor.together`), which is how the trials run.
+
+## Wet in wet
+
+![A granulating blue charged into a deep wet yellow wash](docs/images/charged_wash.png) ![A leaf painted as a variegated wash, with lifted veins](docs/images/variegated_leaf.png)
+
+Both are engine trials (`charged_wash` and `variegated_leaf`). On the left, strong blue paint on a brush drained to about 0.6 is touched into a deep yellow wash and left alone. On the right, a leaf is laid in a pale wash, each colour is laid over its own part of it so that colour meets colour, stronger touches follow as the film thins, and the veins are lifted with a drained brush once it has nearly gone.
+
+![One charge repeated as the film on a wash thins from deep to none](docs/images/charging_by_wetness.png)
+
+How far a charge spreads, how soft its edge is and whether it blooms all follow from the depth of the film when the brush lands.
+
+![Six ways of blending, each on its own patch](docs/images/blending_methods.png)
+
+The method for each of these is written up for a painting model in [the skill's wet-in-wet reference](.claude/skills/paint-watercolour/references/wet-in-wet.md).
 
 ## Trials and tests
 
@@ -113,13 +136,13 @@ These need a clone of the repository.
 uv run python trials/engine_trials.py
 ```
 
-paints each technique on its own sheet and writes the pictures to `trials/output/`. Name trials on the command line to run only those.
+paints each technique on its own sheet and writes the pictures to `trials/output/`. Name trials on the command line to run only those; all of them together take about half an hour.
 
 ```bash
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about two minutes on a graphics card.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card.
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run pyrefly check
@@ -138,7 +161,8 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 ## Known limits
 
 - Pigment optical values for most paints are recalled from the Curtis paper and have not been checked against it; the rest are estimated from the colour of the paint.
-- Flow strengths, drying times and brush drag are set by eye, not calibrated against filmed painting.
+- Flow strengths, drying times, brush drag and granulation are set by eye, not calibrated against filmed painting. Depths of film and the fullness of the brush are in the engine's own units.
+- Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
 - The package and command are spelled `watercolor`; the repository is `watercolour`.
