@@ -1,0 +1,4 @@
+paintings/
+trials/output/
+.venv/
+__pycache__/

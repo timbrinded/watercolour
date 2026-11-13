@@ -1,0 +1,35 @@
+[project]
+name = "watercolor"
+version = "0.2.0"
+description = "A watercolour painting harness: a simulated sheet, brushes and paint, driven stroke by stroke with no undo."
+license = "MIT"
+readme = "README.md"
+authors = [
+    { name = "timbrinded", email = "79199034+timbrinded@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.5.4",
+    "pillow>=13.0.0",
+    "torch>=2.15.0",
+]
+
+[project.scripts]
+watercolor = "watercolor:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyrefly>=1.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.pyrefly]
+search-path = ["src", "trials"]
