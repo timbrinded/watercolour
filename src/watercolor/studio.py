@@ -7,10 +7,26 @@ earlier keeps flowing and drying while later strokes are made.
 import random
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 from torch import Tensor
 
-from .brushes import BRUSH_TYPES, HAIRS, STRONGEST_CONCENTRATION, Brush, Path, arrange_hairs, trace_path
+from .brushes import (
+    ANGLE,
+    BRUSH_TYPES,
+    HAIRS,
+    PRESSURE,
+    STRONGEST_CONCENTRATION,
+    TIME,
+    TWIST,
+    Brush,
+    Journey,
+    Path,
+    arrange_hairs,
+    journey_between,
+    trace_journey,
+    trace_path,
+)
 from .pigments import PIGMENTS
 from .recording import FrameRecorder
 from .rendering import render, to_image
@@ -109,24 +125,27 @@ class Studio:
             brush.reservoir = min(total, brush.capacity)
         self.brush = brush
 
-    def stroke(self, sheet_name: str, path: Path, speed: float, smooth: bool, dwell: float = DAB_DURATION) -> None:
-        """Draw the brush along a path. A single point is a dab held for the dwell time."""
+    def stroke(self, sheet_name: str, path: Journey, speed: float, smooth: bool, dwell: float = DAB_DURATION) -> None:
+        """Take the brush on a journey across the sheet.
+
+        Each point may set the pressure, the angle of the brush to the paper and the twist of
+        its head. Points that give times are met at those times; without them the brush travels
+        at one speed, and a single point is a dab held for the dwell.
+        """
         brush = self.brush
         if brush is None:
             raise ValueError("no brush is loaded")
         sheet = self.sheets[sheet_name]
-        samples = trace_path(path, smooth)
+        traced = trace_journey(path, smooth, speed, dwell)
         concentration = self._tensor(brush.concentration)
         hairs = self._tensor(brush.hairs)
         dt = self._time_step
-        if len(samples) == 1:
-            pieces = [samples] * max(1, round(dwell / dt))
-        else:
-            per_step = max(1, round(speed * dt / 1.5))
-            pieces = [samples[i : i + per_step + 1] for i in range(0, len(samples) - 1, per_step)]
-        for piece in pieces:
-            radii = brush.radius(piece[:, 2])
-            contact = brush.contact(float(piece[:, 2].mean()), speed)
+        for step in range(max(1, round(float(traced[-1, TIME]) / dt))):
+            piece = journey_between(traced, step * dt, (step + 1) * dt)
+            pressure, angle, twist = (float(piece[:, column].mean()) for column in (PRESSURE, ANGLE, TWIST))
+            travelled = float(np.linalg.norm(np.diff(piece[:, :2], axis=0), axis=1).sum())
+            radii = brush.radius(piece[:, PRESSURE], angle)
+            contact = brush.contact(pressure, travelled / dt, angle, twist)
             used, pigment_out = sheet.apply_brush(
                 self._tensor(piece[:, :2]), self._tensor(radii), contact, concentration, brush.reservoir, hairs
             )

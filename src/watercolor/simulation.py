@@ -71,6 +71,7 @@ class Contact:
     tip: float  # depth of the brush's tip along its travel, as a fraction of its radius; 1.0 is a round tip
     rounded: bool  # whether a flat head ends in a curve, as a filbert does, and not square
     slant: float  # how far the end of a flat head is cut at an angle, as a fraction of its width
+    twist: float  # how far the edge of a flat head is turned from square to its travel, in radians
     target_depth: float  # water depth the brush tries to leave behind
     contact_level: float  # below about 1.0 the brush touches only the paper's peaks
     exchange: float  # how strongly the brush mixes with paint already on the sheet
@@ -160,6 +161,39 @@ def _translate(field: Tensor, dx: float, dy: float) -> Tensor:
             shifted = torch.roll(padded, shifts=(whole_y + step_y, whole_x + step_x), dims=(-2, -1))
             result += weight_y * weight_x * shifted
     return result[..., pad:-pad, pad:-pad]
+
+
+def _turned_head(along: Tensor, across: Tensor, length: Tensor, tip: float, rounded: bool, twist: float) -> Tensor:
+    """Distance from each cell to a flat head, turned by an angle, at the place on its path nearest that cell.
+
+    The head is a bar: wide across its edge and shallow through its depth (the tip). Distance is
+    measured so that the bar's outline is at one radius. The head may stand anywhere along the
+    segment; the best place is found among the few where the distance can be least.
+    """
+    sine, cosine = math.sin(twist), math.cos(twist)
+
+    def measure(ahead: Tensor) -> Tensor:
+        # How far the cell lies ahead of the head, resolved along the head's edge and through its depth.
+        edge = -ahead * sine + across * cosine
+        depth = (ahead * cosine + across * sine) / tip
+        return torch.hypot(edge, depth) if rounded else torch.maximum(edge.abs(), depth.abs())
+
+    # Places where the distance can be least: where the cell is level with the edge or the depth of
+    # the head, where the two measures are equal, and where their combined square is least.
+    places = [torch.zeros_like(across)]
+    if abs(sine) > 1e-6:
+        places.append(across * cosine / sine)
+    if abs(cosine) > 1e-6:
+        places.append(-across * sine / cosine)
+    for sign in (1.0, -1.0):
+        slope = -sine - sign * cosine / tip
+        if abs(slope) > 1e-6:
+            places.append(across * (sign * sine / tip - cosine) / slope)
+    places.append(across * sine * cosine * (1.0 - 1.0 / tip**2) / (sine**2 + cosine**2 / tip**2))
+    # The head stays on its segment, so the cell is ahead of it by between (along - length) and along.
+    return torch.stack([measure(torch.maximum(torch.minimum(place, along), along - length)) for place in places]).amin(
+        0
+    )
 
 
 def _smooth_within(field: Tensor, inside: Tensor, radius: float) -> tuple[Tensor, Tensor]:
@@ -537,12 +571,14 @@ class Sheet:
         tip: float = 1.0,
         rounded: bool = False,
         slant: float = 0.0,
+        twist: float = 0.0,
     ) -> tuple[slice, slice, Tensor]:
         """Soft coverage in [0, 1] of a swept path of circles, within its bounding box.
 
         An irregular edge follows the grain and the undulation of the sheet, as a wet edge does.
         A tip shallower than 1.0 is a flat head: the mark ends square (or in a curve if rounded, or
-        at an angle if slanted) and a brush held still leaves a bar across the sheet.
+        at an angle if slanted) and a brush held still leaves a bar across the sheet. A flat head
+        whose edge is turned toward its direction of travel draws a narrower mark, down to a line.
         """
         reach = float(radii.max()) * (1.0 + abs(slant)) + 2.0 + margin
         x0 = max(int(float(points[:, 0].min()) - reach), 0)
@@ -570,7 +606,12 @@ class Sheet:
             fraction = (travelled / (length + 1e-9)).clamp(0, 1)
             # Beyond either end of a segment the mark reaches only as far as the tip is deep.
             beyond = (travelled - travelled.clamp(min=0).minimum(length)).abs() / tip
-            distance = torch.hypot(across, beyond) if rounded else torch.maximum(across.abs(), beyond)
+            if twist:
+                flat = _turned_head(position * length, across, length, tip, rounded, twist)
+            else:
+                flat = torch.hypot(across, beyond) if rounded else torch.maximum(across.abs(), beyond)
+            # A step with no length has no direction to be flat across: there the head is taken as a point.
+            distance = torch.where(length > 1e-6, flat, distance)
         radius = radii[:-1, None, None] + fraction * (radii[1:, None, None] - radii[:-1, None, None])
         if irregular:
             roughness = (radius / 8.0).clamp(max=1.0) * 2.0  # fine marks keep a clean edge
@@ -605,6 +646,7 @@ class Sheet:
             tip=contact.tip,
             rounded=contact.rounded,
             slant=contact.slant,
+            twist=contact.twist,
         )
         if coverage.numel() == 0:
             return 0.0, torch.zeros_like(concentration)

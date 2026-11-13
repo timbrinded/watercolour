@@ -225,3 +225,46 @@ def test_squirrel_carries_a_wash_further_than_synthetic(studio: Studio) -> None:
         return brush.fullness
 
     assert left_in_brush("squirrel") > left_in_brush("red_sable") > left_in_brush("golden_synthetic")
+
+
+def stroke_with(studio: Studio, kind: str, **held: float) -> torch.Tensor:
+    """Water left by one level stroke from x = 30 to x = 98 at y = 64, with the brush held a given way."""
+    sheet = studio.sheets["painting"]
+    for field in (sheet.water, sheet.saturation, sheet.suspended, sheet.deposited):
+        field.zero_()
+    studio.load_brush(kind, 9, {"french_ultramarine": 1.0}, 0.8)
+    studio.stroke("painting", [{"x": 30, "y": 64, **held}, {"x": 98, "y": 64, **held}], 120, smooth=False)
+    return sheet.water.clone()
+
+
+def test_flat_head_turned_end_on_draws_a_line(studio: Studio) -> None:
+    # The edge of a flat head was always square to its travel, so it could only draw at full width.
+    def width(twist: float) -> int:
+        return int((stroke_with(studio, "flat", twist=twist)[:, 64] > 0.05).sum())
+
+    assert width(90.0) < 0.5 * width(0.0)
+
+
+def test_round_brush_laid_over_draws_broader_and_drier_than_upright(studio: Studio) -> None:
+    # A brush could only be held one way. Upright it should draw a narrow wet line with its
+    # point; laid over, a broad mark with its side that leaves less water where it touches.
+    upright, laid_over = stroke_with(studio, "round", angle=0.0), stroke_with(studio, "round", angle=90.0)
+    assert int((laid_over[:, 64] > 0).sum()) > 1.5 * int((upright[:, 64] > 0).sum())
+    assert float(laid_over[laid_over > 0].mean()) < 0.7 * float(upright[upright > 0].mean())
+
+
+def test_pause_in_a_stroke_leaves_more_paint_where_the_brush_rested(studio: Studio) -> None:
+    # A stroke had one speed. With times, the brush can rest, and a resting brush goes on giving up paint.
+    sheet = studio.sheets["painting"]
+    studio.load_brush("round", 8, {"french_ultramarine": 1.0}, 1.0)
+    journey = [
+        {"x": 24, "y": 64, "t": 0.0},
+        {"x": 64, "y": 64, "t": 0.4},
+        {"x": 64, "y": 64, "t": 3.4},
+        {"x": 104, "y": 64, "t": 3.8},
+    ]
+    before = studio.clock
+    studio.stroke("painting", journey, 120, smooth=False)
+    assert studio.clock - before == pytest.approx(3.8, abs=0.11)
+    paint = (sheet.suspended + sheet.deposited)[1]
+    assert float(paint[58:71, 58:71].sum()) > 1.5 * float(paint[58:71, 30:43].sum())

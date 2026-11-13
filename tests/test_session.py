@@ -51,3 +51,11 @@ def test_a_finished_painting_accepts_nothing_more(tmp_path: Path) -> None:
     assert picture.exists() and video.exists()
     with pytest.raises(RuleViolation):
         Session(session.directory).paint(STROKE)
+
+
+def test_stroke_whose_times_run_backward_is_refused(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    backward = [{"x": 10, "y": 10, "t": 0.0}, {"x": 40, "y": 10, "t": 1.0}, {"x": 70, "y": 10, "t": 0.5}]
+    with pytest.raises(ValueError, match="backward"):
+        session.paint([STROKE[0], {"action": "stroke", "path": backward}])
+    assert session.strokes_used == 0

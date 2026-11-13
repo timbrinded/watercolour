@@ -51,7 +51,7 @@ A pass is a JSON list of actions carried out in order:
 | Action | Fields |
 |---|---|
 | `load` | `brush` (one of 19 shapes of head, such as `round`, `flat`, `mop`, `rigger`, `filbert`, `dagger`), `hair` (optional, one of 9, such as `kolinsky_sable`, `squirrel`, `golden_synthetic`), `size` (radius in pixels, 0.5 to 80), `pigments` (name to strength, totalling at most 8), `water` (0 to 1), `rinse` |
-| `stroke` | `path` of `[x, y]` or `[x, y, pressure]` points; `speed` in pixels per second; `smooth`; `dwell` in seconds for a single-point dab |
+| `stroke` | `path` of points, each `[x, y]`, `[x, y, pressure]`, or a mapping with `x`, `y` and any of `pressure`, `angle` (0 upright to 90 laid flat), `twist` (the edge of a flat head, -90 to 90 degrees) and `t` (seconds); `speed` in pixels per second when no times are given; `smooth`; `dwell` in seconds for a single-point dab |
 | `blot` | `path`, `radius` |
 | `pencil`, `erase` | `path`; the underdrawing can change only until paint touches the sheet |
 | `wait` | `seconds` |
@@ -76,6 +76,7 @@ The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface
 - **Drying** carries pigment to the edge of a wash, which dries darker than its middle; water dropped into a damp wash leaves a bloom.
 - **Paper** has grain, broad undulation, uneven sizing and limited absorbency.
 - **Brushes** hold a finite load of paint, run dry, part into streaks, push wet paint the way they travel, and take paint back up. Each load differs slightly from the last.
+- **A stroke is a journey.** Every point can set pressure, the angle of the brush to the paper and the twist of a flat head, and can be given a time, so the brush can land on its point, press into its belly, turn its edge, pause and flick away.
 - **A brush is a shape, a hair and a size.** Nineteen shapes of head (round, flat, slanted and rounded, from spotter to hake) and nine hairs (sables, squirrel, goat, badger and synthetics) set how much it holds, how fine a point it takes, how it ends a stroke and how soon it runs dry. See [docs/brushes.md](docs/brushes.md).
 - **Paint** is a mixture: strong paint leaves less room for water and catches on the grain.
 - **Colour** is rendered with Kubelka-Munk mixing over the paper, so glazes darken and opaque white covers.

@@ -19,7 +19,7 @@ A pass is a JSON file holding a list of actions, carried out in order.
 | Action | Fields | Notes |
 |---|---|---|
 | `load` | `brush`, `hair`, `size`, `pigments`, `water`, `rinse` | `size` is the radius in pixels, 0.5 to 80. `pigments` maps paint names to amounts totalling at most 8. `water` is how full the brush is, 0 to 1. With `"rinse": false` the new mix is added to what the same brush already holds. |
-| `stroke` | `path`, `speed`, `smooth`, `dwell`, `sheet` | `path` is a list of `[x, y]` or `[x, y, pressure]`; pressure defaults to 0.7. `speed` is pixels per second, default 120; above about 150 the brush starts to skip. `smooth` curves the path through its points. A single point is a dab held for `dwell` seconds (default 0.3, at most 10); a longer dwell releases more water. |
+| `stroke` | `path`, `speed`, `smooth`, `dwell`, `sheet` | Each point of `path` is `[x, y]`, `[x, y, pressure]`, or a mapping with `x` and `y` and any of `pressure` (0 to 1, default 0.7), `angle` (0 upright to 90 laid flat, default 45), `twist` (-90 to 90 degrees, flat heads only, default 0) and `t` (seconds). Either every point gives `t` or none does; times must not run backward, and a stroke lasts at most 120 seconds. Without times the brush travels at `speed` pixels per second (default 120). `smooth` curves the path, and everything set along it, through its points. A single point is a dab held for `dwell` seconds (default 0.3, at most 10); a longer dwell releases more water. |
 | `blot` | `path`, `radius`, `sheet` | Radius 1 to 80. Takes up most surface water and loose pigment. |
 | `pencil` | `path`, `darkness`, `smooth`, `sheet` | Underdrawing. Allowed only until paint first touches the painting. |
 | `erase` | `path`, `radius`, `sheet` | Removes pencil. Same restriction. |
@@ -69,7 +69,7 @@ A brush is the shape of its head, the hair it is made of, and its size. `hair` i
 | `synthetic_sable` | slightly less than sable | Behaves as sable. |
 | `synthetic_squirrel` | nearly twice a sable | Behaves as squirrel. |
 
-A brush that is running dry, moving fast, or carrying thick paint parts into clumps and leaves streaks along the stroke. A full brush presses paint along less than a damp one does. A flat head always meets the paper square to its direction of travel.
+A brush that is running dry, moving fast, or carrying thick paint parts into clumps and leaves streaks along the stroke. A full brush presses paint along less than a damp one does. The edge of a flat head is square to its direction of travel unless `twist` turns it.
 
 ## Paints
 

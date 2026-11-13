@@ -457,7 +457,7 @@ def paint_strength(studio: Studio) -> None:
     studio.dry()
 
 
-SIZES = {"lighthouse_study": 640, "brush_shapes": 640, "brush_hairs": 640}
+SIZES = {"lighthouse_study": 640, "brush_shapes": 640, "brush_hairs": 640, "stroke_gestures": 640}
 
 
 def wet_edges(studio: Studio) -> None:
@@ -517,10 +517,61 @@ def brush_hairs(studio: Studio) -> None:
     studio.dry()
 
 
+GESTURES = (
+    "round: angle 0, 45, 90",
+    "designer: angle 0, 45, 90",
+    "rigger: angle 0, 45, 90",
+    "filbert: angle 0, 45, 90",
+    "flat: angle 0, 45, 90",
+    "flat: twist 0, 30, 60, 90",
+    "flat: twist turning",
+    "sword: twist turning",
+    "dagger: twist turning",
+    "round: slow then fast",
+    "round: pause midway",
+    "rigger: flick",
+)
+
+
+def stroke_gestures(studio: Studio) -> None:
+    """What the hand can do within one stroke: the angle of the brush, the twist of its head, and its timing."""
+
+    def row(index: int) -> float:
+        return 24.0 + 50.0 * index
+
+    def level(kind: str, index: int, settings: list[dict[str, float]]) -> None:
+        span = 480.0 / len(settings)
+        for column, setting in enumerate(settings):
+            x, y = 150.0 + span * column, row(index)
+            studio.load_brush(kind, 9, CHART_MIX, 0.8)
+            studio.stroke(
+                "painting", [{"x": x, "y": y, **setting}, {"x": x + span - 22, "y": y, **setting}], 120, smooth=False
+            )
+
+    for index, kind in enumerate(("round", "designer", "rigger", "filbert", "flat")):
+        level(kind, index, [{"angle": 0.0}, {"angle": 45.0}, {"angle": 90.0}])
+    level("flat", 5, [{"twist": 0.0}, {"twist": 30.0}, {"twist": 60.0}, {"twist": 90.0}])
+    for index, kind in ((6, "flat"), (7, "sword"), (8, "dagger")):
+        studio.load_brush(kind, 9, CHART_MIX, 1.0)
+        turning = [{"x": 150.0 + 60.0 * step, "y": row(index) + (6.0 if step % 2 else -6.0), "twist": twist, "pressure": 0.9}
+                   for step, twist in enumerate((0.0, 0.0, 90.0, 90.0, 0.0, 0.0, -90.0, -90.0, 0.0))]  # fmt: skip
+        studio.stroke("painting", turning, 110, smooth=True)
+    studio.load_brush("round", 9, CHART_MIX, 0.8)
+    studio.stroke("painting", [{"x": 150, "y": row(9), "t": 0.0}, {"x": 330, "y": row(9), "t": 5.0}, {"x": 620, "y": row(9), "t": 5.6}], 120, smooth=False)  # fmt: skip
+    studio.load_brush("round", 9, CHART_MIX, 0.8)
+    studio.stroke("painting", [{"x": 150, "y": row(10), "t": 0.0}, {"x": 380, "y": row(10), "t": 1.5}, {"x": 380, "y": row(10), "t": 5.5}, {"x": 620, "y": row(10), "t": 7.0}], 120, smooth=False)  # fmt: skip
+    for start in (150.0, 320.0, 490.0):
+        studio.load_brush("rigger", 4, CHART_MIX, 1.0)
+        flick = [{"x": start, "y": row(11) + 10, "pressure": 1.0, "t": 0.0}, {"x": start + 40, "y": row(11), "pressure": 0.8, "t": 0.5}, {"x": start + 130, "y": row(11) - 14, "pressure": 0.05, "t": 0.75}]  # fmt: skip
+        studio.stroke("painting", flick, 120, smooth=True)
+    studio.dry()
+
+
 # Trials that are charts: each row of the sheet is labelled with the name of what was used on it.
 CHART_LABELS: dict[str, tuple[int, int, list[str]]] = {
     "brush_shapes": (22, CHART_ROW, list(BRUSH_TYPES)),
     "brush_hairs": (30, 66, list(HAIRS)),
+    "stroke_gestures": (24, 50, list(GESTURES)),
 }
 
 
@@ -530,7 +581,7 @@ TRIALS: dict[str, Callable[[Studio], None]] = {
         flat_wash, graded_wash, wet_in_wet, wet_on_dry_beside_wet, glaze,
         backrun, dry_brush, granulation, lifting, brush_marks, loose_pools, softened_edge, lighthouse_study,
         dabs_into_clear_water, dabs_into_pale_wash, dabs_into_moist_wash, thick_and_thin_dabs, layered_dabs,
-        brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs,
+        brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs, stroke_gestures,
     )
 }  # fmt: skip
 

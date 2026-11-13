@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 from . import ENGINE_VERSION
-from .brushes import Brush
+from .brushes import Brush, validate_journey
 from .paper import generate_paper
 from .pigments import PIGMENTS
 from .recording import FrameRecorder, encode_video
@@ -185,6 +185,7 @@ class Session:
                 elif kind == "stroke":
                     if brush_in_hand is None:
                         raise ValueError("no brush is loaded")
+                    validate_journey(action["path"])
                     if not 0 < action.get("dwell", DAB_DURATION) <= 10:
                         raise ValueError("dwell must be between 0 and 10 seconds")
                     if action.get("speed", DEFAULT_STROKE_SPEED) <= 0:

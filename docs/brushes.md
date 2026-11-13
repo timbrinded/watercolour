@@ -58,6 +58,14 @@ The shapes and hairs follow the watercolour ranges of [Rosemary & Co](https://ww
 
 A slow stroke leaves more paint than a fast one. At high speed, thin, long or gapped heads break up first; broad full heads stay solid until they also run dry.
 
+## Angle, twist and timing
+
+![What the hand can do within one stroke: the angle of the brush, the twist of its head, and its timing](images/stroke_gestures.png)
+
+- **Angle** is how far the brush is laid over: 0 upright on its point, 45 the usual hold, 90 flat on its side. A round head upright draws a narrow wet line; laid over it draws a broad dry mark that breaks on the grain, and the longer the hair the broader it gets.
+- **Twist** turns the edge of a flat head from square to its travel (full width) to end-on (a line). Heads cut at an angle are already partly turned.
+- **Timing:** points may carry times, so a stroke can slow, pause and hurry. A resting brush goes on giving up paint.
+
 ## How the maker's ranges map onto these
 
 | Maker's range | Hair here |
@@ -101,4 +109,4 @@ A slow stroke leaves more paint than a fast one. At high speed, thin, long or ga
 - **Japanese and sumi brushes**, the rotary tree brush, the smooshing brush and the gilder's tip.
 - **The eradicator**, a stiff brush for lifting dried paint; use `blot` on wet paint instead.
 - **Softeners and blenders used dry** to feather wet paint. A clean damp brush run along an edge does that job here.
-- **Twist.** A flat head always meets the paper square to the direction it travels, so the chisel edge cannot yet be turned during a stroke.
+- **Which way the brush leans.** The angle of the brush is modelled, but not its direction: laid over, a brush always drags its side squarely across its travel.
