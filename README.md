@@ -8,7 +8,7 @@ It was built so that a language model can be given a brief, paint it, look at wh
 
 ## Install
 
-You need Python 3.13 or newer, [uv](https://docs.astral.sh/uv/), and `ffmpeg` on the path for the time-lapse. PyTorch is installed with the package and is a download of several gigabytes the first time. A CUDA graphics card is used when present and makes painting several times faster.
+You need Linux or macOS, Python 3.13 or newer, [uv](https://docs.astral.sh/uv/), and `ffmpeg` on the path for the time-lapse. PyTorch is installed with the package and is a download of several gigabytes the first time. A CUDA graphics card is used when present and makes painting several times faster.
 
 **To paint with it,** install the `watercolor` command for your user. It then works from any directory:
 
@@ -89,10 +89,15 @@ Wetness is two continuous scales, not a set of states: the depth of the film of 
 watercolor look paintings/first --view wetness --at 240,180 --at 400,300
 ```
 
+### When a command is cut short
+
+The painting is saved as each action ends and every few seconds through a long wait. A `paint` or `finish` that is killed part-way, by a tool's timeout for instance, loses only the action it was in the middle of, and the painting stays usable. `status` reports how far the pass got under `interrupted_pass`. The same `paint` command given again carries on from where it stopped, without repeating the actions already on the sheet; a pass that differs in any way starts from its first action.
+
 ### Rules the harness enforces
 
 - **No undo.** There is no command that previews, rehearses or reverses an action.
-- **A tamper-evident record.** Every action is appended to a hash-chained log, and each pass records a digest of the saved state. A state file that does not follow from the log is refused.
+- **A tamper-evident record.** Every action is appended to a hash-chained log with a digest of the state saved after it. A state file that does not follow from the log is refused.
+- **One command at a time.** A second command on a painting is refused until the first ends.
 - **A stroke budget**, a restricted palette, an optional scrap sheet, and an optional pencil underdrawing, all fixed when the painting is started.
 - **Time passes.** A stroke takes time to make, and paint laid earlier keeps flowing and drying while later strokes are made.
 
