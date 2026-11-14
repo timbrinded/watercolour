@@ -9,12 +9,15 @@
     watercolor --version
 
 There is deliberately no command that previews, rehearses or reverses an action.
+One command at a time works on a painting; a second is refused until the first ends.
 """
 
 import argparse
+import fcntl
 import json
 import sys
 from pathlib import Path
+from typing import IO
 
 from . import ENGINE_VERSION
 from .pigments import PIGMENTS
@@ -69,6 +72,19 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _hold(directory: Path) -> IO[str]:
+    """Keep a painting to this command until the process ends, however it ends.
+
+    Two commands at work on one painting would each break the other's record of it.
+    """
+    lock = (directory / "lock").open("w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise RuleViolation("another command is at work on this painting; wait for it to end") from None
+    return lock
+
+
 def _run(arguments: argparse.Namespace) -> dict:
     if arguments.command == "new":
         configuration = Configuration(
@@ -83,10 +99,12 @@ def _run(arguments: argparse.Namespace) -> dict:
         )
         return Session.create(arguments.directory, configuration).report()
 
+    held = _hold(arguments.directory)  # noqa: F841 - held for as long as this command runs
     session = Session(arguments.directory)
     if arguments.command == "paint":
-        session.paint(json.loads(arguments.actions.read_text()))
-        return session.report() | {"look": str(session.look())}
+        completed = session.paint(json.loads(arguments.actions.read_text()))
+        resumed = {} if completed is None else {"resumed_after_action": completed}
+        return resumed | session.report() | {"look": str(session.look())}
     if arguments.command == "look":
         sheet = "scrap" if arguments.scrap else "painting"
         seen: dict = {"look": str(session.look(sheet, arguments.view, arguments.region, arguments.grid))}

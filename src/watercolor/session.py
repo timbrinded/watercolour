@@ -1,12 +1,18 @@
 """A painting kept on disk between commands, with an append-only record of every action.
 
 There is no operation that removes or reverses an action. Each log entry carries
-the hash of the entry before it, and each completed pass records a digest of the
-saved state, so a state file that does not follow from the log is refused.
+the hash of the entry before it, and each action records a digest of the state
+saved after it, so a state file that does not follow from the log is refused.
+
+The state is saved as each action ends and at intervals through a long wait. A
+command that is killed part-way therefore loses only the action it was in the
+middle of: the next command finds the painting as the last save left it, and the
+same pass given again carries on from where it stopped.
 """
 
 import hashlib
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -24,10 +30,21 @@ from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_r
 SCRAP_SIZE = 256
 TOUCHING_ACTIONS = ("stroke", "blot")  # these count against the stroke budget
 SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt")
+SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
 
 
 class RuleViolation(Exception):
     """An action that the rules of the painting do not permit."""
+
+
+@dataclass(frozen=True)
+class Interruption:
+    """A pass that stopped before its end."""
+
+    digest: str  # of the actions that were given
+    given: int
+    completed: int
+    waited: float  # seconds that had already passed in the action it stopped in
 
 
 @dataclass(frozen=True)
@@ -68,7 +85,10 @@ class Session:
         sheets = {"painting": sheet(config.height or config.size, config.size, config.seed)}
         if config.scrap_allowed:
             sheets["scrap"] = sheet(SCRAP_SIZE, SCRAP_SIZE, config.seed + 1)
-        self.studio = Studio(sheets, config.palette, FrameRecorder(directory / "frames"), seed=config.seed)
+        self._recorder = FrameRecorder(directory / "frames")
+        self.studio = Studio(sheets, config.palette, self._recorder, seed=config.seed)
+        self.studio.while_waiting = self._save_if_due
+        self._saved_at = time.monotonic()
         self.strokes_used = 0
         self.paint_applied = False  # the underdrawing can change only until paint touches the painting
         self.sealed = False
@@ -87,9 +107,8 @@ class Session:
         (directory / "session.json").write_text(json.dumps(asdict(configuration), indent=2))
         (directory / "log.jsonl").write_text("")
         session = cls(directory)
-        session._append({"action": "begin", "configuration": asdict(configuration)})
-        session._checkpoint()
         session.studio._record()
+        session._checkpoint({"action": "begin", "configuration": asdict(configuration)})
         return session
 
     # ------------------------------------------------------------ persistence
@@ -97,6 +116,10 @@ class Session:
     @property
     def _state_path(self) -> Path:
         return self.directory / "state.pt"
+
+    @property
+    def _pending_path(self) -> Path:
+        return self.directory / "state.pending.pt"
 
     def _append(self, body: dict) -> None:
         previous = self.entries[-1]["hash"] if self.entries else ""
@@ -106,7 +129,8 @@ class Session:
         with (self.directory / "log.jsonl").open("a") as log:
             log.write(json.dumps(entry) + "\n")
 
-    def _checkpoint(self) -> None:
+    def _checkpoint(self, body: dict | None = None) -> None:
+        """Save the painting as it stands, and record what led to it with the digest of what was saved."""
         studio = self.studio
         state = {
             "sheets": {name: sheet.state() | {"tilt": list(sheet.tilt)} for name, sheet in studio.sheets.items()},
@@ -116,9 +140,19 @@ class Session:
             "strokes_used": self.strokes_used,
             "paint_applied": self.paint_applied,
             "sealed": self.sealed,
+            "frames": self._recorder.count,
         }
-        torch.save(state, self._state_path)
-        self._append({"action": "checkpoint", "state": _digest(self._state_path.read_bytes())})
+        # The new state takes the place of the old only once the log records it, so a command
+        # killed at any point here leaves a log and a state that the next command can reconcile.
+        torch.save(state, self._pending_path)
+        self._append((body or {"action": "checkpoint"}) | {"state": _digest(self._pending_path.read_bytes())})
+        self._pending_path.replace(self._state_path)
+        self._saved_at = time.monotonic()
+
+    def _save_if_due(self) -> None:
+        """Save part-way through a long wait, so that one killed before its end keeps the time already passed."""
+        if time.monotonic() - self._saved_at >= SAVE_INTERVAL:
+            self._checkpoint()
 
     def _verify_log(self) -> None:
         previous = ""
@@ -131,10 +165,20 @@ class Session:
     def _restore(self) -> None:
         if not self.entries:
             return
-        last = self.entries[-1]
-        if last["action"] != "checkpoint" or last["state"] != _digest(self._state_path.read_bytes()):
+        # Entries after the last recorded save belong to a command that was killed before it saved.
+        recorded = next((entry["state"] for entry in reversed(self.entries) if "state" in entry), None)
+        pending = self._pending_path
+        if pending.exists():
+            # A save that the log records but that was not yet put in place is complete; any other is not.
+            if recorded == _digest(pending.read_bytes()):
+                pending.replace(self._state_path)
+            else:
+                pending.unlink()
+        if recorded != _digest(self._state_path.read_bytes()):
             raise RuleViolation("the saved state does not match the last checkpoint in the log")
         state = torch.load(self._state_path, weights_only=True)
+        if "frames" in state:
+            self._recorder.rewind(state["frames"])
         for name, sheet in self.studio.sheets.items():
             sheet.load_state(state["sheets"][name])
             sheet.tilt = tuple(state["sheets"][name]["tilt"])
@@ -232,17 +276,42 @@ class Session:
 
     # ---------------------------------------------------------------- actions
 
-    def paint(self, actions: list[dict]) -> None:
-        """Carry out a pass of actions in order. Nothing here can be taken back."""
-        self._validate(actions)
-        try:
-            for action in actions:
-                self._perform(action)
-        finally:
-            # Whatever reached the sheet stays there and is recorded, even after a fault.
-            self._checkpoint()
+    def interruption(self) -> Interruption | None:
+        """How far the last pass got, when it stopped before its end."""
+        begun = max((entry["index"] for entry in self.entries if entry["action"] == "pass"), default=None)
+        if begun is None or self.sealed:
+            return None
+        given = self.entries[begun]
+        carried_out = [entry for entry in self.entries[begun + 1 :] if "detail" in entry]
+        if len(carried_out) == given["actions"]:
+            return None
+        reached = carried_out[-1] if carried_out else given
+        waited = max(0.0, self.studio.clock - reached["clock"])  # the log keeps the clock to the millisecond
+        return Interruption(given["digest"], given["actions"], len(carried_out), waited)
 
-    def _perform(self, action: dict) -> None:
+    def paint(self, actions: list[dict]) -> int | None:
+        """Carry out a pass of actions in order. Nothing here can be taken back.
+
+        Each action is saved as it ends. Given again after it was cut short, the same pass
+        carries on from the action it stopped in rather than repeating those already on the
+        sheet; the number of those is returned, or None for a pass begun afresh.
+        """
+        digest = _digest(_canonical(actions))
+        stopped = self.interruption()
+        if stopped is not None and stopped.digest == digest:
+            # The remainder was checked against the rules when the pass began.
+            completed, waited = stopped.completed, stopped.waited
+        else:
+            self._validate(actions)
+            self._append({"action": "pass", "actions": len(actions), "digest": digest})
+            completed, waited = None, 0.0
+        for action in actions[completed or 0 :]:
+            self._perform(action, waited)
+            waited = 0.0
+        return completed
+
+    def _perform(self, action: dict, waited: float = 0.0) -> None:
+        """Carry out one action; of a wait that was cut short, only the time that had not yet passed."""
         studio = self.studio
         kind = action["action"]
         sheet = action.get("sheet", "painting")
@@ -273,9 +342,9 @@ class Session:
             studio.erase(sheet, action["path"], action.get("radius", 4.0))
         elif kind == "wait" and "film" in action:
             x, y = action["at"]
-            studio.wait_for_film(sheet, x, y, action["film"], action["seconds"])
+            studio.wait_for_film(sheet, x, y, action["film"], action["seconds"] - waited)
         elif kind == "wait":
-            studio.wait(action["seconds"])
+            studio.wait(action["seconds"] - waited)
         elif kind == "tilt":
             studio.tilt(sheet, action["x"], action["y"])
         elif kind == "dry":
@@ -283,7 +352,7 @@ class Session:
         if kind in TOUCHING_ACTIONS and sheet == "painting":
             self.strokes_used += 1
             self.paint_applied = True
-        self._append({"action": kind, "detail": action})
+        self._checkpoint({"action": kind, "detail": action})
 
     def look(
         self,
@@ -322,14 +391,21 @@ class Session:
         to_image(render(self.studio.sheets["painting"])).save(picture)
         encode_video(self.directory / "frames", video)
         self.sealed = True
-        self._append({"action": "finish", "picture": _digest(picture.read_bytes())})
-        self._checkpoint()
+        self._checkpoint({"action": "finish", "picture": _digest(picture.read_bytes())})
         return picture, video
 
     def report(self) -> dict:
         studio = self.studio
         brush = studio.brush
-        return {
+        stopped = self.interruption()
+        interrupted = {}
+        if stopped is not None:
+            interrupted["interrupted_pass"] = {
+                "actions_completed": stopped.completed,
+                "actions_given": stopped.given,
+                "seconds_passed_in_next_action": round(stopped.waited, 1),
+            }
+        return interrupted | {
             "clock_seconds": round(studio.clock, 1),
             "strokes_used": self.strokes_used,
             "stroke_budget": self.configuration.stroke_budget,

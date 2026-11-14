@@ -32,6 +32,12 @@ class FrameRecorder:
         frame.save(self.directory / f"{self.count:06d}.jpg", quality=88)
         self.count += 1
 
+    def rewind(self, count: int) -> None:
+        """Discard the frames after a count: they show work that was cut short before it was saved."""
+        for index in range(count, self.count):
+            (self.directory / f"{index:06d}.jpg").unlink()
+        self.count = min(count, self.count)
+
 
 def encode_video(frame_directory: Path, output: Path) -> None:
     count = sum(1 for _ in frame_directory.glob("*.jpg"))

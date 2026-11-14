@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.5.1"
+  version: "0.5.2"
 ---
 
 # Painting with the watercolour harness
@@ -24,7 +24,7 @@ The harness is the repository https://github.com/timbrinded/watercolour. Before 
 2. Otherwise, if `watercolor --help` works, the command is installed; use it as written below, from any directory.
 3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
 
-Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`.
+Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters.
 
 A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
 
@@ -43,7 +43,8 @@ watercolor finish paintings/<name>              # dries, exports painting.png an
 - `look` is free and changes nothing. Look after every pass, and always Read the image: you cannot judge a wash from the numbers you sent.
 - Coordinates are pixels, x to the right and y downward, origin top left.
 - Painting takes real time: about half a second of computing for every second painted on a sheet of this size with a graphics card, and `dry` and `finish` each paint five minutes or more. A pass that ends in `dry` therefore takes three to five minutes.
-- **Never let a `paint` or `finish` command be cut short.** A pass killed part-way, by a tool's timeout or by you, leaves the painting unusable: every later command is refused with `the saved state does not match the last checkpoint in the log`, and the only way on is a new directory with everything painted again. Give these two commands a timeout of at least ten minutes, or run them in the background and wait for them to end before doing anything else with that painting. Never run two commands on one painting at once.
+- **A `paint` or `finish` command that is cut short can be given again.** The painting is saved as each action ends and every few seconds through a long wait, so a command killed part-way, by a tool's timeout for instance, loses only the action it was in the middle of. Run exactly the same command again and it carries on from where it stopped: actions already on the sheet are not repeated, and a wait runs only for the time it still had left. `status` shows how far the pass got, under `interrupted_pass`. Do not edit the actions file first: a changed pass counts as a new one and starts from its first action, on top of whatever the interrupted pass had already laid. To abandon the rest of an interrupted pass, send a different pass. Still give these two commands a timeout of several minutes, or run them in the background, because every restart costs some seconds and whatever was computed since the last save.
+- **One command at a time works on a painting.** A second is refused with `another command is at work on this painting` until the first ends, so wait for a `paint` running in the background before you look.
 
 ## Plan before the first stroke
 

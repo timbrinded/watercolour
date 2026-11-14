@@ -5,6 +5,7 @@ earlier keeps flowing and drying while later strokes are made.
 """
 
 import random
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -68,6 +69,8 @@ class Studio:
         self.loads = 0  # how many times a brush has been loaded; with the seed, it fixes each load's variation
         self.brush: Brush | None = None
         self.clock = 0.0
+        # Called between the spans of a wait, when nothing is in motion but the paint.
+        self.while_waiting: Callable[[], None] = lambda: None
         self._time_step = next(iter(sheets.values())).parameters.time_step
         self._since_frame = 0.0
 
@@ -208,6 +211,7 @@ class Studio:
             self._pass_time(chunk)
             remaining -= chunk
             self._record()
+            self.while_waiting()
 
     def wait_for_film(self, sheet_name: str, x: float, y: float, film: float, longest: float) -> float:
         """Wait until the film of water about a point has thinned to a depth, and return how long that took.
@@ -222,6 +226,7 @@ class Studio:
             self._pass_time(chunk)
             waited += chunk
             self._record()
+            self.while_waiting()
         return waited
 
     def dry(self) -> float:
@@ -231,6 +236,7 @@ class Studio:
             self._pass_time(DRYING_FRAME_INTERVAL)
             waited += DRYING_FRAME_INTERVAL
             self._record()
+            self.while_waiting()
         return waited
 
 

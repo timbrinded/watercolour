@@ -106,4 +106,6 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 
 `status` reports the clock, strokes used against the budget, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
 
-`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later.
+When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
+
+`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2.
