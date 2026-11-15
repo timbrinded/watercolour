@@ -42,11 +42,42 @@ COCKLE_HEIGHT = 1.2  # height of the broad buckling of the sheet, in cells
 FILM_HEIGHT = GRAIN_HEIGHT / (2.0 * SHINE_DEPTH)
 GRAIN_FOLLOWED = 0.6  # share of the grain's slope that the surface of the thinnest film takes on
 SURFACE_BLEND = (0.25, 0.5, 0.25)  # surface tension evens the film's surface between neighbouring cells
+# Water can gather the lamp's light on the paper to at most this many times its strength, or spread it to that
+# share of it. Beyond that the rays cross, and following each ray singly no longer says how bright the paper is.
+GREATEST_GATHERING = 2.0
 
 
 def render(sheet: Sheet) -> Tensor:
     """Return the sheet as the camera sees it, as RGB in [0, 1] with shape (3, H, W)."""
-    return (_paint(sheet) + sheen(sheet)).clamp(0, 1)
+    return (_paint(sheet) * transmitted(sheet) + sheen(sheet)).clamp(0, 1)
+
+
+def transmitted(sheet: Sheet) -> Tensor:
+    """Return how strongly the lamp lights the paper through the water, against a dry sheet, with shape (H, W).
+
+    Water that stands proud of the sheet is a lens. Its sloping surface bends the lamp's light towards
+    the deeper water, so the paper under the shoulder of a pool is lit more than a dry sheet and the
+    paper under its very edge less. The lamp stands to one side, so its light also crosses the water
+    at a slant: the rim nearest the lamp is the darker and the far rim the brighter. Under level water,
+    however deep, the paper is lit as if it were dry.
+
+    Each ray is followed from the surface to the paper, where it lands a little aside from the point
+    below its entry; the paper is brighter where the landings crowd together and darker where they
+    part.
+    """
+    depth = _film_height(sheet)
+    down, across = torch.gradient(depth + COCKLE_HEIGHT * sheet.cockle)
+    # The lamp's light travels to the lower right, and less steeply so once it is inside the water.
+    refraction = math.asin(math.sin(math.radians(LAMP_ANGLE)) / WATER_REFRACTIVE_INDEX)
+    slant = math.tan(refraction) / math.sqrt(2.0)
+    # A sloping surface turns the light towards its uphill side by this share of the slope.
+    bending = 1.0 - 1.0 / WATER_REFRACTIVE_INDEX
+    landing_down, landing_across = depth * (slant + bending * down), depth * (slant + bending * across)
+    down_by_down, down_by_across = torch.gradient(landing_down)
+    across_by_down, across_by_across = torch.gradient(landing_across)
+    # The area of paper that takes the light entering one cell of the surface.
+    spread = (1.0 + down_by_down) * (1.0 + across_by_across) - down_by_across * across_by_down
+    return (1.0 / spread.clamp(min=1.0 / GREATEST_GATHERING)).clamp(min=1.0 / GREATEST_GATHERING)
 
 
 def sheen(sheet: Sheet) -> Tensor:
@@ -68,7 +99,7 @@ def sheen(sheet: Sheet) -> Tensor:
     covered = ((level - tooth) / 0.1 + 0.5).clamp(0, 1) * (water > 0)
     # The surface slopes with the shape of the pool and the buckling of the sheet and, while the
     # film is thin, with the grain beneath it.
-    down, across = torch.gradient(FILM_HEIGHT * _blend(water[None], SURFACE_BLEND)[0] + COCKLE_HEIGHT * sheet.cockle)
+    down, across = torch.gradient(_film_height(sheet) + COCKLE_HEIGHT * sheet.cockle)
     grain_down, grain_across = torch.gradient(GRAIN_HEIGHT * tooth)
     following = GRAIN_FOLLOWED * torch.exp(-water / SHINE_DEPTH)
     down, across = down + following * grain_down, across + following * grain_across
@@ -76,6 +107,11 @@ def sheen(sheet: Sheet) -> Tensor:
     mirroring = math.tan(math.radians(LAMP_ANGLE) / 2.0) / math.sqrt(2.0)
     departure = (across - mirroring) ** 2 + (down - mirroring) ** 2
     return _lamp_strength() * torch.exp(-departure / (2.0 * SURFACE_ROUGHNESS**2)) * covered
+
+
+def _film_height(sheet: Sheet) -> Tensor:
+    """Height of the water's surface above the paper beneath it, in cells, with shape (H, W)."""
+    return FILM_HEIGHT * _blend(sheet.water[None], SURFACE_BLEND)[0]
 
 
 def _lamp_strength() -> float:
@@ -99,7 +135,10 @@ def _blend(layers: Tensor, shares: tuple[float, float, float]) -> Tensor:
 
 
 def _paint(sheet: Sheet) -> Tensor:
-    """Return the paint and paper without the light that water mirrors, as RGB with shape (3, H, W)."""
+    """Return the paint and paper as an even light shows them, as RGB with shape (3, H, W).
+
+    What the water does to the lamp's light, mirroring some and gathering the rest, is left out.
+    """
     device = sheet.tooth.device
     # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
     # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
@@ -130,7 +169,7 @@ def _paint(sheet: Sheet) -> Tensor:
 def render_view(sheet: Sheet, view: str) -> Tensor:
     if view == "color":
         return render(sheet)
-    # The other views measure the paint, so they leave out the light that water mirrors.
+    # The other views measure the paint, so they leave out what the water does to the lamp's light.
     color = _paint(sheet)
     weights = torch.tensor([0.2126, 0.7152, 0.0722], device=color.device).reshape(3, 1, 1)
     value = (color * weights).sum(0, keepdim=True).expand(3, -1, -1)
