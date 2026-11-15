@@ -1,5 +1,6 @@
 """Turning a sheet into pictures: the painting itself and the views used to inspect it."""
 
+import math
 from itertools import pairwise
 
 import numpy as np
@@ -8,7 +9,7 @@ import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from torch import Tensor
 
-from .simulation import Sheet
+from .simulation import SHINE_DEPTH, Sheet
 
 PAPER_COLOR = (0.97, 0.96, 0.93)
 VIEWS = ("color", "value", "wetness")
@@ -31,16 +32,78 @@ FILM_SCALE = (
 )
 LEGEND_HEIGHT = 34  # pixels, for the scale beneath the wetness view
 
+# The sheet is pictured by a camera looking straight down, lit by a small lamp beside it.
+LAMP_ANGLE = 10.0  # degrees between the lamp and the camera as seen from the sheet; the lamp stands to the upper left
+WATER_REFRACTIVE_INDEX = 1.333
+SURFACE_ROUGHNESS = 0.022  # spread of the slopes of the water's surface within one cell
+GRAIN_HEIGHT = 0.5  # height of the grain of the paper from valley to peak, in cells
+COCKLE_HEIGHT = 1.2  # height of the broad buckling of the sheet, in cells
+# Height, in cells, of one unit of film: water level with the peaks of the grain averages half the grain's height.
+FILM_HEIGHT = GRAIN_HEIGHT / (2.0 * SHINE_DEPTH)
+GRAIN_FOLLOWED = 0.6  # share of the grain's slope that the surface of the thinnest film takes on
+SURFACE_BLEND = (0.25, 0.5, 0.25)  # surface tension evens the film's surface between neighbouring cells
+
 
 def render(sheet: Sheet) -> Tensor:
-    """Return the sheet as it appears, as RGB in [0, 1] with shape (3, H, W)."""
+    """Return the sheet as the camera sees it, as RGB in [0, 1] with shape (3, H, W)."""
+    return (_paint(sheet) + sheen(sheet)).clamp(0, 1)
+
+
+def sheen(sheet: Sheet) -> Tensor:
+    """Return the light of the lamp that water on the sheet mirrors into the camera, with shape (H, W).
+
+    It is measured against a white surface under the same lamp, like the colours of the paint.
+    Level water mirrors the ceiling, not the lamp, so the middle of a pool keeps its colour.
+    The lamp shows where the surface is tilted towards it: along the edge of a pool, where the
+    sheet buckles, and in points where a thin film follows the grain. Paper with no film on it
+    mirrors nothing.
+
+    Each cell is a rough mirror in the manner of Beckmann and of Cook and Torrance: its surface
+    has slopes spread about their mean, and it is as bright as the share of them that turn the
+    lamp into the camera.
+    """
+    water, tooth = sheet.water, sheet.tooth
+    # Water lies level in the valleys of the grain and reaches higher up it as the film deepens.
+    level = (water / SHINE_DEPTH).sqrt()
+    covered = ((level - tooth) / 0.1 + 0.5).clamp(0, 1) * (water > 0)
+    # The surface slopes with the shape of the pool and the buckling of the sheet and, while the
+    # film is thin, with the grain beneath it.
+    down, across = torch.gradient(FILM_HEIGHT * _blend(water[None], SURFACE_BLEND)[0] + COCKLE_HEIGHT * sheet.cockle)
+    grain_down, grain_across = torch.gradient(GRAIN_HEIGHT * tooth)
+    following = GRAIN_FOLLOWED * torch.exp(-water / SHINE_DEPTH)
+    down, across = down + following * grain_down, across + following * grain_across
+    # The slope that turns the lamp into the camera rises away from the lamp, to the lower right.
+    mirroring = math.tan(math.radians(LAMP_ANGLE) / 2.0) / math.sqrt(2.0)
+    departure = (across - mirroring) ** 2 + (down - mirroring) ** 2
+    return _lamp_strength() * torch.exp(-departure / (2.0 * SURFACE_ROUGHNESS**2)) * covered
+
+
+def _lamp_strength() -> float:
+    """Brightness of the lamp in water that mirrors it squarely, against a white surface under the same lamp."""
+    lamp = math.radians(LAMP_ANGLE)
+    incidence = lamp / 2.0
+    refraction = math.asin(math.sin(incidence) / WATER_REFRACTIVE_INDEX)
+    # Fresnel's share of unpolarised light mirrored at this incidence.
+    mirrored = 0.5 * (
+        (math.sin(incidence - refraction) / math.sin(incidence + refraction)) ** 2
+        + (math.tan(incidence - refraction) / math.tan(incidence + refraction)) ** 2
+    )
+    return mirrored / (8.0 * SURFACE_ROUGHNESS**2 * math.cos(lamp))
+
+
+def _blend(layers: Tensor, shares: tuple[float, float, float]) -> Tensor:
+    """Share each cell of every layer, shape (N, H, W), with its neighbours along both axes."""
+    weights = torch.tensor(shares, device=layers.device)
+    layers = F.conv2d(F.pad(layers[:, None], (0, 0, 1, 1), mode="replicate"), weights.reshape(1, 1, 3, 1))
+    return F.conv2d(F.pad(layers, (1, 1, 0, 0), mode="replicate"), weights.reshape(1, 1, 1, 3))[:, 0]
+
+
+def _paint(sheet: Sheet) -> Tensor:
+    """Return the paint and paper without the light that water mirrors, as RGB with shape (3, H, W)."""
     device = sheet.tooth.device
-    amount = TINTING_STRENGTH * (sheet.deposited + sheet.suspended)
     # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
     # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
-    blend = torch.tensor(EDGE_BLEND, device=device)
-    amount = F.conv2d(F.pad(amount[:, None], (0, 0, 1, 1), mode="replicate"), blend.reshape(1, 1, 3, 1))
-    amount = F.conv2d(F.pad(amount, (1, 1, 0, 0), mode="replicate"), blend.reshape(1, 1, 1, 3))[:, 0]
+    amount = _blend(TINTING_STRENGTH * (sheet.deposited + sheet.suspended), EDGE_BLEND)
     absorption = torch.tensor([p.absorption for p in sheet.pigments], device=device)
     scattering = torch.tensor([p.scattering for p in sheet.pigments], device=device)
     k = torch.einsum("phw,pc->chw", amount, absorption) + 1e-6
@@ -65,9 +128,10 @@ def render(sheet: Sheet) -> Tensor:
 
 
 def render_view(sheet: Sheet, view: str) -> Tensor:
-    color = render(sheet)
     if view == "color":
-        return color
+        return render(sheet)
+    # The other views measure the paint, so they leave out the light that water mirrors.
+    color = _paint(sheet)
     weights = torch.tensor([0.2126, 0.7152, 0.0722], device=color.device).reshape(3, 1, 1)
     value = (color * weights).sum(0, keepdim=True).expand(3, -1, -1)
     if view == "value":

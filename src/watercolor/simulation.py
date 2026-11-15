@@ -89,6 +89,10 @@ class Contact:
 
 Region = tuple[slice, slice]
 
+# Depth of film that stands over the peaks of the grain. A deeper film is an unbroken, shining
+# surface; a thinner one lies in the valleys and is broken up by the grain.
+SHINE_DEPTH = 0.15
+
 # Damping of the surface-tension flux. Levelling and surface tension share one explicit
 # update: with levelling using at most 0.15 of the stable range per substep, this value
 # keeps their sum inside it.
@@ -424,7 +428,7 @@ class Sheet:
     def stage_fractions(self) -> dict[str, float]:
         """Share of the sheet at each working stage of the paper."""
         p = self.parameters
-        shiny = self.water > 0.15
+        shiny = self.water > SHINE_DEPTH
         moist = (self.water > p.wet_threshold) & ~shiny
         damp = ~shiny & ~moist & (self.saturation > p.damp_threshold * self.capacity)
         total = self.water.numel()

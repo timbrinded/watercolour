@@ -89,6 +89,10 @@ Wetness is two continuous scales, not a set of states: the depth of the film of 
 watercolor look paintings/first --view wetness --at 240,180 --at 400,300
 ```
 
+The colour picture shows the water as well, as a camera straight above the sheet sees it with a small lamp beside it. Water mirrors the lamp only where its surface is tilted. A film deep enough to shine keeps its colour and shows a bright line along its rim and a soft highlight where the sheet buckles; a thinning film glitters in fine points over the grain; paper with no film on it shows nothing. The value and wetness views leave this light out, and a finished painting, being dry, has none.
+
+![One wash at three stages: under a deep film, under a thinning film, and dry](docs/images/sheen_by_wetness.png)
+
 ### When a command is cut short
 
 The painting is saved as each action ends and every few seconds through a long wait. A `paint` or `finish` that is killed part-way, by a tool's timeout for instance, loses only the action it was in the middle of, and the painting stays usable. `status` reports how far the pass got under `interrupted_pass`. The same `paint` command given again carries on from where it stopped, without repeating the actions already on the sheet; a pass that differs in any way starts from its first action.

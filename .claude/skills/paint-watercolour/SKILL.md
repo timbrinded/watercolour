@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.5.2"
+  version: "0.6.0"
 ---
 
 # Painting with the watercolour harness
@@ -24,7 +24,7 @@ The harness is the repository https://github.com/timbrinded/watercolour. Before 
 2. Otherwise, if `watercolor --help` works, the command is installed; use it as written below, from any directory.
 3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
 
-Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters.
+Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters. Water showing as light in the picture needs 0.6.0 or later: on an older version a wet wash and a dry one look almost alike.
 
 A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
 
@@ -78,6 +78,18 @@ watercolor look paintings/<name> --view wetness --at 240,180 --at 400,300
 | **Paper damp, no film** (`paper` above about 0.6) | The same danger, with a ragged edge. Wait for `dry`. |
 
 `status` also names four stages (shiny, moist, damp, dry). They are only landmarks on these scales: shiny is a film over 0.15, moist a thinner one, damp is no film on paper more than 0.6 full. Act on the numbers.
+
+**The picture shows the water.** The colour picture is taken from straight above with a small lamp beside the camera, and water mirrors that lamp wherever its surface is tilted. So every colour `look`, and the one `paint` returns, shows where the sheet is wet:
+
+| In the picture | What it means |
+|---|---|
+| A bright line along the upper-left edge of a wash, or a soft bright patch on it, with the colour clear between | A deep film: the shine is on, and wet-in-wet will work here. |
+| Many fine bright points scattered over a wash | A thin film breaking up over the grain: the dangerous stage. |
+| No light at all | No film. The paper may still be damp, which the picture does not show; read `paper` with `--at`. |
+
+The lights are water, not paint. They go as the film goes, a finished painting has none, and the value and wetness views leave them out. The picture tells a deep film from a thin one and from none. It does not tell 0.3 from 0.6, so read the depth with `--at` where the amount matters.
+
+**The sheet's clock runs only while an action is carried out.** A wash does not dry while you look at it or think. So when the next strokes depend on the film (a charge, a blend, a softened edge), end the pass while the wash is still wet, look at the picture that comes back, and send those strokes as the next pass. A pass that ends in `dry` returns a picture with no water in it, and by then the wet work can no longer be done.
 
 A wash laid once with a round starts with a film of about 0.5 (about 0.8 from a mop) and is down to 0.12 in about a minute; laid twice over it starts at 0.6 to 1.2 and lasts a minute and a half or more. Strokes take time to make, and that time comes out of it. So:
 
@@ -205,7 +217,7 @@ Portraits and close detail magnify small errors in value, proportion and brush w
 
 After each pass, look, and ask in this order:
 
-1. Is the paper as wet as I think it is? Read the film where the next strokes go (`look --at x,y`) before the pass, not after.
+1. Is the paper as wet as I think it is? The picture shows where the film is (a bright line or patch on a deep film, fine points on a thin one, nothing where there is none). Read its depth where the next strokes go (`look --at x,y`) before the pass, not after.
 2. Do the values read? Use `look --view value`. If the picture works in grey, colour will not sink it.
 3. Did the shape land where I planned? Use `look --region x0,y0,x1,y1 --grid` to read coordinates off the sheet.
 4. Is the next step still the one I planned, or has the painting changed what it needs?
