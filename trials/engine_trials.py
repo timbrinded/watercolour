@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw
 from watercolor.brushes import BRUSH_TYPES, HAIRS
 from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
-from watercolor.rendering import render, render_view, to_image
+from watercolor.rendering import render, render_view, to_image, transmitted
 from watercolor.simulation import Sheet
 from watercolor.studio import Studio
 from watercolor.together import paint_together
@@ -640,6 +640,33 @@ def sheen_by_wetness(studio: Studio) -> None:
         print(f"   sheen_by_wetness: {label}, film {film_at(studio, 230, sum(band(index)) / 2):.3f}")
 
 
+STANDING_ROWS = ("flooded wash", "pool, one touch", "pool, three touches")
+
+
+def standing_water(studio: Studio) -> None:
+    """A flooded wash beside pools that stand proud of dry paper, pictured wet.
+
+    Water that stands proud is a lens: the paper under the shoulder of a pool is lit more than the
+    paper under its level middle, the paper under its edge less, and the side away from the lamp
+    more than the side towards it. A wash, however wet, lies too level to do any of this.
+    """
+    paint = {"quinacridone_rose": 1.0}
+    centres = [70.0 + 120.0 * index for index in range(3)]
+    for index, touches in ((1, 1), (2, 3)):
+        for _ in range(touches):
+            studio.load_brush("mop", 26, paint, 1.0)
+            studio.stroke("painting", [[230, centres[index], 1.0]], 100, smooth=False, dwell=2.0)
+    wash(studio, "flat", 16, paint, 110, 350, centres[0] - 34, centres[0] + 34)
+    studio.wait(2)
+    light = transmitted(studio.sheets["painting"])
+    for label, centre in zip(STANDING_ROWS, centres):
+        part = light[int(centre) - 55 : int(centre) + 55, 100:360]
+        print(
+            f"   standing_water: {label}, film {film_at(studio, 230, centre):.2f}, "
+            f"paper lit from {float(part.min()):.2f} to {float(part.max()):.2f} of a dry sheet"
+        )
+
+
 def charged_wash(studio: Studio) -> None:
     """A granulating blue touched into a deep wet yellow wash and left to spread on its own."""
     centre, radius, size = (192.0, 196.0), 124.0, 20.0
@@ -918,6 +945,7 @@ CHART_LABELS: dict[str, tuple[int, int, list[str]]] = {
     "stroke_gestures": (24, 50, list(GESTURES)),
     "charging_by_wetness": (44, 82, list(WETNESS_ROWS)),
     "sheen_by_wetness": (76, 116, list(SHEEN_ROWS)),
+    "standing_water": (70, 120, list(STANDING_ROWS)),
 }
 # Charts whose labels sit wherever their patches are.
 CHART_NOTES: dict[str, tuple[tuple[int, int, str], ...]] = {"blending_methods": BLENDING_NOTES}
@@ -930,7 +958,7 @@ TRIALS: dict[str, Callable[[Studio], None]] = {
         backrun, dry_brush, granulation, lifting, brush_marks, loose_pools, softened_edge, lighthouse_study,
         dabs_into_clear_water, dabs_into_pale_wash, dabs_into_moist_wash, thick_and_thin_dabs, layered_dabs,
         brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs, stroke_gestures,
-        charging_by_wetness, charged_wash, variegated_leaf, blending_methods, sheen_by_wetness,
+        charging_by_wetness, charged_wash, variegated_leaf, blending_methods, sheen_by_wetness, standing_water,
     )
 }  # fmt: skip
 

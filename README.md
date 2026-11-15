@@ -93,6 +93,10 @@ The colour picture shows the water as well, as a camera straight above the sheet
 
 ![One wash at three stages: under a deep film, under a thinning film, and dry](docs/images/sheen_by_wetness.png)
 
+Water that stands proud of the sheet, such as a pool dabbed onto dry paper, also bends the lamp's light as a lens. The paper under the shoulder of the pool is lit more than a dry sheet and the paper under its edge less, and the side away from the lamp is the brighter, so a pool looks raised where a wash looks flat. A wash lies too level for this: the paper under it is lit within a few parts in a hundred of a dry sheet. The value and wetness views leave this out as well.
+
+![A flooded wash beside two pools that stand proud of dry paper](docs/images/standing_water.png)
+
 ### When a command is cut short
 
 The painting is saved as each action ends and every few seconds through a long wait. A `paint` or `finish` that is killed part-way, by a tool's timeout for instance, loses only the action it was in the middle of, and the painting stays usable. `status` reports how far the pass got under `interrupted_pass`. The same `paint` command given again carries on from where it stopped, without repeating the actions already on the sheet; a pass that differs in any way starts from its first action.
