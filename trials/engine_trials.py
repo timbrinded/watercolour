@@ -615,6 +615,31 @@ def charging_by_wetness(studio: Studio) -> None:
     studio.dry()
 
 
+SHEEN_ROWS = ("deep film", "thinning film", "dry")
+
+
+def sheen_by_wetness(studio: Studio) -> None:
+    """One wash at three stages, pictured while two of them are still wet.
+
+    The camera looks straight down with a small lamp beside it, and water mirrors the lamp only
+    where its surface is tilted: along the rim of a deep film and where the sheet buckles under
+    it, and in points where a thin film follows the grain. A dry wash mirrors nothing.
+    """
+    paint = {"quinacridone_rose": 1.0}
+
+    def band(index: int) -> tuple[float, float]:
+        top = 36.0 + 116.0 * index
+        return top, top + 80.0
+
+    wash(studio, "flat", 16, paint, 110, 350, *band(2))
+    studio.dry()
+    wash(studio, "flat", 16, paint, 110, 350, *band(1))
+    studio.wait_for_film("painting", 230, sum(band(1)) / 2, 0.12, 900)
+    wash(studio, "flat", 16, paint, 110, 350, *band(0))
+    for index, label in enumerate(SHEEN_ROWS):
+        print(f"   sheen_by_wetness: {label}, film {film_at(studio, 230, sum(band(index)) / 2):.3f}")
+
+
 def charged_wash(studio: Studio) -> None:
     """A granulating blue touched into a deep wet yellow wash and left to spread on its own."""
     centre, radius, size = (192.0, 196.0), 124.0, 20.0
@@ -892,6 +917,7 @@ CHART_LABELS: dict[str, tuple[int, int, list[str]]] = {
     "brush_hairs": (30, 66, list(HAIRS)),
     "stroke_gestures": (24, 50, list(GESTURES)),
     "charging_by_wetness": (44, 82, list(WETNESS_ROWS)),
+    "sheen_by_wetness": (76, 116, list(SHEEN_ROWS)),
 }
 # Charts whose labels sit wherever their patches are.
 CHART_NOTES: dict[str, tuple[tuple[int, int, str], ...]] = {"blending_methods": BLENDING_NOTES}
@@ -904,7 +930,7 @@ TRIALS: dict[str, Callable[[Studio], None]] = {
         backrun, dry_brush, granulation, lifting, brush_marks, loose_pools, softened_edge, lighthouse_study,
         dabs_into_clear_water, dabs_into_pale_wash, dabs_into_moist_wash, thick_and_thin_dabs, layered_dabs,
         brush_direction, stroke_through_colours, swirled_dots, load_variation, paint_strength, wet_edges, bristle_marks, brush_shapes, brush_hairs, stroke_gestures,
-        charging_by_wetness, charged_wash, variegated_leaf, blending_methods,
+        charging_by_wetness, charged_wash, variegated_leaf, blending_methods, sheen_by_wetness,
     )
 }  # fmt: skip
 

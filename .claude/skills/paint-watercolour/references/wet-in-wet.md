@@ -25,6 +25,8 @@ prints `film` and `paper` at each point and saves a picture with its scale benea
 
 ends as soon as the film at that point is no deeper than 0.12. This is the painter watching the shine go off a wash. Use it instead of guessing seconds: a leaf-sized wash laid twice over takes about a minute and a half to thin from 0.6 to 0.12, and strokes you make in the meantime use that time up.
 
+The ordinary colour picture shows the film too, as the light of a lamp beside the camera: a bright line along the upper-left edge of a deep film or a soft bright patch on it, many fine points on a thin film, and nothing where there is none. It is the quickest check of where the sheet is wet; the numbers say how wet.
+
 What one charge of strong paint does at each depth of film (see the chart `charging_by_wetness` in the repository's `docs/images/`):
 
 | Film when the brush lands | What the charge does |
