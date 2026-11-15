@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.6.1"
+  version: "0.7.1"
 ---
 
 # Painting with the watercolour harness
@@ -25,7 +25,7 @@ The harness is the repository https://github.com/timbrinded/watercolour. Before 
 2. Otherwise, if `watercolor --help` works, the command is installed; use it as written below, from any directory.
 3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
 
-Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters. Water showing as light in the picture needs 0.6.0 or later: on an older version a wet wash and a dry one look almost alike.
+Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters. Water showing as light in the picture needs 0.6.0 or later: on an older version a wet wash and a dry one look almost alike. The lit rim of a pool that stands proud needs 0.7.0.
 
 A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
 
@@ -88,6 +88,7 @@ watercolor look paintings/<name> --view wetness --at 240,180 --at 400,300
 |---|---|
 | A bright line along the upper-left edge of a wash, or a soft bright patch on it, with the colour clear between | A deep film: the shine is on, and wet-in-wet will work here. |
 | Many fine bright points scattered over a wash | A thin film breaking up over the grain: the dangerous stage. |
+| A blob with a brighter rim on its lower right and a darker one on its upper left | Water standing proud of dry paper: a pool with a film over about 1.2 and a steep edge. The same water on a wet wash spreads level and shows no rim. |
 | No light at all | No film. The paper may still be damp, which the picture does not show; read `paper` with `--at`. |
 
 The lights are water, not paint. They go as the film goes, a finished painting has none, and the value and wetness views leave them out. The picture tells a deep film from a thin one and from none. It does not tell 0.3 from 0.6, so read the depth with `--at` where the amount matters.

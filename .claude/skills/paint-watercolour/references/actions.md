@@ -108,4 +108,4 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 
 When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
 
-`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0.
+`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0.
