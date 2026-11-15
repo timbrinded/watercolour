@@ -3,18 +3,27 @@
 Usage:
     copy_reference.py <painting directory> <reference> --sheet W,H --paints cobalt_blue,burnt_sienna,...
         [--exclude x0,y0,x1,y1 ...] [--out-of-washes burnt_umber,...] [--bloom x,y ...] [--white r,g,b]
-        [--first 1] [--last 13] [--command "uv run watercolor"]
+        [--even-passages] [--keep-lights 0.08] [--first 1] [--last 13] [--command "uv run watercolor"]
 
-Each stage writes a pass from the reference and the latest look of the painting (measured_layers.py for stages
-1 to 4, shape_strokes.py for stages 5 to 13), paints it, and ends dry. The passes are kept beside the painting
-directory as <painting>.stage<N>.json. Drawing by hand comes after the last stage and is not part of this script.
+Each stage takes a plain look of the painting, writes a pass from the reference and that look (measured_layers.py
+for stages 1 to 4, shape_strokes.py for stages 5 to 13), paints it, and ends dry. The passes are kept beside the
+painting directory as <painting>.stage<N>.json. Drawing by hand comes after the last stage and is not part of this
+script.
 
 --exclude        a rectangle no stage may touch (repeatable): a white too small to survive the layers, a
-                 signature or watermark in the reference.
+                 signature or watermark in the reference, a passage already laid by hand. A row brush stays
+                 half its width outside it, so each smaller brush comes closer.
 --out-of-washes  paints kept out of the two broadest stages: a granulating paint gathers into specks in a
                  deep wash.
 --bloom          a point where clear water is touched into the first wash as its film thins (repeatable).
 --white          the colour of the reference's own paper, where it is a scan and not pure white.
+--even-passages  for a reference with large even passages (a sky, water, a plain wall). The first wash is laid at
+                 full strength with smaller rounds cutting in round the lights while it is wet, and the mop is
+                 laid a second time on the dried wash, so those passages dry as washes and not as patches.
+                 Fourteen stages: the row stages are then 1 to 5 and the shape strokes 6 to 14.
+--keep-lights    the reference absorbance under which a place counts as a light that the row stages keep off,
+                 however narrow it is. 0.08 (near-white) with --even-passages, where the heavier smoothing
+                 would otherwise tone every narrow light over; off without it. 0 turns it off.
 
 The painting must have been started with a stroke budget large enough for every stage (`watercolor new
 --stroke-budget`): a sheet 960 pixels wide took about ten thousand strokes.
@@ -75,9 +84,37 @@ STAGES = [
 ]
 
 
-def latest_look(painting: Path) -> Path | None:
-    looks = sorted((painting / "looks").glob("*_painting_color.png"))
-    return looks[-1] if looks else None
+# For a reference with large even passages (--even-passages): the first wash at full strength with the gap
+# smoothed over a stroke width and smaller rounds cutting in round the lights while it is wet, then the mop a
+# second time, across the first, on the dried wash.
+EVEN_MOP = f"{ROW_HAND} --brush mop --size 18 --least 0.05 --longest 220 --speed 280 --smoothing 1.0"
+EVEN_FIRST_WASH = (ROWS, f"{EVEN_MOP} --gain 1.1 --cut-in 8,3.5 --no-dry", True)
+EVEN_SECOND_WASH = (ROWS, f"{EVEN_MOP} --gain 0.9 --angle 90", True)
+LIGHT = 0.08  # the reference absorbance under which a place counts as a light, with --even-passages
+
+
+def plain_look(command: list[str], painting: Path) -> Path:
+    """A fresh look of the whole sheet with no grid on it. The newest look on file may be one the painter took
+    with --grid or --region, and a stage built from that would read the grid as paint or the region as the sheet."""
+    result = subprocess.run([*command, "look", str(painting)], check=False, capture_output=True, text=True)
+    if result.returncode:
+        raise SystemExit(f"no look could be taken of {painting}:\n{result.stdout}{result.stderr}")
+    return max((painting / "looks").glob("*_painting_color.png"))
+
+
+def refuse_if_interrupted(command: list[str], painting: Path, stem: str) -> None:
+    """A pass that was cut short must be finished from its own file. A stage built now would be measured from
+    a half-painted, wet sheet and laid on top of it."""
+    result = subprocess.run([*command, "status", str(painting)], check=False, capture_output=True, text=True)
+    if result.returncode:
+        raise SystemExit(f"the state of {painting} could not be read:\n{result.stdout}{result.stderr}")
+    if "interrupted_pass" in json.loads(result.stdout):
+        raise SystemExit(
+            f"a pass on {painting} was cut short. Give the same pass again to finish it (the newest of "
+            f"{stem}.stage<N>.json and {stem}.blooms.json: `watercolor paint {painting} <that file>`). If it "
+            f"was stage 1, paint {stem}.blooms.json after it, which dries the first wash. Then run this script "
+            "with --first set to the next stage."
+        )
 
 
 def paint(command: list[str], painting: Path, actions: Path) -> None:
@@ -112,8 +149,19 @@ def main() -> None:
     parser.add_argument("--out-of-washes", default="", help="paints kept out of stages 1 and 2, comma separated")
     parser.add_argument("--bloom", action="append", default=[], help="x,y of a bloom in the first wash (repeatable)")
     parser.add_argument("--white", default=None, help="the reference's own paper white: r,g,b")
+    parser.add_argument(
+        "--even-passages",
+        action="store_true",
+        help="lay the first wash at full strength, cut in round the lights, and lay the mop a second time",
+    )
+    parser.add_argument(
+        "--keep-lights",
+        type=float,
+        default=None,
+        help=f"the reference absorbance under which the row stages keep off ({LIGHT} with --even-passages)",
+    )
     parser.add_argument("--first", type=int, default=1)
-    parser.add_argument("--last", type=int, default=len(STAGES))
+    parser.add_argument("--last", type=int, default=None, help="the last stage to run (all of them unless given)")
     parser.add_argument(
         "--command", default="watercolor", help="how the harness is run, for example 'uv run watercolor'"
     )
@@ -124,13 +172,17 @@ def main() -> None:
     painting = arguments.painting
     stem = str(painting).rstrip("/")
     excluded = [word for box in arguments.exclude for word in ("--exclude", box)]
+    refuse_if_interrupted(command, painting, stem)
+    stages = [EVEN_FIRST_WASH, EVEN_SECOND_WASH, *STAGES[1:]] if arguments.even_passages else STAGES
+    last = arguments.last or len(stages)
+    keep_lights = arguments.keep_lights if arguments.keep_lights is not None else LIGHT * arguments.even_passages
 
-    for number in range(arguments.first, arguments.last + 1):
-        script, settings, broad = STAGES[number - 1]
+    water = Path(f"{stem}.blooms.json")
+
+    for number in range(arguments.first, last + 1):
+        script, settings, broad = stages[number - 1]
         actions = Path(f"{stem}.stage{number}.json")
-        look = latest_look(painting)
-        if script == SHAPES and look is None:
-            raise SystemExit(f"stage {number} needs a look of the painting, and it has none")
+        look = plain_look(command, painting)
         words = [
             sys.executable,
             str(scripts / script),
@@ -142,18 +194,21 @@ def main() -> None:
             arguments.paints,
             *excluded,
             *shlex.split(settings),
+            "--look",
+            str(look),
         ]
-        if look is not None:
-            words += ["--look", str(look)]
         if arguments.white:
             words += ["--white", arguments.white]
+        if script == ROWS and keep_lights:
+            words += ["--keep-lights", str(keep_lights)]
         if broad and arguments.out_of_washes:
             words += ["--without", arguments.out_of_washes]
         subprocess.run(words, check=True)
+        if number == 1:
+            # written before the wash is painted, so that it is there to give by hand if the wash is cut short
+            water.write_text(json.dumps(blooms(arguments.bloom)))
         paint(command, painting, actions)
         if number == 1:
-            water = Path(f"{stem}.blooms.json")
-            water.write_text(json.dumps(blooms(arguments.bloom)))
             paint(command, painting, water)
         print(f"stage {number} done", flush=True)
 

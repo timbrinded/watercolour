@@ -13,11 +13,18 @@ Usage:
     measured_layers.py <reference> <output pass.json> --sheet W,H --paints cobalt_blue,burnt_sienna,...
         [--look current_look.png] [--origin x,y]
         --brush round --size 12 [--hair squirrel] [--angle 0] [--gain 0.8] [--least 0.07] [--water 1.0]
-        [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--white r,g,b] [--no-dry]
+        [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--exclude x0,y0,x1,y1 ...]
+        [--keep-lights 0.08] [--cut-in 8,3.5] [--white r,g,b] [--no-dry]
 
 --paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white.
 --origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference.
 --white is the colour of the reference's own paper, where it is a scan and not pure white.
+--exclude leaves a rectangle untouched: the brush stays half its width outside it.
+--keep-lights keeps the brush off a light narrower than the smoothing window (a sail, a mast against a sky), which
+the smoothing would otherwise give the tone of its surroundings. It leaves a margin of bare paper round every light
+for the smaller brushes to fill, and that margin dries ragged unless it is closed while the wash is wet.
+--cut-in does that: in the same pass, rounds of the sizes given lay what the brush could not reach, largest first,
+so the wash runs up to the edge of each light as one wet wash. Use it with --no-dry on a first wash.
 Without --look the sheet is taken to be bare paper. Give it a look taken after a `dry`: a wet sheet is not yet the
 colour it will dry to.
 
@@ -25,6 +32,7 @@ Run it with the Python that the watercolor tool uses; it reads that tool's pigme
 """
 
 import argparse
+import copy
 import functools
 import itertools
 import json
@@ -33,7 +41,7 @@ import random
 
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 from torch.nn import functional
 
 # The harness's bare paper as a dry look shows it.
@@ -137,11 +145,32 @@ def to_load(linear: dict[str, float], gain: float, size: float) -> dict[str, flo
     }
 
 
+def mark_covered(covered: Image.Image, actions: list[dict], stroke_width: float) -> None:
+    """Draw the strokes of a pass onto a mask at about the width they paint."""
+    draw = ImageDraw.Draw(covered)
+    radius = stroke_width * 0.45
+    for action in actions:
+        if action["action"] == "stroke":
+            line = [(x, y) for x, y, _ in action["path"]]
+            draw.line(line, fill=255, width=int(2 * radius), joint="curve")
+            for x, y in line:
+                draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=255)
+
+
 def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
     height, width_pixels, _ = target.shape
     stroke_width = WIDTH.get(arguments.brush, 2.0) * arguments.size
     smoothing = max(3, int(stroke_width * arguments.smoothing))
     gap = np.clip(pooled(target, smoothing, "mean") - pooled(current, smoothing, "mean"), 0.0, None)
+    if arguments.keep_lights > 0:
+        # a light narrower than the smoothing window comes out of the smoothing with the tone of its surroundings,
+        # and the brush is laid straight across it; where the reference itself is light, read the gap finely
+        fine_target = pooled(target, 5, "mean")
+        fine = np.clip(fine_target - pooled(current, 5, "mean"), 0.0, None)
+        light = fine_target.max(-1) < arguments.keep_lights
+        gap[light] = np.minimum(gap, fine)[light]
+    for left, top, right, bottom in arguments.excluded:
+        gap[top:bottom, left:right] = 0.0  # nothing is wanted here, so no footprint that reaches in lays anything
     common = footprint_minimum(gap, stroke_width)  # what the whole footprint has in common
 
     spacing = stroke_width * arguments.overlap
@@ -223,7 +252,10 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
                 too_long = len(points) * step >= arguments.longest
                 if different or too_long:
                     emit(points, gaps)
-                    points, gaps = [], []
+                    # the next stroke starts where this one ended, so the two lifted ends overlap; begun one step
+                    # further on, they leave a hole of bare paper at every cut, and the cuts of long even rows
+                    # line up from row to row
+                    points, gaps = [points[-1]], []
             if wanted:
                 points.append((x, y))
                 gaps.append(value)
@@ -235,6 +267,23 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
             emit(points, gaps)
         offset += spacing
 
+    if arguments.cut_in:
+        # in the same wet pass, smaller rounds lay what the brush before them could not reach: the margin round
+        # each light and the narrow places between lights
+        covered = Image.new("L", (width_pixels, height), 0)
+        mark_covered(covered, actions, stroke_width)
+        for size in arguments.cut_in:
+            keep = int(WIDTH["round"] * size / 2) + 2  # the smaller brush overlaps the wet wash by half its width
+            mask = np.asarray(covered.filter(ImageFilter.MinFilter(2 * keep + 1))) > 0
+            reached = current.copy()
+            reached[mask] = np.maximum(target, current)[mask]
+            smaller = copy.copy(arguments)
+            smaller.brush, smaller.size, smaller.hair = "round", size, "squirrel"
+            smaller.cut_in, smaller.no_dry, smaller.smoothing = [], True, 0.5
+            smaller.longest = max(60.0, arguments.longest * size / arguments.size * 2)
+            more = build(target, reached, smaller)
+            mark_covered(covered, more, WIDTH["round"] * size)
+            actions += more
     if not arguments.no_dry:
         actions.append({"action": "dry"})
     return actions
@@ -295,6 +344,17 @@ def main() -> None:
     )
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument(
+        "--cut-in",
+        default="",
+        help="sizes of rounds that follow in the same wet pass and lay what this brush could not reach: 8,3.5",
+    )
+    parser.add_argument(
+        "--keep-lights",
+        type=float,
+        default=0.0,
+        help="where the reference's absorbance is under this, read the gap unsmoothed, so a narrow light is kept",
+    )
+    parser.add_argument(
         "--without", default="", help="paints the mix may not use, comma separated (a granulating paint in a deep wash)"
     )
     parser.add_argument("--no-dry", action="store_true")
@@ -318,6 +378,7 @@ def main() -> None:
     else:
         current = np.zeros_like(target)
     random.seed(arguments.seed)
+    arguments.cut_in = [float(value) for value in arguments.cut_in.split(",") if value]
     arguments.excluded = [tuple(int(value) for value in box.split(",")) for box in arguments.exclude]
     arguments.without = tuple(name for name in arguments.without.split(",") if name)
     arguments.absorption = paint_absorption([name for name in arguments.paints.split(",") if name])
