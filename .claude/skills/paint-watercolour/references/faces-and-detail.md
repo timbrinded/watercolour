@@ -59,6 +59,41 @@ Heavy dark washes across a face kill bare-paper luminosity without fixing a weak
 - **Hair without "helmet" or "buzzcut" silhouettes:** Rimming a skull in one uniform `oval_wash` horseshoe reads as a plastic helmet, while over-thinning sideburns disconnected from the crown reads as a flat-top buzzcut, and dry dark strokes down narrow pale strips leave ribbon outlines. Keep wave fullness widest at the upper-temple turn tapering smoothly down the sideburns, leave diagonal bare-paper shine ribbons in the crown, feather the outer crown edge with clean water, charge darker root and temple pigment *wet-in-wet*, and sweep a laid-over `comber` (`angle 72` to `80`) across the dried mass for multi-strand grain.
 - **Crisp adjacent trim (collars, insignia, braid):** Always `dry` warm yellow or gold passages completely before laying cool `french_ultramarine` or `cobalt_blue` beside them, and keep the blue brush path offset outside the dried yellow seam by `radius + 2px`; transparent blue overlapping dried yellow turns vivid trim into dull olive mud.
 
+## Find the register before choosing strengths
+
+The value ladder at the top of this file is for pale skin in a high key. A brown face in strong sunlight against a dark background needed 2.4 to 2.6 for its shadow wash and 5 to 7 for the charges into it. From a reference, sample the values (`scripts/measure.py`) and read the strengths off a deposit chart (`copying-a-reference.md`). Without one, decide the value you want and do the same.
+
+The same reference corrected two other habits:
+
+- **The lit side is mostly paper, not empty paper.** A pale flesh at about 0.55 down the bridge of the nose, pale ochre on the lids, a cool grey touch at 0.45 on the upper lip and the side of the nose. Without them the lit half of the head has no surface. Measured against the reference, tints this pale were the largest part of what a nearly finished copy still lacked.
+- **Wash straight over the far eye.** In shadow the white of an eye is not white. A hole left for it in the shadow wash dries as a hard-edged white box that no later mark brings back into the head.
+
+## The drawing that goes on last
+
+Forty or fifty crisp marks turn a soft, correct wash into a particular person. Draw them on washes that are completely dry, one stroke per mark, each loaded fresh and laid slowly. Measure every one first: enlarge the eyes and the mouth to seven times their size with a 10 pixel grid (`scripts/reference_grid.py --zoom 7 --step 10`), write each mark down as points, and check the pass over the reference (`scripts/preview_pass.py`). Marks this small must sit within two pixels.
+
+The sizes below are for a face about 300 pixels across. "Dark" is burnt umber 3 to French ultramarine 1.2.
+
+| Mark | Brush and load | Path |
+|---|---|---|
+| **Whites of the eyes** | `round` 1.8, `opaque_white` at 4.5 | One stroke 5 to 8 pixels long each side of each iris, laid before any dark and dried. They are too small to reserve; without them the eye is a dark almond with no eye in it. |
+| **Upper lid** | `round` Kolinsky 3.5 to 4, dark at 6, fullness 0.8, `speed` 70 | Outer corner to inner, pressure 0.2, 0.8, 1.0, 0.9, 0.6, 0.3: a hairline that thickens over the iris and tapers into the corner. |
+| **Iris** | `round` Kolinsky, `size` equal to the iris's radius, dark at 6 | A stroke 4 pixels long at pressure 1.0 and `speed` 20. Press fully: a touch at the default pressure leaves a spot only three quarters of `size` in radius, and at 0.5 little more than half, which gives a pinpoint pupil in a wide white eye. |
+| **Lower lid** | `round` 1.3, warm dark (sienna, red, umber) at 2.2 to 2.4 | Four points, 0.3, 0.7, 0.7, 0.3. Much lighter than the upper lid. At 3.5 to 4 it closed the eye into an outlined almond and took the smile out of it. |
+| **Brow** | `round` 3.5; cool grey at 3.4 on the lit side, warm brown at 4.5 on the shadow side | 0.3, 0.9, 1.0, 0.4. Grey, not black, where the light is on it. |
+| **Nostril and the dark under the nose** | `round` 2.2, dark at 4.5; `round` 4.5, warm brown at 5 | Two short ticks pressed at their far ends; one wedge beneath, turning up into the far nostril. |
+| **Mouth corners** | `round` 4 to 5, dark at 5.5 to 6 | A wedge from each corner inward, heaviest two thirds along. These carry the smile. |
+| **Upper lip over teeth** | `round` Kolinsky 1.8, warm brown at 4.5 | One thin line along the top of the teeth. A pale grey band there dried as a smear across them. |
+| **Teeth** | none | Paper. Keep every wash off their band, and hang the gaps from the upper lip as ticks of a size 1.4 round, 5 to 9 pixels long. Opaque white laid over a drawn mouth to recover them dried grey. |
+| **Lower lip** | `round` 5, redder flesh at 3.5 | One stroke, 0.2, 0.9, 1.0, 0.8, 0.2, so that both ends come to points. |
+| **Glints** | `round` 1.5, `opaque_white` at 4.5 | Dabs of 0.2 seconds, after a `dry`, last of all. |
+| **Strand of hair** | `round` Kolinsky 2.4, the hair's dark at 3.2, `speed` 200 | Three or four points, 0.2, 0.8, 0.9, 0.2. A fresh load for each, and vary their lengths. |
+| **An animal's eye and muzzle** | `round` Kolinsky 4.5, dark at 5.5, `speed` 60; `round` 5 to 10, warm dark at 2 to 3 | One almond, 0.2, 0.9, 1.0, 0.3, with a thin warm lid above it. Nose patch, mouth line and lower lip as shapes that touch; with paper between them they read as three stripes. |
+
+Order: the long gestures and a `dry`; the whites of the eyes and a `dry`; every dark mark in one pass; `dry`; the glints.
+
+**Gestures are the long strokes** that are one movement of the arm: hair swept from the parting to the fringe (80 to 130 pixels, a size 3 to 4 Kolinsky round at `speed` 190), the length of a hanging ear, a fold. Each is one stroke of three or four points with pressure 0.15, 0.8, 0.9, 0.15, so that it starts and ends on the point of the brush. Lay them pale, at about 1 to 1.7, and lighter than seems right: a gesture over finished washes adds to what is already there, and on a sheet otherwise within 0.04 of its reference the only passages too dark were hand strokes a third too wide and half as strong again as they should have been.
+
 ## Diagnosing portrait and detail faults
 
 | What `look` shows | Cause | Fix on the next sheet (or next dry pass) |
@@ -69,4 +104,11 @@ Heavy dark washes across a face kill bare-paper luminosity without fixing a weak
 | Doe-eyed, naive, or surprised stare | Tall arched upper lids, high curved brows, dilated pupils, bright unringed irises, huge catchlight | Flatten/hood upper lid across top of iris, tighten lower lid straight, ring desaturated iris + shade top third, constrict pupil, drop brows low over socket shadow |
 | Skin looks chalky, muddy, or over-painted | `0.30–1.0+` skin loads (`pigments` is concentration, not diluted by `water`) | Drop first skin washes to `0.05–0.15` and leave 60–80% of the lit face bare paper |
 | Double-outlined stripes on cheeks, neck, or hair | Unsoftened medium strokes laid onto dry paper | Flood closed polygons while shiny + charge darks wet-in-wet, or immediately melt one edge of dry glazes with damp clean hair |
+| A startled stare: small pupils in wide white eyes | Irises painted as light dabs, or a hole left in the shadow wash for the far eye | Iris at full pressure with `size` equal to its radius; wash over the far eye |
+| The eye is an outlined almond and the smile has gone | Lower lid as dark as the upper | Lower lid at 2.2 to 2.4 with a size 1.3 round |
+| Teeth cream, or grey | Washes laid over them, then opaque white over the drawn mouth | Keep their band free of every wash; draw only the gaps |
+| Eyes and mouth in the right place, but no head | The lit side left as empty paper with nothing on its contour | Pale tints on the lit side, and a background or a thin warm line along the lit jaw |
+| A face assembled from bars | Strokes planned as centre lines | Preview the pass for coverage; fewer, fatter, overlapping strokes |
+| Lash line dries violet | Too much ultramarine in the dark | Burnt umber 3 to French ultramarine 1.2 |
+| Hair edge, brow or a lock heavier than everything round it | Hand strokes laid over finished washes at full strength | Gestures at 1 to 1.7, lighter than seems right |
 | Gold/yellow collar or trim turned olive-brown | Adjacent blue laid while yellow was wet, or glazed over dried yellow | `dry` yellow first and offset blue paths `radius + 2px` outside the gold seam |
