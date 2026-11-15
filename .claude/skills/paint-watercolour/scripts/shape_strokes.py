@@ -28,7 +28,7 @@ import json
 
 import numpy as np
 import torch
-from measured_layers import PAPER, absorbance, paint_absorption, pooled, solve_mix
+from measured_layers import paint_absorption, pooled, solve_mix, target_and_sheet, to_load
 from PIL import Image, ImageDraw
 from torch.nn import functional
 
@@ -91,7 +91,8 @@ def thin(mask: np.ndarray) -> np.ndarray:
     return image[1:-1, 1:-1].astype(bool)
 
 
-OFFSETS = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+STRAIGHT = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+DIAGONAL = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
 
 
 def centre_lines(skeleton: np.ndarray) -> list[list[tuple[int, int]]]:
@@ -99,7 +100,18 @@ def centre_lines(skeleton: np.ndarray) -> list[list[tuple[int, int]]]:
     pixels = set(zip(*np.nonzero(skeleton)))
 
     def around(pixel):
-        return [(pixel[0] + dy, pixel[1] + dx) for dy, dx in OFFSETS if (pixel[0] + dy, pixel[1] + dx) in pixels]
+        # Thinning leaves a corner pixel at each step of a slanted line, and the pixels each side of a corner touch
+        # diagonally as well. Counted as neighbours, they make every step a branch point: the line falls into runs
+        # of two to five pixels, which are dropped as spurs, and the shape is not painted. So a diagonal neighbour
+        # counts only where no straight neighbour already joins the two.
+        y, x = pixel
+        near = [(y + dy, x + dx) for dy, dx in STRAIGHT if (y + dy, x + dx) in pixels]
+        near += [
+            (y + dy, x + dx)
+            for dy, dx in DIAGONAL
+            if (y + dy, x + dx) in pixels and (y + dy, x) not in pixels and (y, x + dx) not in pixels
+        ]
+        return near
 
     degree = {pixel: len(around(pixel)) for pixel in pixels}
     visited: set = set()
@@ -173,24 +185,13 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
             chosen = list(range(0, len(line), stride))
             if chosen[-1] != len(line) - 1:
                 chosen.append(len(line) - 1)
-            if len(chosen) == 1:
-                chosen = [0, 0]
             size = float(np.clip(radii.max() * 0.95, arguments.narrowest, arguments.widest))
             values = np.array([gap[y, x] for y, x in line]).mean(0)
             amount = min(values.max(), arguments.cap * arguments.threshold)
             if values.max() <= 0:
                 continue
             linear = solve_mix(values / values.max() * amount, arguments.absorption)
-            total = sum(linear.values())
-            if total <= 0:
-                continue
-            at_three = min(1.4, max(0.7, 0.62 + 0.11 * size)) * arguments.single
-            strength = min(7.8, 3.0 * (total / at_three) ** (1.0 / 0.75) * arguments.gain)
-            pigments = {
-                name: round(value / total * strength, 3)
-                for name, value in linear.items()
-                if value / total * strength >= 0.004
-            }
+            pigments = to_load(linear, arguments.gain, size, arguments.single)
             if sum(pigments.values()) < 0.03:
                 continue
             path = []
@@ -200,8 +201,6 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
                 if position in (0, len(chosen) - 1) and len(chosen) > 2:
                     pressure *= arguments.taper
                 path.append([float(x) + 0.5, float(y) + 0.5, round(max(0.1, pressure), 2)])
-            if len(chosen) == 2 and chosen[0] == chosen[1]:
-                path[1][0] += 1.5
             load = {
                 "action": "load",
                 "brush": "round",
@@ -266,7 +265,9 @@ def main() -> None:
     parser.add_argument("--hair", default=None)
     parser.add_argument("--water", type=float, default=0.9)
     parser.add_argument("--speed", type=float, default=170)
-    parser.add_argument("--blur", type=int, default=3)
+    parser.add_argument(
+        "--blur", type=int, default=3, help="width in pixels of the blur of the gap; an even width is the next odd one"
+    )
     parser.add_argument("--region", default=None)
     parser.add_argument("--exclude", action="append", default=[])
     parser.add_argument(
@@ -277,19 +278,7 @@ def main() -> None:
     parser.add_argument("--no-dry", action="store_true")
     arguments = parser.parse_args()
 
-    sheet_width, sheet_height = (int(value) for value in arguments.sheet.split(","))
-    sheet = (sheet_width, sheet_height)
-    reference = Image.open(arguments.reference).convert("RGB").resize(sheet, Image.Resampling.LANCZOS)
-    if arguments.origin:
-        if not arguments.crop:
-            parser.error("--origin needs --crop W,H")
-        x0, y0 = (int(value) for value in arguments.origin.split(","))
-        crop_width, crop_height = (int(value) for value in arguments.crop.split(","))
-        reference = reference.crop((x0, y0, x0 + crop_width, y0 + crop_height))
-    white = np.array([float(value) for value in arguments.white.split(",")])
-    target = absorbance(np.asarray(reference).astype(float), white)
-    look = Image.open(arguments.look).convert("RGB").resize(reference.size, Image.Resampling.LANCZOS)
-    current = absorbance(np.asarray(look).astype(float), PAPER)
+    target, current = target_and_sheet(parser, arguments)
     arguments.box = tuple(int(value) for value in arguments.region.split(",")) if arguments.region else None
     arguments.excluded = [tuple(int(value) for value in box.split(",")) for box in arguments.exclude]
     arguments.absorption = paint_absorption([name for name in arguments.paints.split(",") if name])

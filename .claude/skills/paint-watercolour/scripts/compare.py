@@ -1,10 +1,12 @@
 """Place a look of the painting beside the same region of the reference, both at one scale.
 
-Usage: compare.py <look image> <reference> <output> --sheet W,H [--region x0,y0,x1,y1] [--origin x,y]
-                  [--zoom 2] [--grid 0]
+Usage: compare.py <look image> <reference> <output> --sheet W,H [--region x0,y0,x1,y1]
+                  [--origin x,y --look-width W] [--zoom 2] [--grid 0]
 
 --sheet is the full sheet size the reference is scaled to. --region is in full-sheet coordinates.
 --origin is the full-sheet coordinate of the look image's top-left corner (for a study of a cropped region).
+--look-width is the width of the painted sheet in its own pixels. Give it with --origin: without it the look is
+taken to show the full sheet and is scaled to the full sheet's width.
 """
 
 import argparse

@@ -45,6 +45,8 @@ def rows(x0, y0, x1, y1, spacing, pressure=0.9, speed=260):
 def wait(seconds, at=None, film=None):
     action = {"action": "wait", "seconds": seconds}
     if at is not None:
+        if film is None:
+            raise ValueError("a wait at a point needs the film depth to wait for")
         action["at"], action["film"] = at, film
     return action
 
@@ -105,7 +107,8 @@ def fill_spans(spans, size, pressure=0.9, speed=220, inset=None):
     """Rows that fill a region given as (y, x_left, x_right) boundary spans, one stroke per span.
 
     Each row is drawn between the span's ends moved inward by the stroke's half width (about `size`
-    at pressure 0.9), so the paint stops on the boundary. Space the spans about 1.7 times `size` apart.
+    at pressure 0.9), so the paint stops on the boundary. Space the spans 1.4 times `size` apart or closer:
+    rows at the full painted width, twice `size`, leave a hairline of dry paper between them.
     """
     inset = size * 0.95 if inset is None else inset
     strokes, forward = [], True
@@ -123,21 +126,24 @@ def fill_spans(spans, size, pressure=0.9, speed=220, inset=None):
     return strokes
 
 
+def stages_of(actions):
+    """The stages of a pass: each run of actions between one `dry` and the next, without the `dry`."""
+    stages, current = [], []
+    for action in actions:
+        if action["action"] == "dry":
+            stages.append(current)
+            current = []
+        else:
+            current.append(action)
+    if current:
+        stages.append(current)
+    return stages
+
+
 def merge_stages(*passes):
     """Run several passes that work on separate areas as one: all their first stages, one dry, all their second
     stages, one dry, and so on. A stage is the run of actions between one `dry` and the next."""
-    staged = []
-    for actions in passes:
-        stages, current = [], []
-        for action in actions:
-            if action["action"] == "dry":
-                stages.append(current)
-                current = []
-            else:
-                current.append(action)
-        if current:
-            stages.append(current)
-        staged.append(stages)
+    staged = [stages_of(actions) for actions in passes]
     merged = []
     for index in range(max(len(stages) for stages in staged)):
         for stages in staged:
@@ -149,13 +155,4 @@ def merge_stages(*passes):
 
 def stage(actions, number):
     """The actions of one stage of a pass (stages are separated by `dry`), without the `dry`. The first stage is 0."""
-    stages, current = [], []
-    for action in actions:
-        if action["action"] == "dry":
-            stages.append(current)
-            current = []
-        else:
-            current.append(action)
-    if current:
-        stages.append(current)
-    return stages[number]
+    return stages_of(actions)[number]

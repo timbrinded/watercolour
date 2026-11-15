@@ -11,13 +11,14 @@ The method is the painter's own, made numerical:
 
 Usage:
     measured_layers.py <reference> <output pass.json> --sheet W,H --paints cobalt_blue,burnt_sienna,...
-        [--look current_look.png] [--origin x,y]
+        [--look current_look.png] [--origin x,y --crop W,H]
         --brush round --size 12 [--hair squirrel] [--angle 0] [--gain 0.8] [--least 0.07] [--water 1.0]
         [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--exclude x0,y0,x1,y1 ...]
         [--keep-lights 0.08] [--cut-in 8,3.5] [--white r,g,b] [--no-dry]
 
 --paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white.
---origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference.
+--origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference,
+and --crop is that sheet's size. --region and --exclude are then in the cropped sheet's own coordinates.
 --white is the colour of the reference's own paper, where it is a scan and not pure white.
 --exclude leaves a rectangle untouched: the brush stays half its width outside it.
 --keep-lights keeps the brush off a light narrower than the smoothing window (a sail, a mast against a sky), which
@@ -127,22 +128,44 @@ def solve_mix(gap: np.ndarray, absorption: Absorption, without: tuple[str, ...] 
     return best or {}
 
 
-def to_load(linear: dict[str, float], gain: float, size: float) -> dict[str, float]:
+def to_load(linear: dict[str, float], gain: float, size: float, single: float = 1.0) -> dict[str, float]:
     """Turn linear absorbance units into the amounts to load.
 
     Measured on filled patches of rows overlapping by 30%: a load of total strength 3 dries with about 1.4 units of
     absorbance from a brush of size 7 or more, 0.95 from size 3.5 and 0.8 from size 1.6, and the units grow as the
-    0.75 power of the strength."""
+    0.75 power of the strength. A stroke laid alone lays less than a filled patch: `single` is its share."""
     total = sum(linear.values())
     if total <= 0:
         return {}
-    at_three = min(1.4, max(0.7, 0.62 + 0.11 * size))
+    at_three = min(1.4, max(0.7, 0.62 + 0.11 * size)) * single
     strength = min(7.8, 3.0 * (total / at_three) ** (1.0 / 0.75) * gain)
     return {
         name: round(amount / total * strength, 3)
         for name, amount in linear.items()
         if amount / total * strength >= 0.004
     }
+
+
+def target_and_sheet(parser: argparse.ArgumentParser, arguments: argparse.Namespace) -> tuple[np.ndarray, np.ndarray]:
+    """The reference and the sheet as absorbance, both at the sheet's size: what is wanted and what is there.
+
+    With --origin and --crop the sheet is a crop of the reference. Without --look the sheet is bare paper."""
+    sheet_width, sheet_height = (int(value) for value in arguments.sheet.split(","))
+    reference = Image.open(arguments.reference).convert("RGB")
+    reference = reference.resize((sheet_width, sheet_height), Image.Resampling.LANCZOS)
+    if arguments.origin or arguments.crop:
+        if not (arguments.origin and arguments.crop):
+            # with only one of the two the whole reference would be laid on a sheet the size of the crop
+            parser.error("--origin x,y and --crop W,H must be given together")
+        x0, y0 = (int(value) for value in arguments.origin.split(","))
+        crop_width, crop_height = (int(value) for value in arguments.crop.split(","))
+        reference = reference.crop((x0, y0, x0 + crop_width, y0 + crop_height))
+    white = np.array([float(value) for value in arguments.white.split(",")])
+    target = absorbance(np.asarray(reference).astype(float), white)
+    if not arguments.look:
+        return target, np.zeros_like(target)
+    look = Image.open(arguments.look).convert("RGB").resize(reference.size, Image.Resampling.LANCZOS)
+    return target, absorbance(np.asarray(look).astype(float), PAPER)
 
 
 def mark_covered(covered: Image.Image, actions: list[dict], stroke_width: float) -> None:
@@ -181,6 +204,8 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
     centre = (width_pixels / 2, height / 2)
     reach = math.hypot(width_pixels, height) / 2
     box = arguments.box or (0, 0, width_pixels, height)
+    # a region that runs past the sheet would otherwise be read off the end of the gap, or from its far edge
+    box = (max(box[0], 0), max(box[1], 0), min(box[2], width_pixels), min(box[3], height))
 
     actions, strokes = [], 0
 
@@ -250,7 +275,12 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
                 mean = np.mean(gaps, axis=0)
                 different = np.abs(value - mean).max() > arguments.tolerance * (0.25 + mean.max())
                 too_long = len(points) * step >= arguments.longest
-                if different or too_long:
+                if different and value.max() > mean.max():
+                    # a darker stroke follows: the lighter one runs on under its first point, so the two overlap
+                    # where the gap is the larger, and the darker mix is laid nowhere its footprint did not allow
+                    emit([*points, (x, y)], gaps)
+                    points, gaps = [], []
+                elif different or too_long:
                     emit(points, gaps)
                     # the next stroke starts where this one ended, so the two lifted ends overlap; begun one step
                     # further on, they leave a hole of bare paper at every cut, and the cuts of long even rows
@@ -360,23 +390,7 @@ def main() -> None:
     parser.add_argument("--no-dry", action="store_true")
     arguments = parser.parse_args()
 
-    sheet_width, sheet_height = (int(value) for value in arguments.sheet.split(","))
-    sheet = (sheet_width, sheet_height)
-    reference = Image.open(arguments.reference).convert("RGB").resize(sheet, Image.Resampling.LANCZOS)
-    if arguments.origin:
-        if not arguments.crop:
-            parser.error("--origin needs --crop W,H")
-        x0, y0 = (int(value) for value in arguments.origin.split(","))
-        crop_width, crop_height = (int(value) for value in arguments.crop.split(","))
-        reference = reference.crop((x0, y0, x0 + crop_width, y0 + crop_height))
-    white = np.array([float(value) for value in arguments.white.split(",")])
-    target = absorbance(np.asarray(reference).astype(float), white)
-
-    if arguments.look:
-        look = Image.open(arguments.look).convert("RGB").resize(reference.size, Image.Resampling.LANCZOS)
-        current = absorbance(np.asarray(look).astype(float), PAPER)
-    else:
-        current = np.zeros_like(target)
+    target, current = target_and_sheet(parser, arguments)
     random.seed(arguments.seed)
     arguments.cut_in = [float(value) for value in arguments.cut_in.split(",") if value]
     arguments.excluded = [tuple(int(value) for value in box.split(",")) for box in arguments.exclude]

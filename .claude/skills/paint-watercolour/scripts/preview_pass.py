@@ -1,9 +1,10 @@
 """Draw the strokes of one or more passes over the reference, at the width each brush will paint.
 
 Usage: preview_pass.py <reference> <output> --sheet W,H [--origin x,y] [--region x0,y0,x1,y1]
-                       [--zoom 2] [--outline] pass.json [pass.json ...]
+                       [--zoom 2] [--alpha 120] pass.json [pass.json ...]
 
 --origin is the full-sheet coordinate of the pass's own origin (for a study pass on a cropped sheet).
+--alpha is how opaque each stroke is drawn, from 0 to 255.
 The overlay is a planning aid: it shows where paint will land and how wide, not how it will flow.
 """
 

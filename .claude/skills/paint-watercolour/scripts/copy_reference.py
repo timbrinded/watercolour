@@ -13,8 +13,8 @@ script.
 --exclude        a rectangle no stage may touch (repeatable): a white too small to survive the layers, a
                  signature or watermark in the reference, a passage already laid by hand. A row brush stays
                  half its width outside it, so each smaller brush comes closer.
---out-of-washes  paints kept out of the two broadest stages: a granulating paint gathers into specks in a
-                 deep wash.
+--out-of-washes  paints kept out of the broadest stages (1 and 2; 1 to 3 with --even-passages): a granulating
+                 paint gathers into specks in a deep wash.
 --bloom          a point where clear water is touched into the first wash as its film thins (repeatable).
 --white          the colour of the reference's own paper, where it is a scan and not pure white.
 --even-passages  for a reference with large even passages (a sky, water, a plain wall). The first wash is laid at
@@ -95,25 +95,48 @@ LIGHT = 0.08  # the reference absorbance under which a place counts as a light, 
 
 def plain_look(command: list[str], painting: Path) -> Path:
     """A fresh look of the whole sheet with no grid on it. The newest look on file may be one the painter took
-    with --grid or --region, and a stage built from that would read the grid as paint or the region as the sheet."""
+    with --grid or --region, and a stage built from that would read the grid as paint or the region as the sheet.
+
+    The command names the file it saved. The last name in the directory is not always that file: a look is numbered
+    by how many files the directory holds, so once any have been removed a new look sorts before an older one."""
     result = subprocess.run([*command, "look", str(painting)], check=False, capture_output=True, text=True)
     if result.returncode:
         raise SystemExit(f"no look could be taken of {painting}:\n{result.stdout}{result.stderr}")
-    return max((painting / "looks").glob("*_painting_color.png"))
+    return Path(json.loads(result.stdout)["look"])
 
 
-def refuse_if_interrupted(command: list[str], painting: Path, stem: str) -> None:
-    """A pass that was cut short must be finished from its own file. A stage built now would be measured from
-    a half-painted, wet sheet and laid on top of it."""
+def interrupted_pass_file(stem: str, actions_given: int) -> Path | None:
+    """The pass of this script that was cut short, told by its number of actions. The newest file does not tell
+    it: the blooms are written after stage 1 and before stage 1 is painted."""
+    last = len(STAGES) + 1  # --even-passages has one stage more
+    passes = [Path(f"{stem}.stage{number}.json") for number in range(1, last + 1)]
+    passes.append(Path(f"{stem}.blooms.json"))
+    matching = [file for file in passes if file.exists() and len(json.loads(file.read_text())) == actions_given]
+    return matching[0] if len(matching) == 1 else None
+
+
+def refuse_unless_complete_and_dry(command: list[str], painting: Path, stem: str) -> None:
+    """A stage is measured from the sheet as it stands and laid on top of it, so the last pass must be complete
+    and the sheet dry. A pass that was cut short must first be finished from its own file, and a wet sheet dried."""
     result = subprocess.run([*command, "status", str(painting)], check=False, capture_output=True, text=True)
     if result.returncode:
         raise SystemExit(f"the state of {painting} could not be read:\n{result.stdout}{result.stderr}")
-    if "interrupted_pass" in json.loads(result.stdout):
+    state = json.loads(result.stdout)
+    stopped = state.get("interrupted_pass")
+    if stopped:
+        given = stopped["actions_given"]
+        file = interrupted_pass_file(stem, given) or f"<the pass of {given} actions that was being painted>"
         raise SystemExit(
-            f"a pass on {painting} was cut short. Give the same pass again to finish it (the newest of "
-            f"{stem}.stage<N>.json and {stem}.blooms.json: `watercolor paint {painting} <that file>`). If it "
-            f"was stage 1, paint {stem}.blooms.json after it, which dries the first wash. Then run this script "
-            "with --first set to the next stage."
+            f"a pass on {painting} was cut short. Give the same pass again to finish it: "
+            f"`watercolor paint {painting} {file}`. If that was stage 1, paint {stem}.blooms.json after it, which "
+            "dries the first wash. Then run this script with --first set to the next stage."
+        )
+    wetness = state["wetness"]["painting"]
+    if wetness["film_deepest"] > 0 or wetness["paper_fullness"] > 0:
+        raise SystemExit(
+            f"{painting} is wet, and a wet sheet is not yet the colour it will dry to. Dry it before a stage is "
+            f'built from it: paint {stem}.blooms.json if the first wash was laid last, or a pass of [{{"action": '
+            '"dry"}] otherwise.'
         )
 
 
@@ -125,14 +148,13 @@ def paint(command: list[str], painting: Path, actions: Path) -> None:
         raise SystemExit(f"{actions} was not painted:\n{result.stdout}{result.stderr}")
 
 
-def blooms(points: list[str]) -> list[dict]:
+def blooms(points: list[tuple[float, float]]) -> list[dict]:
     """Clear water touched into the first wash at each point as its film thins to 0.18, then the dry that ends
     the first stage."""
     actions: list[dict] = []
     if points:
         actions.append({"action": "load", "brush": "round", "size": 7, "pigments": {}, "water": 1.0})
-    for index, point in enumerate(points):
-        x, y = (float(value) for value in point.split(","))
+    for index, (x, y) in enumerate(points):
         actions.append({"action": "wait", "seconds": 120 if index == 0 else 60, "at": [x, y], "film": 0.18})
         actions.append({"action": "stroke", "path": [[x, y, 0.8]], "dwell": 0.6})
     actions.append({"action": "dry"})
@@ -146,7 +168,11 @@ def main() -> None:
     parser.add_argument("--sheet", required=True, help="the sheet's size: W,H")
     parser.add_argument("--paints", required=True, help="the paints a mix may use, comma separated")
     parser.add_argument("--exclude", action="append", default=[], help="leave x0,y0,x1,y1 untouched (repeatable)")
-    parser.add_argument("--out-of-washes", default="", help="paints kept out of stages 1 and 2, comma separated")
+    parser.add_argument(
+        "--out-of-washes",
+        default="",
+        help="paints kept out of stages 1 and 2 (1 to 3 with --even-passages), comma separated",
+    )
     parser.add_argument("--bloom", action="append", default=[], help="x,y of a bloom in the first wash (repeatable)")
     parser.add_argument("--white", default=None, help="the reference's own paper white: r,g,b")
     parser.add_argument(
@@ -170,11 +196,22 @@ def main() -> None:
     scripts = Path(__file__).resolve().parent
     command = shlex.split(arguments.command)
     painting = arguments.painting
-    stem = str(painting).rstrip("/")
+    stem = str(painting)
     excluded = [word for box in arguments.exclude for word in ("--exclude", box)]
-    refuse_if_interrupted(command, painting, stem)
     stages = [EVEN_FIRST_WASH, EVEN_SECOND_WASH, *STAGES[1:]] if arguments.even_passages else STAGES
     last = arguments.last or len(stages)
+    if not 1 <= arguments.first <= last <= len(stages):
+        # stage 0 would be read from the end of the list, and the finest strokes laid first, on bare paper
+        parser.error(f"--first and --last number the stages from 1 to {len(stages)}, the first no later than the last")
+    sheet_width, sheet_height = (int(value) for value in arguments.sheet.split(","))
+    bloom_points = []
+    for point in arguments.bloom:
+        x, y = (float(value) for value in point.split(","))
+        if not (0 <= x < sheet_width and 0 <= y < sheet_height):
+            # the harness refuses the blooms only after the first wash is on the sheet, and the wash is left undried
+            parser.error(f"--bloom {point} is off the sheet")
+        bloom_points.append((x, y))
+    refuse_unless_complete_and_dry(command, painting, stem)
     keep_lights = arguments.keep_lights if arguments.keep_lights is not None else LIGHT * arguments.even_passages
 
     water = Path(f"{stem}.blooms.json")
@@ -206,7 +243,7 @@ def main() -> None:
         subprocess.run(words, check=True)
         if number == 1:
             # written before the wash is painted, so that it is there to give by hand if the wash is cut short
-            water.write_text(json.dumps(blooms(arguments.bloom)))
+            water.write_text(json.dumps(blooms(bloom_points)))
         paint(command, painting, actions)
         if number == 1:
             paint(command, painting, water)

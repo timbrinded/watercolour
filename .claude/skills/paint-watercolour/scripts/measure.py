@@ -17,6 +17,8 @@ for argument in sys.argv[3:]:
     parts = [float(value) for value in argument.split(",")]
     x, y = parts[0] * scale, parts[1] * scale
     half = (parts[2] if len(parts) > 2 else 4) * scale
-    patch = image[int(y - half) : int(y + half) + 1, int(x - half) : int(x + half) + 1].reshape(-1, 3).mean(0)
+    # a patch that overhangs the top or left edge is cut at the edge: a negative start would count from the far side
+    top, left = max(0, int(y - half)), max(0, int(x - half))
+    patch = image[top : int(y + half) + 1, left : int(x + half) + 1].reshape(-1, 3).mean(0)
     value = (0.2126 * patch[0] + 0.7152 * patch[1] + 0.0722 * patch[2]) / 255
     print(f"({parts[0]:.0f},{parts[1]:.0f}) rgb=({patch[0]:.0f},{patch[1]:.0f},{patch[2]:.0f}) value={value:.2f}")
