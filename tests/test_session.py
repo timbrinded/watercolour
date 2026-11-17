@@ -249,3 +249,26 @@ def test_a_save_the_log_records_is_used_though_it_was_not_yet_put_in_place(tmp_p
     shutil.move(session.directory / "state.pt", session.directory / "state.pending.pt")
     shutil.copy(tmp_path / "earlier.pt", session.directory / "state.pt")
     assert Session(session.directory).strokes_used == 1
+
+
+def test_masking_fluid_counts_against_the_budget_but_does_not_end_the_underdrawing(tmp_path: Path) -> None:
+    session = new_session(tmp_path, stroke_budget=2)
+    session.paint([{"action": "mask", "path": [[40, 40]], "radius": 6}])
+    assert session.strokes_used == 1 and not session.paint_applied
+    session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]}])
+    with pytest.raises(RuleViolation):
+        session.paint([{"action": "mask", "path": [[50, 50]], "radius": 6}, {"action": "unmask"}])
+
+
+def test_masking_fluid_of_an_impossible_size_is_refused(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    with pytest.raises(ValueError):
+        session.paint([{"action": "mask", "path": [[40, 40]], "radius": 0.1}])
+    with pytest.raises(ValueError):
+        session.paint([{"action": "unmask", "path": [[40, 40]]}])
+
+
+def test_masking_fluid_with_an_impossible_pressure_is_refused(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    with pytest.raises(ValueError):
+        session.paint([{"action": "mask", "path": [[40, 40, 1.5], [60, 40, 0.5]], "radius": 6}])

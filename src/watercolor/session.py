@@ -28,8 +28,9 @@ from .simulation import Sheet
 from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_request
 
 SCRAP_SIZE = 256
-TOUCHING_ACTIONS = ("stroke", "blot")  # these count against the stroke budget
-SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt")
+TOUCHING_ACTIONS = ("stroke", "blot")  # these put paint on the sheet or take it off
+MASKING_ACTIONS = ("mask", "unmask")  # these count against the stroke budget too, but lay no paint
+SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask")
 SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
 
 
@@ -210,7 +211,7 @@ class Session:
                         raise RuleViolation("this painting has no scrap sheet")
                     if sheet not in ("painting", "scrap"):
                         raise ValueError(f"unknown sheet {sheet!r}")
-                if kind in ("stroke", "blot", "pencil", "erase") and not action["path"]:
+                if kind in ("stroke", "blot", "pencil", "erase", "mask") and not action["path"]:
                     raise ValueError("path is empty")
                 if kind == "load":
                     hair = action.get("hair", "")
@@ -242,6 +243,21 @@ class Session:
                 elif kind == "blot":
                     if not 1 <= action["radius"] <= 80:
                         raise ValueError("blot radius must be between 1 and 80 pixels")
+                elif kind == "mask":
+                    if not 0.5 <= action["radius"] <= 40:
+                        raise ValueError("mask radius must be between 0.5 and 40 pixels")
+                    for point in action["path"]:
+                        if len(point) not in (2, 3):
+                            raise ValueError("a mask point is [x, y] or [x, y, pressure]")
+                        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
+                            raise ValueError("mask pressure must be between 0 and 1")
+                elif kind == "unmask":
+                    if ("path" in action) != ("radius" in action):
+                        raise ValueError("unmask takes a path and a radius together, or neither")
+                    if "path" in action and not action["path"]:
+                        raise ValueError("path is empty")
+                    if "radius" in action and not 1 <= action["radius"] <= 80:
+                        raise ValueError("unmask radius must be between 1 and 80 pixels")
                 elif kind in ("pencil", "erase"):
                     if not config.pencil_allowed:
                         raise RuleViolation("this painting does not allow a pencil underdrawing")
@@ -264,9 +280,9 @@ class Session:
                         raise ValueError("tilt must be within 0.3 on each axis")
                 elif kind != "dry":
                     raise ValueError(f"unknown action {kind!r}")
-                if kind in TOUCHING_ACTIONS and on_painting:
+                if kind in TOUCHING_ACTIONS + MASKING_ACTIONS and on_painting:
                     strokes += 1
-                    paint_applied = True
+                    paint_applied = paint_applied or kind in TOUCHING_ACTIONS
                     if strokes > config.stroke_budget:
                         raise RuleViolation(f"the stroke budget of {config.stroke_budget} is spent")
             except KeyError as missing:
@@ -336,6 +352,10 @@ class Session:
             )
         elif kind == "blot":
             studio.blot(sheet, action["path"], action["radius"])
+        elif kind == "mask":
+            studio.mask(sheet, action["path"], action["radius"], action.get("smooth", True))
+        elif kind == "unmask":
+            studio.unmask(sheet, action.get("path"), action.get("radius"))
         elif kind == "pencil":
             studio.pencil(sheet, action["path"], action.get("darkness", 0.6), action.get("smooth", True))
         elif kind == "erase":
@@ -349,9 +369,9 @@ class Session:
             studio.tilt(sheet, action["x"], action["y"])
         elif kind == "dry":
             studio.dry()
-        if kind in TOUCHING_ACTIONS and sheet == "painting":
+        if kind in TOUCHING_ACTIONS + MASKING_ACTIONS and sheet == "painting":
             self.strokes_used += 1
-            self.paint_applied = True
+            self.paint_applied = self.paint_applied or kind in TOUCHING_ACTIONS
         self._checkpoint({"action": kind, "detail": action})
 
     def look(

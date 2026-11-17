@@ -12,6 +12,8 @@ from torch import Tensor
 from .simulation import SHINE_DEPTH, Sheet
 
 PAPER_COLOR = (0.97, 0.96, 0.93)
+# Masking fluid is tinted so that it can be seen on white paper: a pale yellow skin that lets what is under it show.
+MASK_TINT = (0.98, 0.94, 0.72)
 VIEWS = ("color", "value", "wetness")
 MINIMUM_VIEW_SIZE = 768
 # Optical strength of one unit of pigment: a brush concentration of 1.0 is a mid-strength wash.
@@ -140,30 +142,40 @@ def _paint(sheet: Sheet) -> Tensor:
     What the water does to the lamp's light, mirroring some and gathering the rest, is left out.
     """
     device = sheet.tooth.device
-    # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
-    # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
-    amount = _blend(TINTING_STRENGTH * (sheet.deposited + sheet.suspended), EDGE_BLEND)
     absorption = torch.tensor([p.absorption for p in sheet.pigments], device=device)
     scattering = torch.tensor([p.scattering for p in sheet.pigments], device=device)
+    relief = sheet.tooth - F.avg_pool2d(sheet.tooth[None, None], 5, stride=1, padding=2)[0, 0]
+    paper = torch.tensor(PAPER_COLOR, device=device).reshape(3, 1, 1) * (1.0 + 0.05 * relief)
+    color = _over(sheet.deposited + sheet.suspended, absorption, scattering, paper)
+
+    # Masking fluid is a translucent tinted skin over whatever is under it, and paint that landed on it
+    # lies on top of the skin until the fluid is rubbed away.
+    if bool((sheet.mask > 0).any()):
+        mask = sheet.mask.clamp(0, 1)[None]
+        skin = color * torch.tensor(MASK_TINT, device=device).reshape(3, 1, 1)
+        on_skin = _over(sheet.mask_pigment, absorption, scattering, skin)
+        color = color * (1.0 - mask) + on_skin * mask
+
+    dampness = (sheet.saturation / sheet.capacity).clamp(0, 1)
+    color = color * (1.0 - 0.05 * dampness - 0.04 * sheet.water.clamp(0, 1))
+    color = color * (1.0 - 0.6 * sheet.graphite)
+    return color.clamp(0, 1)
+
+
+def _over(pigment: Tensor, absorption: Tensor, scattering: Tensor, background: Tensor) -> Tensor:
+    """Colour of a layer of paint, shape (P, H, W), over a background, by Kubelka and Munk."""
+    # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
+    # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
+    amount = _blend(TINTING_STRENGTH * pigment, EDGE_BLEND)
     k = torch.einsum("phw,pc->chw", amount, absorption) + 1e-6
     s = torch.einsum("phw,pc->chw", amount, scattering) + 1e-4
-
-    # Kubelka-Munk reflectance and transmittance of the paint layer, over the paper.
     a = 1.0 + k / s
     b = (a * a - 1.0).sqrt()
     thickness = (b * s).clamp(max=20.0)
     denominator = a * thickness.sinh() + b * thickness.cosh()
     reflectance = thickness.sinh() / denominator
     transmittance = b / denominator
-
-    relief = sheet.tooth - F.avg_pool2d(sheet.tooth[None, None], 5, stride=1, padding=2)[0, 0]
-    paper = torch.tensor(PAPER_COLOR, device=device).reshape(3, 1, 1) * (1.0 + 0.05 * relief)
-    color = reflectance + transmittance**2 * paper / (1.0 - reflectance * paper)
-
-    dampness = (sheet.saturation / sheet.capacity).clamp(0, 1)
-    color = color * (1.0 - 0.05 * dampness - 0.04 * sheet.water.clamp(0, 1))
-    color = color * (1.0 - 0.6 * sheet.graphite)
-    return color.clamp(0, 1)
+    return reflectance + transmittance**2 * background / (1.0 - reflectance * background)
 
 
 def render_view(sheet: Sheet, view: str) -> Tensor:
