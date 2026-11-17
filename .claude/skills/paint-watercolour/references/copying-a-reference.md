@@ -37,6 +37,9 @@ Run them with the Python the harness uses, because two of them read its pigment 
 | `measured_layers.py` | A pass of rows laying, with one brush, what the sheet still lacks. |
 | `shape_strokes.py` | A pass of strokes that each run along one shape the sheet still lacks. |
 | `copy_reference.py` | Runs the thirteen measured stages below, one after another. |
+| `crisp_layers.py` | A pass of hard-edged shapes where the sheet still lacks tone, each filled with rounds kept inside it: breaking foam, and any passage of small lights and darks that the measured stages dry soft. See `water.md`. |
+| `trace_troughs.py` | The dark troughs of choppy water, each as one tapered stroke traced from the reference. See `water.md`. |
+| `mask_lights.py` | Masking fluid (0.8.0) over the reference's lights that are broad enough to hold it, for a wash that must cross them. See `water.md`. |
 | `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `rows`, `offset_path`, `translate`, `merge_stages`. |
 
 ## Step 1: grid and sample the reference
@@ -58,7 +61,7 @@ A thin layer of paint darkens each channel in proportion to the paint's absorpti
 
 Worked example: a deep background blue sampled at RGB 15, 29, 58 has absorbances in the ratio 1 : 0.76 : 0.50. French ultramarine is 1 : 1.00 : 0.07, so it cannot give that colour and dries violet beside it. Cobalt blue (1 : 0.56 : 0.19) with a fifth of its amount in burnt umber (1 : 2.1 : 2.8) gives 1 : 0.73 : 0.5, and painted it dried at 12, 27, 55.
 
-Solve the four or five colours that cover most of the picture, and start the painting with `--palette` naming only the paints those mixes use, plus `opaque_white`. The measuring scripts solve a mix for every stroke from the paints you give them in `--paints`; the mixes you solve by hand are for the drawing at the end. The solving ignores scattering, so a paint that scatters strongly (cerulean blue, hansa yellow) may come out differently from what is predicted; check it on the swatch chart.
+Solve the four or five colours that cover most of the picture, and start the painting with `--palette` naming only the paints those mixes use, plus `opaque_white`. The measuring scripts solve a mix for every stroke from the paints you give them in `--paints`; the mixes you solve by hand are for the drawing at the end. The solving ignores scattering, so a paint that scatters strongly (cerulean blue, hansa yellow) may come out differently from what is predicted; check it on the swatch chart. Yellow ochre is one: pale salmon sand solved to ochre, rose and cobalt and dried maroon and dark, where burnt sienna, rose and cobalt matched it on every swatch.
 
 ## Step 3: two charts
 
