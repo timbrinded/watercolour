@@ -49,6 +49,37 @@ Heavy dark washes across a face kill bare-paper luminosity without fixing a weak
 - Fill the iris solidly rather than leaving a giant missing wedge, charge the darker limbal ring and upper-lid shadow across its top third while wet, and add the pinpoint glint last with `opaque_white` (`size 1.5`, `strength ~5.0`) on the pupil rim.
 - Paint upper lash blades in two slow passes (`dagger` followed after `dry` by a fine `kolinsky_sable` `rigger` at `"speed": 80` to `90`) so paper grain leaves no crumbly white gaps along the lash line.
 
+### The white of the eye (0.8.0 or later)
+
+Painted round, the white of an eye is too small and too narrow at its corners to keep. Washes cut round it break up, and
+measured washes tone it like the skin beside it, because in a photograph the white sits in the socket's shadow and is
+darker than lit skin. Opaque white laid back over a wash dries pale grey (0.65 under a dark wash of 0.27). Mask it, as a
+painter does:
+
+1. **Before any paint, mask the whole opening of each eye, iris and all, as one tapered stroke.**
+   - Read the upper and lower lid edges off a grid, corner to corner.
+   - Run the stroke along the midline between them.
+   - Set `radius` to the opening's largest half-height, less about 1.5 pixels so no white shows above the lash line.
+   - At each point set the pressure to `(half-height / radius - 0.15) / 0.85`, clipped to 0 to 1. The width then
+     follows the opening and tapers into both corners.
+
+   A line of even width reads as a white bar, not an eye.
+2. **Paint the face over it freely, `dry`, and `unmask`:** a clean almond of paper.
+3. **Mask each catchlight with a dot** where the iris will be. Use a radius of 2.5 or more: a dot of 2.2 or less was
+   lost.
+4. **Shade the white.**
+   - A lit eye: a cool grey (cobalt blue 0.3, burnt sienna 0.12) along its top under the upper lid, softened downward
+     at once with a clean brush drained to 0.45.
+   - An eye in shadow: its whole white at a middle value (cobalt blue 0.55, burnt sienna 0.3).
+5. **Paint only the visible part of the iris** with a short level stroke at full pressure.
+   - Use a round sized to the opening's half-height at the iris, at strength about 2. Its round ends cut the white as
+     the iris does. A full disc of the iris's own radius spilt onto the lower lid as a brown crescent.
+   - Then lay the upper lid's shadow across the iris's top third, thin dark arcs at its sides for the limbal ring, the
+     pupil in two coats, and the lash line along the white's upper edge.
+6. **`unmask` the catchlights.**
+
+Measured on a trial at 768 by 576: the white dried at 0.95 and the catchlight at 0.88, against a lash line near 0.1.
+
 ### Noses, mouths, and chins
 
 - **Noses:** Never draw lines down both sides of the bridge. Leave the bridge and ball bare paper; carve them with a straight shaded side-wall (crisp along the bridge, softened outward onto the cheek) wrapping into a warm capillary underside (`burnt_sienna + quinacridone_rose`). Tuck soft-edged nostrils (`0.45` to `0.70`) *inside* that underside shadow rather than floating dark commas on bare paper.

@@ -136,6 +136,11 @@ SETTLED_ROLLING = 0.1
 # Depth of film at which water already on the sheet joins the hairs to the paper across the whole grain.
 BRIDGING_FILM = 0.05
 
+# Masking fluid: a cell this fully covered is sealed, so no water crosses into it or out of it.
+MASK_SEALED = 0.5
+# Softness of the edge of a line of masking fluid, as a share of its radius: it dries with a crisp edge.
+MASK_EDGE_SOFTNESS = 0.15
+
 
 def _faces(field: Tensor, axis: int) -> tuple[Tensor, Tensor]:
     """Return the two cells on either side of each interior face along an axis."""
@@ -360,7 +365,9 @@ class Sheet:
     tools (brush, blot, graphite) work on a single sheet.
     """
 
-    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite")
+    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite", "mask", "mask_water", "mask_pigment")
+    # Fields that a painting begun before masking fluid existed has no record of; they start empty.
+    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment")
 
     def __init__(
         self,
@@ -384,6 +391,11 @@ class Sheet:
         self.suspended = torch.zeros(len(pigments), *tooth.shape, device=device)
         self.deposited = torch.zeros(len(pigments), *tooth.shape, device=device)
         self.graphite = torch.zeros_like(tooth)
+        # Masking fluid on the paper (0 to 1), and the water and paint that have landed on top of it. They
+        # sit on the rubber, not in the paper, and come away with it.
+        self.mask = torch.zeros_like(tooth)
+        self.mask_water = torch.zeros_like(tooth)
+        self.mask_pigment = torch.zeros(len(pigments), *tooth.shape, device=device)
         self.tilt: tuple[float | Tensor, float | Tensor] = (0.0, 0.0)  # downhill pull along x and y
         self._used: set[int] = set()  # pigments that have ever been on this sheet
 
@@ -415,12 +427,17 @@ class Sheet:
 
     def load_state(self, state: dict[str, Tensor]) -> None:
         for name in self.STATE_FIELDS:
-            getattr(self, name).copy_(state[name])
+            if name in state:
+                getattr(self, name).copy_(state[name])
+            elif name in self.OPTIONAL_STATE_FIELDS:
+                getattr(self, name).zero_()
+            else:
+                raise KeyError(name)
         present = (self.suspended + self.deposited).flatten(1).any(dim=1)
         self._used = set(present.nonzero().flatten().tolist())
 
     def has_surface_water(self) -> bool:
-        return bool((self.water > 0).any())
+        return bool((self.water > 0).any()) or bool((self.mask_water > 0).any())
 
     def is_drying(self) -> bool:
         return self.has_surface_water() or bool((self.saturation > 0).any())
@@ -491,7 +508,8 @@ class Sheet:
 
     def _active_region(self) -> Region | None:
         """Bounding box of everything wet or damp, with room for the edge filter."""
-        active = ((self.water > 0) | (self.saturation > 0)).reshape(-1, self.height, self.width).any(dim=0)
+        active = (self.water > 0) | (self.saturation > 0) | (self.mask_water > 0)
+        active = active.reshape(-1, self.height, self.width).any(dim=0)
         rows = active.any(dim=1).nonzero()
         columns = active.any(dim=0).nonzero()
         if rows.numel() == 0:
@@ -532,6 +550,11 @@ class Sheet:
             * (1.0 - dampness) ** 2
         )
         wicking = p.wicking * dampness * torch.exp(p.wicking_unevenness * (1.0 - 2.0 * sizing))
+        # Masking fluid seals the paper: no water crosses a face with a sealed cell on either side, so a
+        # wash meets the rubber as it meets a wall, and its paint gathers along the edge.
+        sealed = self.mask[..., *region] >= MASK_SEALED
+        open_y = ~torch.logical_or(*_faces(sealed, 0))
+        open_x = ~torch.logical_or(*_faces(sealed, 1))
         rate = p.flow_rate * dt / p.flow_substeps
         spread = p.pigment_diffusion * dt / p.flow_substeps
         surface_rate = p.marangoni * dt / p.flow_substeps
@@ -558,8 +581,8 @@ class Sheet:
             film = _Film(
                 water, fine, _laplacian(water, wet), pool, body, thickness, wet, advance, wicking
             )  # fmt: skip
-            flux_y = _water_flux(film, p, rate, 0, self.tilt[1])
-            flux_x = _water_flux(film, p, rate, 1, self.tilt[0])
+            flux_y = _water_flux(film, p, rate, 0, self.tilt[1]) * open_y
+            flux_x = _water_flux(film, p, rate, 1, self.tilt[0]) * open_x
 
             # A cell cannot give away more water than it holds.
             flux_y, flux_x = _limit_outflow(flux_y, flux_x, water)
@@ -567,8 +590,8 @@ class Sheet:
             # Paint lowers surface tension, so the surface of the film streams from paint-rich
             # water toward clear water while clear water returns beneath it (the Marangoni
             # effect). Pigment is carried across the pool; the depth of the water is unchanged.
-            stream_y = _surface_stream(film, p, surface_rate, 0)
-            stream_x = _surface_stream(film, p, surface_rate, 1)
+            stream_y = _surface_stream(film, p, surface_rate, 0) * open_y
+            stream_x = _surface_stream(film, p, surface_rate, 1) * open_x
             stream_y, stream_x = _limit_outflow(stream_y, stream_x, 0.5 * water)
 
             pigment_y = _pigment_flux(concentration, water, wet, flux_y + stream_y, spread, 0)
@@ -635,6 +658,11 @@ class Sheet:
         stranded = had_water & (water <= 1e-5)
         deposited += suspended * stranded
         suspended *= ~stranded
+
+        # Beads of paint on masking fluid dry where they stand: the rubber takes up nothing, so they only
+        # evaporate, and as fast as the edge of a wash. Their paint dries on the rubber.
+        on_mask = self.mask_water[..., *region]
+        on_mask.sub_(p.evaporation_rate * dt * (1.0 + p.edge_evaporation)).clamp_(min=0)
 
     # ----------------------------------------------------------------- tools
 
@@ -749,6 +777,9 @@ class Sheet:
         # As a brush runs dry its hairs part into clumps, and the gaps between them leave the paper bare.
         touching = touching * ((hair - contact.splay) / 0.1 + 1.0).clamp(0, 1)
         footprint = coverage * touching
+        # The share of each cell that is open paper; the rest is masking fluid, which the brush meets instead.
+        masked = self.mask[rows, columns]
+        on_paper = footprint * (1.0 - masked)
         suspended = self.suspended[:, rows, columns]
         deposited = self.deposited[:, rows, columns]
         paint = concentration.reshape(-1, 1, 1) * (1.0 + contact.streaking * (2.0 * hair - 1.0))
@@ -765,7 +796,7 @@ class Sheet:
             for move in range(moves):
                 centre = points[0] + step * move
                 offset = torch.hypot(self._xs[rows, columns] - centre[0], self._ys[rows, columns] - centre[1])
-                under = ((radius - offset) / edge).clamp(0, 1) * touching * (coverage > 0)
+                under = ((radius - offset) / edge).clamp(0, 1) * touching * (coverage > 0) * (1.0 - masked)
                 # Water passes between the hairs more easily than the paint it carries.
                 for field, share in ((water, WATER_PUSH_SHARE * contact.push), (suspended, contact.push)):
                     carried = field * (share * under)
@@ -774,13 +805,13 @@ class Sheet:
 
         # The hairs stir up pigment that has settled. A brush with room in it wipes up much of
         # what it loosens, which is how a drained brush lifts paint; a full one only stirs it.
-        loosened = deposited * (contact.scrub * footprint * (water > 0)) / self._staining
+        loosened = deposited * (contact.scrub * on_paper * (water > 0)) / self._staining
         deposited -= loosened
         wiped = contact.uptake * loosened
         suspended += loosened - wiped
 
         # Paint in the brush and paint on the sheet mix where they meet.
-        mixed = contact.exchange * footprint * (paint * water - suspended)
+        mixed = contact.exchange * on_paper * (paint * water - suspended)
         # Paint passes from brush to sheet readily; only the tip of the brush takes paint back up.
         mixed = torch.where(mixed < 0, PICKUP_SHARE * mixed, mixed)
         suspended += mixed
@@ -788,7 +819,7 @@ class Sheet:
 
         # A brush that is not full soaks up standing water and the paint in it, and the emptier
         # the brush the thinner the film it can draw from.
-        soaked = contact.thirst * footprint * (water - contact.draw_depth).clamp(min=0)
+        soaked = contact.thirst * on_paper * (water - contact.draw_depth).clamp(min=0)
         taken = suspended * (soaked / water.clamp(min=1e-6))
         suspended -= taken
         water -= soaked
@@ -797,15 +828,22 @@ class Sheet:
         # The brush fills the paper to its target depth, and keeps releasing while it rests. It
         # gives water only to paper drier than itself: a film deep enough for the brush to draw
         # from is left as it is, so a drained brush wipes a moist wash and does not wet it.
-        fill = (contact.target_depth * footprint - water).clamp(min=0) * 0.7 * (water <= contact.draw_depth)
-        added = torch.maximum(fill, contact.release * footprint * (water < MAXIMUM_DEPTH))
-        used = float(added.sum())
+        fill = (contact.target_depth * on_paper - water).clamp(min=0) * 0.7 * (water <= contact.draw_depth)
+        added = torch.maximum(fill, contact.release * on_paper * (water < MAXIMUM_DEPTH))
+        # Over masking fluid the brush leaves beads of paint on the rubber.
+        beads = self.mask_water[rows, columns]
+        bead_fill = (contact.target_depth * footprint * masked - beads).clamp(min=0) * 0.7
+        beaded = torch.maximum(bead_fill, contact.release * footprint * masked * (beads < MAXIMUM_DEPTH))
+        used = float(added.sum() + beaded.sum())
         if used > available_water:
             added *= available_water / used
+            beaded *= available_water / used
             used = available_water
         water += added
         suspended += added * paint
-        pigment_out += (added * paint).sum(dim=(1, 2))
+        beads += beaded
+        self.mask_pigment[:, rows, columns] += beaded * paint
+        pigment_out += (added * paint).sum(dim=(1, 2)) + (beaded * paint).sum(dim=(1, 2))
 
         # The tip carries off some of the wet paint it passes through and gives it back along the
         # next stretch of the stroke. This is what draws one colour out into another, pulls paint
@@ -819,14 +857,53 @@ class Sheet:
         pigment_out -= drawn_up
         # The tip takes paint up as it sweeps through it: a brush at rest takes none.
         swept = min(1.0, distance / float(radii.max()))
-        taken_up = (contact.carry * swept) * footprint * suspended
+        taken_up = (contact.carry * swept) * on_paper * suspended
         suspended -= taken_up
-        receiving = footprint * (water > 0)
+        receiving = on_paper * (water > 0)
         if float(receiving.sum()) > 0:
             shed = released - drawn_up
             suspended += shed.reshape(-1, 1, 1) * (receiving / receiving.sum())
             on_tip = on_tip - shed
+        # Paint the hairs swept onto a sealed cell cannot stay on the paper there: it stands on the rubber.
+        self._shed_onto_mask(rows, columns)
         return used - float(soaked.sum()), pigment_out, on_tip + taken_up.sum(dim=(1, 2))
+
+    def _shed_onto_mask(self, rows: slice, columns: slice) -> None:
+        sealed = self.mask[rows, columns] >= MASK_SEALED
+        water = self.water[rows, columns]
+        suspended = self.suspended[:, rows, columns]
+        self.mask_water[rows, columns] += water * sealed
+        self.mask_pigment[:, rows, columns] += suspended * sealed
+        water *= ~sealed
+        suspended *= ~sealed
+
+    def apply_mask(self, points: Tensor, radii: Tensor) -> None:
+        """Lay masking fluid along a path. It forms its skin only on paper with no film standing on it: put
+        into wet paint, it mixes with the water and seals nothing."""
+        rows, columns, coverage = self._coverage(points, radii, MASK_EDGE_SOFTNESS, irregular=True)
+        dry = (self.water[rows, columns] <= self.parameters.wet_threshold).float()
+        self.mask[rows, columns] = torch.maximum(self.mask[rows, columns], coverage * dry)
+
+    def remove_mask(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
+        """Rub masking fluid away, all of it or along a path. Paint dried on the rubber comes away with it;
+        paint still wet on it is smeared onto the paper as it is rubbed."""
+        if points is None or radii is None:
+            rows, columns = slice(None), slice(None)
+            removed = self.mask.clone()
+        else:
+            rows, columns, coverage = self._coverage(points, radii, 0.3)
+            removed = self.mask[rows, columns] * coverage
+        mask = self.mask[rows, columns]
+        share = (removed / mask.clamp(min=1e-6)).clamp(0, 1) * (mask > 0)
+        beads = self.mask_water[rows, columns]
+        on_rubber = self.mask_pigment[:, rows, columns]
+        wet = beads > 0
+        self.water[rows, columns] += beads * share
+        self.suspended[:, rows, columns] += on_rubber * share * wet
+        beads *= 1.0 - share
+        on_rubber *= 1.0 - share
+        mask -= removed
+        mask.clamp_(min=0)
 
     def blot(self, points: Tensor, radii: Tensor) -> None:
         """Press absorbent tissue onto the sheet."""
@@ -834,6 +911,10 @@ class Sheet:
         self.water[rows, columns] *= 1.0 - 0.9 * coverage
         self.suspended[:, rows, columns] *= 1.0 - 0.9 * coverage
         self.saturation[rows, columns] *= 1.0 - 0.3 * coverage
+        # Tissue takes up the beads standing on masking fluid too, and the wet paint in them.
+        wet = self.mask_water[rows, columns] > 0
+        self.mask_pigment[:, rows, columns] *= 1.0 - 0.9 * coverage * wet
+        self.mask_water[rows, columns] *= 1.0 - 0.9 * coverage
 
     def draw_graphite(self, points: Tensor, radii: Tensor, darkness: float) -> None:
         rows, columns, coverage = self._coverage(points, radii, 1.0)
@@ -868,11 +949,11 @@ class SheetBatch:
         )
         self._stack = Sheet(paper, first.pigments, first.parameters)
         for index, sheet in enumerate(sheets):
-            for name in ("water", "saturation"):
+            for name in ("water", "saturation", "mask", "mask_water"):
                 held = getattr(self._stack, name)[index]
                 held.copy_(getattr(sheet, name))
                 setattr(sheet, name, held)
-            for name in ("suspended", "deposited"):
+            for name in ("suspended", "deposited", "mask_pigment"):
                 held = getattr(self._stack, name)[:, index]
                 held.copy_(getattr(sheet, name))
                 setattr(sheet, name, held)

@@ -45,6 +45,9 @@ DAB_DURATION = 0.3
 DRAIN_DURATION = 1.0  # seconds taken to touch the brush to a cloth
 FILM_WATCH_INTERVAL = 1.0  # seconds between looks at the film while waiting for it to thin
 PENCIL_RADIUS = 0.9
+MASK_SPEED = 60.0  # pixels per second at which masking fluid is drawn on
+MASK_LIGHTEST_SHARE = 0.15  # width of a line of masking fluid laid with no pressure, as a share of its full width
+UNMASK_DURATION = 5.0  # seconds taken to rub masking fluid away
 # A brush never picks up exactly the mix asked for. Spread of pigment and of water from load to load.
 PIGMENT_VARIATION = 0.12
 WATER_VARIATION = 0.06
@@ -186,6 +189,31 @@ class Studio:
         radii = torch.full((len(samples),), radius)
         self.sheets[sheet_name].blot(self._tensor(samples[:, :2]), self._tensor(radii))
         self._pass_time(1.0)
+        self._record()
+
+    def mask(self, sheet_name: str, path: Path, radius: float, smooth: bool = True) -> None:
+        """Lay masking fluid along a path, as with an old brush or a colour shaper: pressed down the line is as
+        wide as the radius, lifted it narrows towards a point. A point that gives no pressure is laid at full
+        pressure. The line takes the time it takes to draw, and then resists water until it is rubbed away."""
+        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
+        samples = trace_path(controls, smooth)
+        share = MASK_LIGHTEST_SHARE + (1.0 - MASK_LIGHTEST_SHARE) * samples[:, 2]
+        self.sheets[sheet_name].apply_mask(self._tensor(samples[:, :2]), self._tensor(radius * share))
+        length = float(np.linalg.norm(np.diff(samples[:, :2], axis=0), axis=1).sum()) if len(samples) > 1 else 0.0
+        steps = max(1, round(length / MASK_SPEED / self._time_step))
+        self._pass_time(steps * self._time_step)
+        self._record()
+
+    def unmask(self, sheet_name: str, path: Path | None = None, radius: float | None = None) -> None:
+        """Rub masking fluid away: all of it, or along a path with a rubber of the given radius."""
+        sheet = self.sheets[sheet_name]
+        if path is None or radius is None:
+            sheet.remove_mask()
+        else:
+            samples = trace_path(path, smooth=False)
+            radii = torch.full((len(samples),), radius)
+            sheet.remove_mask(self._tensor(samples[:, :2]), self._tensor(radii))
+        self._pass_time(UNMASK_DURATION)
         self._record()
 
     def pencil(self, sheet_name: str, path: Path, darkness: float, smooth: bool = True) -> None:

@@ -80,6 +80,8 @@ A pass is a JSON list of actions carried out in order:
 | `wait` | `seconds`; with `at` (a point) and `film` (a depth) the wait ends as soon as the film of water there has thinned to that depth |
 | `dry` | wait until the sheet is dry |
 | `tilt` | `x`, `y` (up to 0.3); paint runs downhill |
+| `mask` | `path` of `[x, y]` or `[x, y, pressure]` points, `radius` (0.5 to 40, the width at full pressure; a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke can taper like a brush), `smooth`: lay masking fluid. It seals the paper (no water crosses into it, so a wash meets it as a wall and dries with a crisp, darker edge), it protects any paint already under it, and paint landing on it stands on the rubber. It forms only where no film of water stands; laid into wet paint it seals nothing |
+| `unmask` | optional `path` and `radius` together: rub the masking fluid away, all of it or along a path. Paint dried on it comes away with it; paint still wet on it is smeared onto the paper |
 
 `look` saves a picture of the sheet as it is now: in colour, as values only, or as a wetness map. Looking changes nothing.
 
@@ -177,6 +179,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 - Flow strengths, drying times, brush drag and granulation are set by eye, not calibrated against filmed painting. Depths of film and the fullness of the brush are in the engine's own units.
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
+- Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. The smallest shape it reliably keeps white is about 2 pixels in radius, because each cell of paint is shared a little with its neighbours when the sheet is pictured.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
 - The package and command are spelled `watercolor`; the repository is `watercolour`.
 

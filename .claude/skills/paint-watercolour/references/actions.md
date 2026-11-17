@@ -27,6 +27,8 @@ A pass is a JSON file holding a list of actions, carried out in order.
 | `wait` | `seconds`, `at`, `film`, `sheet` | Up to 3600. Paint keeps moving and drying. With `"at": [x, y]` and `"film": depth` the wait ends as soon as the film of water at that point is no deeper than that, or after `seconds` if it never is: `{"action": "wait", "seconds": 300, "at": [240, 180], "film": 0.12}` is how to catch a wash as it loses its shine. |
 | `dry` | | Waits until every sheet is dry. |
 | `tilt` | `x`, `y`, `sheet` | Each within 0.3. Positive `y` pulls paint down the sheet. Stays until changed. |
+| `mask` | `path`, `radius`, `smooth`, `sheet` | Masking fluid (0.8.0 or later). Each point is `[x, y]` or `[x, y, pressure]`; `radius` (0.5 to 40) is the width at full pressure, a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke tapers like a brush. It seals the paper: no water crosses into it, a wash dries against it with a crisp, darker edge, paint already under it is kept, and paint landing on it stands on the rubber. It forms only where no film of water stands. Counts against the stroke budget. |
+| `unmask` | `path`, `radius`, `sheet` | Rubs masking fluid away: all of it, or along a path (`path` and `radius` together). Paint dried on the rubber comes away with it; paint still wet on it is smeared onto the paper, so `dry` first. |
 
 `"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes do not count against the budget.
 

@@ -356,3 +356,80 @@ def test_granulating_paint_in_an_ordinary_wash_stays_where_it_settles(studio: St
     region = (slice(40, 76), slice(34, 94))
     tooth, amount = sheet.tooth[region], paint(studio, 1)[region]
     assert float(amount[tooth < 0.4].mean() / amount[tooth > 0.6].mean()) < 1.25
+
+
+def mask_disc(studio: Studio, radius: float = 10.0) -> None:
+    studio.mask("painting", [[64, 64]], radius)
+
+
+def paint_within(studio: Studio, radius: float) -> float:
+    sheet = studio.sheets["painting"]
+    ys, xs = torch.meshgrid(torch.arange(SIZE), torch.arange(SIZE), indexing="ij")
+    inside = ((xs - 64) ** 2 + (ys - 64) ** 2 <= radius**2).to(sheet.deposited.device)
+    return float(((sheet.deposited + sheet.suspended) * inside).sum())
+
+
+def test_masking_fluid_keeps_the_paper_under_it_clean_through_a_wash(studio: Studio) -> None:
+    mask_disc(studio)
+    lay_wet_patch(studio)
+    studio.dry()
+    studio.unmask("painting")
+    sheet = studio.sheets["painting"]
+    assert paint_within(studio, 6) == pytest.approx(0.0, abs=1e-6)
+    assert pigment_on_sheet(studio) > 0
+    assert float(sheet.mask.sum()) == 0.0 and float(sheet.mask_pigment.sum()) == 0.0
+
+
+def test_no_film_stands_on_paper_sealed_by_masking_fluid(studio: Studio) -> None:
+    mask_disc(studio)
+    lay_wet_patch(studio)
+    studio.wait(3)
+    sheet = studio.sheets["painting"]
+    assert float(sheet.water[58:71, 58:71].max()) == 0.0
+    assert float(sheet.mask_water[58:71, 58:71].sum()) > 0.0
+
+
+def test_paint_under_masking_fluid_is_kept_when_it_is_removed(studio: Studio) -> None:
+    lay_wet_patch(studio)
+    studio.dry()
+    under = paint_within(studio, 6)
+    mask_disc(studio)
+    for y in (40, 64, 88):
+        studio.load_brush("mop", 16, {"cadmium_red": 2.0}, 1.0)
+        studio.stroke("painting", [[24, y], [104, y]], 120, smooth=False)
+    studio.dry()
+    studio.unmask("painting")
+    assert paint_within(studio, 6) == pytest.approx(under, rel=1e-4)
+
+
+def test_masking_fluid_put_into_wet_paint_seals_nothing(studio: Studio) -> None:
+    lay_wet_patch(studio)
+    mask_disc(studio)
+    assert float(studio.sheets["painting"].mask[58:71, 58:71].max()) == 0.0
+
+
+def test_pigment_is_conserved_when_paint_lands_on_masking_fluid(studio: Studio) -> None:
+    sheet = studio.sheets["painting"]
+    mask_disc(studio, 20.0)
+    studio.load_brush("round", 10, {"french_ultramarine": 1.5}, 1.0)
+    before = pigment_in_brush(studio)
+    studio.stroke("painting", [[30, 64], [98, 64]], 60, smooth=False)
+    given = before - pigment_in_brush(studio)
+    on_sheet = pigment_on_sheet(studio) + float(sheet.mask_pigment.sum())
+    assert on_sheet == pytest.approx(given, rel=1e-3)
+    assert float(sheet.mask_pigment.sum()) > 0.0
+
+
+def test_a_sheet_saved_before_masking_fluid_existed_still_loads(studio: Studio) -> None:
+    sheet = studio.sheets["painting"]
+    lay_wet_patch(studio)
+    state = {name: value for name, value in sheet.state().items() if name not in sheet.OPTIONAL_STATE_FIELDS}
+    sheet.mask.fill_(1.0)
+    sheet.load_state(state)
+    assert float(sheet.mask.sum()) == 0.0
+
+
+def test_masking_fluid_laid_with_falling_pressure_tapers(studio: Studio) -> None:
+    studio.mask("painting", [[20, 64, 1.0], [108, 64, 0.0]], 10.0)
+    sealed = studio.sheets["painting"].mask >= 0.5
+    assert int(sealed[:, 28].sum()) > 2 * int(sealed[:, 100].sum()) > 0
