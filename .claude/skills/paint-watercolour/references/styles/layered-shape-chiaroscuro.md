@@ -8,27 +8,6 @@ Where this file and the rest of the skill disagree, this file wins for this pain
 
 It needs engine 0.8.0 or later, because the whites of the eyes are masked.
 
-## Credit
-
-The style is studied from the watercolour portraits of **Donna Stiles**, a self-taught English painter who lives and
-works in Italy ([donnastilesart.com](https://donnastilesart.com)), and from what she writes there about her method. Her paintings are
-the standard; look at them, and judge a sheet against them.
-
-The method below was worked out on licensed photographs of people who are not famous. Paint from such a photograph,
-or from the user's own. Do not copy one of her paintings, and do not sign a painting, or describe it, as hers.
-
-### Her method, as she describes it
-
-- She works from a black-and-white value photograph and puts the colour photograph away. She paints tonal shapes, not
-  features.
-- She starts with the eyes, laying clear water first and touching pigment into it.
-- She uses two to four paints, often granulating ones (sepia, madder brown, Payne's grey, cerulean), on cold-pressed
-  paper.
-- She keeps the meeting of the darkest dark and the white of the paper for the eyes. Nostrils and mouth stay a tone
-  lighter.
-- She lays one dilute first layer, adds layers only where they are needed, and puts the final darks in last.
-- She charges yellow, then red, then blue, with less water in the brush at each step, to keep the colour clean.
-
 ## What the style is
 
 - **Crop.** Extremely close: the face fills the sheet, the eyes sit in the upper third, and the frame cuts the crown
@@ -79,6 +58,7 @@ They work beside the skill's own `reference_grid.py`, `preview_pass.py` and `mea
 Choose a photograph lit by one soft directional source (window light, Rembrandt or split lighting) that turns the face
 from light into shadow. Both eyes should be open and readable, ideally with a hand or other gesture, cropped close.
 
+- **A licensed photograph or the user's own,** never one of her paintings.
 - **Avoid cast-shadow patterns:** blinds, the shadow of a hand, dappled or striped sunlight. The bands paint them
   faithfully as stripes across the face, and they describe no form.
 - **Avoid flat frontal light:** it leaves no chiaroscuro to design with.

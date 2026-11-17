@@ -167,7 +167,7 @@ uv run ruff check . && uv run ruff format --check . && uv run pyrefly check
 
 ![A red and white lighthouse on a rocky headland](docs/images/lighthouse_study.png)
 
-`trials/lighthouse_painting.py` paints this through a session. It is a study after **Michele Clamp's** lighthouse watercolour, following the order of work in her [lighthouse watercolour tutorial](https://micheleclamp.com/lighthouse-watercolor-tutorial/). The composition is hers; the positions of its shapes were measured from her painting. Her original is the better picture, and worth looking at beside this one.
+`trials/lighthouse_painting.py` paints this through a session. It is a study after Michele Clamp's lighthouse watercolour (see [Credits](#credits)): the composition is hers, and the positions of its shapes were measured from her painting.
 
 ```bash
 uv run python trials/lighthouse_painting.py paintings/lighthouse
@@ -182,6 +182,15 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 - Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. The smallest shape it reliably keeps white is about 2 pixels in radius, because each cell of paint is shared a little with its neighbours when the sheet is pictured.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
 - The package and command are spelled `watercolor`; the repository is `watercolour`.
+
+## Credits
+
+The harness and its skill have learned from these painters. Their own paintings are the better pictures, and worth looking at.
+
+- **Michele Clamp.** The [lighthouse study](#lighthouse-study) is after her lighthouse watercolour and follows the order of work in her [lighthouse watercolour tutorial](https://micheleclamp.com/lighthouse-watercolor-tutorial/).
+- **Donna Stiles** ([donnastilesart.com](https://donnastilesart.com)). The skill's [layered-shape chiaroscuro style](.claude/skills/paint-watercolour/references/styles/layered-shape-chiaroscuro.md) is studied from her watercolour portraits and from what she writes about her method: tonal shapes painted from a value study, a few paints, and the darkest dark kept against the white of the paper in the eyes. It was worked out on licensed photographs of other people; none of her paintings is copied.
+
+The engine follows Curtis, Anderson, Seims, Fleischer and Salesin, "Computer-Generated Watercolor" (SIGGRAPH 1997).
 
 ## Licence
 
