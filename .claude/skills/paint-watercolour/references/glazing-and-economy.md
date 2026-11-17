@@ -44,6 +44,22 @@ Know the three proportional tradeoffs below ~45 strokes before choosing that reg
 2. **Chained-path bridges and shared mixes.** Hopping across features without lifting leaves faint connecting threads, rounds adjacent sub-forms together at turns (two crossed legs rounding into one mitt), and forces every stop on the chain to share one brush mix.
 3. **Softer peak darks** if the third pass of crevice accents is omitted to save strokes.
 
+## Deepening a broad wash once it has dried
+
+A wash that dried too pale over a large area (a beach, a field, a sky) can take a second wash over it, but only with
+a drained brush. Measured on rows of a size 10 `flat_wash` over a dried row wash of the same kind (`references/water.md`
+has the passage):
+
+- **Full water (0.95) stirs it.** The new rows re-wet the dried paint and it dried as coarse speckle: the spread of
+  values across the wash went from 0.042 to 0.072, and it darkened by only 0.012 of the 0.04 wanted.
+- **Drained to 0.55 it stays clean** (spread 0.047), but it lays about a quarter of what the same load lays on bare
+  paper, and the darkening grows as about the 1.45 power of the strength: gain 1 darkened it by 0.009, gain 4 by
+  0.066. Rehearse two strengths on a small sheet that carries the same first wash, and read the strength off them.
+- **Mix every segment from the reference less a dry look of the sheet**, both unblurred and restricted to the wash.
+  A glaze mixed from a blur that took in a white passage next to it came out near-clear, and the edge of a
+  near-clear stretch dries as a line across the finished wash. Where part of the wash already matches, its mix is
+  near-clear too, so cover the whole wash from edge to edge and do not leave the glaze to end inside it.
+
 ## Diagnosing common faults
 
 | What `look` shows | Cause | Fix on the next sheet (or next dry pass) |
@@ -56,4 +72,6 @@ Know the three proportional tradeoffs below ~45 strokes before choosing that reg
 | The white shape has no shape | Bare paper inside and outside, nothing on its contour | A cut on every stretch of contour where the background should be darker than paper |
 | A flat dark slab where the background should vary | A strong wash everywhere, strengthened again by charges and a second layer, judged by eye | Sample the reference or decide the values first; lay the middle value and keep the dark to where it belongs |
 | Sandy speckle and blurred detail after a correction | A broad wet wash laid over finished small work re-wet it; a granulating earth in the wash gathered into specks | Correct with small glazes on dry paper; keep burnt umber out of deep washes (burnt sienna greys cobalt blue without the specks) |
+| Coarse speckle all over a broad wash after it was deepened | The second wash was laid with a full brush and stirred the dried first one | Drain the brush to 0.55 and raise the strength instead (see "Deepening a broad wash once it has dried") |
+| A thin line across a finished wash | The edge of a near-clear glaze, mixed from a blur that took in a light passage or ending inside the wash | Mix from unblurred targets inside the wash only; cover the wash from edge to edge |
 | Unwanted vertical icicle drips | `tilt` above `0.18` on a flooded wash | Keep gentle gravity pooling to `0.05–0.08` for 15–20 seconds, then reset `tilt` to `0` |
