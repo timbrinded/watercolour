@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.7.1"
+  version: "0.8.0"
 ---
 
 # Painting with the watercolour harness
@@ -16,6 +16,7 @@ Supporting references in this skill directory:
 - `references/glazing-and-economy.md` — Read when planning transparent layered washes, painting white or pale subjects against bare paper, working to a tight stroke count, or diagnosing why an attempt looks opaque, stripey, or overworked.
 - `references/faces-and-detail.md` — Read before painting portraits, faces, figures, or intricate focal passages: bare-paper skin washes, proportion and plumb-line checks, brush-radius inset, eye and expression mechanics, negative-space noses and mouths, hair masses, crisp adjacent trim, and the crisp marks drawn last over finished washes.
 - `references/copying-a-reference.md` — Read when the painting must match a picture that already exists (a copy, a study after another painter, a likeness from a photograph): measuring the reference, solving its colours from the pigment table, calibrating how dark a load dries, and laying what the sheet still lacks in measured layers. It uses the scripts in `scripts/`, which also grid a reference, preview a pass over it and score a sheet against it.
+- `references/styles/` — A style is a different manner from this skill's own, studied from one painter. Read a style file only when the brief asks for that style; see "The skill's manner, and styles on request" below.
 
 ## Getting the command
 
@@ -51,7 +52,7 @@ watercolor finish paintings/<name>              # dries, exports painting.png an
 
 You get one go at each passage, so decide these first:
 
-1. **The idea, in a sentence.** What the picture is of (its subject, what the subject is doing or holding, what lies behind), the feeling it should carry, and the one manner it will be painted in. Everything after this is judged against that sentence, and detail that does not serve it is left out.
+1. **The idea, in a sentence.** What the picture is of (its subject, what the subject is doing or holding, what lies behind), the feeling it should carry, and the one manner it will be painted in: this skill's own, unless the brief asks for a style. Everything after this is judged against that sentence, and detail that does not serve it is left out.
 2. **A few paints.** Choose three to five pigments and start the painting with `--palette` naming only those (plus `opaque_white` if you will need final lights), so nothing else can be loaded. Every mix then comes from the same few paints and the picture holds together. A different pigment for each object does the opposite.
 3. **The size of the sheet.** Give the focal subject enough pixels. A face needs to be about 200 pixels across before eyes and a mouth can be painted into it; at 90 it cannot hold them. If the thing that matters most would come out smaller than that, use a larger sheet or crop closer.
 4. **The value plan.** Where is the lightest light, which is bare paper, and where is the darkest dark? Three or four values are enough.
@@ -63,6 +64,16 @@ You get one go at each passage, so decide these first:
 **Plan coverage, not centre lines.** A wash is an area. A shadow planned as a stroke for the nose and a stroke for the cheek paints as a stick figure, because a stroke at pressure 0.9 is only about twice its `size` wide. Before a pass with shapes that must be filled or contours that must be met, draw it over the reference or the last look with `scripts/preview_pass.py` and check that every shape is covered and every contour stroke sits on the right side of its contour.
 
 **Rehearse the hard passage before the sheet that matters.** Paint the one or two things you are least sure of (an eye, a hand, the sky, a blend of two colours) on small sheets of their own, as many times as it takes to get them. A study costs a few minutes; a passage that fails on the full sheet costs the sheet. For a single mix or stroke, the scrap sheet is enough (`"sheet": "scrap"`); it does not count against the stroke budget.
+
+## The skill's manner, and styles on request
+
+Everything in this file describes one manner: transparent washes in a high key, the light carried by bare paper, few strokes, colours meeting wet in wet. Paint in it unless the brief asks for something else.
+
+A style file in `references/styles/` describes a different manner, with defaults of its own that override some of this file's. Read one only when the brief asks for it: it names the style or the painter it is studied from, or it asks for what the style is. A brief of the same kind is not a request for a style; a portrait is painted in this skill's manner unless the brief asks for more. Keep to one manner in a painting: do not borrow one style's marks for a painting in another.
+
+| Style | Reach for it when the brief asks for | File |
+|---|---|---|
+| Layered-shape chiaroscuro, after Donna Stiles | A close, dramatic, low-key portrait built as a mosaic of hard-edged tonal shapes, or names her or the style | `references/styles/layered-shape-chiaroscuro.md` |
 
 ## Water is the clock
 

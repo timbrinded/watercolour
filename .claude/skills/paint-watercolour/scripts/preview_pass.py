@@ -1,5 +1,8 @@
 """Draw the strokes of one or more passes over the reference, at the width each brush will paint.
 
+Masking fluid (`mask`) is drawn in yellow at the width it is laid, so a mask can be checked against the shape it must
+keep white before it goes down.
+
 Usage: preview_pass.py <reference> <output> --sheet W,H [--origin x,y] [--region x0,y0,x1,y1]
                        [--zoom 2] [--alpha 120] pass.json [pass.json ...]
 
@@ -29,6 +32,8 @@ WIDTH = {
     "filbert": (1.43, 0.75),
 }
 FLAT = (2.1, 0.0)
+MASK_COLOUR = (255, 214, 0)
+MASK_LIGHTEST_SHARE = 0.15  # the harness lays a mask line at no pressure this share of its full width
 TINT = {
     "french_ultramarine": (60, 60, 200),
     "cobalt_blue": (40, 110, 200),
@@ -79,6 +84,37 @@ def catmull_rom(points, steps=8):
     return curve
 
 
+def path_points(action: dict, default_pressure: float) -> list[tuple[float, float, float]]:
+    points = []
+    for point in action["path"]:
+        if isinstance(point, dict):
+            points.append((point["x"], point["y"], point.get("pressure", default_pressure)))
+        else:
+            points.append((point[0], point[1], point[2] if len(point) > 2 else default_pressure))
+    if len(points) > 1 and action.get("smooth", True):
+        points = catmull_rom(points)
+    return points
+
+
+def trail(view, centres, fill):
+    """Draw discs of the given radius at each centre (view pixels) and between neighbours, on a layer over `view`."""
+    layer = Image.new("RGBA", view.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    previous = None
+    for px, py, radius in centres:
+        draw.ellipse([px - radius, py - radius, px + radius, py + radius], fill=fill)
+        if previous:
+            qx, qy, previous_radius = previous
+            steps = max(2, int(((px - qx) ** 2 + (py - qy) ** 2) ** 0.5 / 2))
+            for step in range(1, steps):
+                t = step / steps
+                r = previous_radius + (radius - previous_radius) * t
+                cx, cy = qx + (px - qx) * t, qy + (py - qy) * t
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill)
+        previous = (px, py, radius)
+    return Image.alpha_composite(view, layer)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("reference")
@@ -126,36 +162,30 @@ def main() -> None:
                     colour = (0, 220, 255)  # clear water
             elif action["action"] == "stroke" and action.get("sheet") != "scrap":
                 count += 1
-                points = []
-                for point in action["path"]:
-                    if isinstance(point, dict):
-                        points.append((point["x"], point["y"], point.get("pressure", 0.7)))
-                    else:
-                        points.append((point[0], point[1], point[2] if len(point) > 2 else 0.7))
-                if len(points) > 1 and action.get("smooth", True):
-                    points = catmull_rom(points)
                 base, slope = WIDTH.get(brush, FLAT)
-                layer = Image.new("RGBA", view.size, (0, 0, 0, 0))
-                draw = ImageDraw.Draw(layer)
-                fill = colour + (arguments.alpha,)
-                previous = None
-                for x, y, pressure in points:
-                    radius = size * (base + slope * pressure) / 2 * zoom
-                    px, py = (x + origin_x - x0) * zoom, (y + origin_y - y0) * zoom
-                    draw.ellipse([px - radius, py - radius, px + radius, py + radius], fill=fill)
-                    if previous:
-                        qx, qy, previous_radius = previous
-                        steps = max(2, int(((px - qx) ** 2 + (py - qy) ** 2) ** 0.5 / 2))
-                        for step in range(1, steps):
-                            t = step / steps
-                            r = previous_radius + (radius - previous_radius) * t
-                            cx, cy = qx + (px - qx) * t, qy + (py - qy) * t
-                            draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill)
-                    previous = (px, py, radius)
-                view = Image.alpha_composite(view, layer)
+                centres = [
+                    (
+                        (x + origin_x - x0) * zoom,
+                        (y + origin_y - y0) * zoom,
+                        size * (base + slope * pressure) / 2 * zoom,
+                    )
+                    for x, y, pressure in path_points(action, 0.7)
+                ]
+                view = trail(view, centres, colour + (arguments.alpha,))
+            elif action["action"] == "mask" and action.get("sheet") != "scrap":
+                count += 1
+                centres = [
+                    (
+                        (x + origin_x - x0) * zoom,
+                        (y + origin_y - y0) * zoom,
+                        action["radius"] * (MASK_LIGHTEST_SHARE + (1 - MASK_LIGHTEST_SHARE) * pressure) * zoom,
+                    )
+                    for x, y, pressure in path_points(action, 1.0)
+                ]
+                view = trail(view, centres, MASK_COLOUR + (arguments.alpha,))
 
     view.convert("RGB").save(arguments.output)
-    print(f"{arguments.output}: {count} strokes drawn over region {x0},{y0},{x1},{y1}")
+    print(f"{arguments.output}: {count} strokes and masks drawn over region {x0},{y0},{x1},{y1}")
 
 
 if __name__ == "__main__":
