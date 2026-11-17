@@ -80,6 +80,8 @@ painter does:
 
 Measured on a trial at 768 by 576: the white dried at 0.95 and the catchlight at 0.88, against a lash line near 0.1.
 
+`scripts/hand_marks.py` writes each step as actions: `eye_white_mask`, `catchlight_masks`, `shade_lit_white`, `shade_shadowed_white`, `visible_iris`, `lid_shadow_over_iris`, `limbal_arcs`, `smoky_lid`, `pupil` and `lower_lid`. Its mixes are the warm palette of the layered-shape style; pass your own where the painting's palette differs.
+
 ### Noses, mouths, and chins
 
 - **Noses:** Never draw lines down both sides of the bridge. Leave the bridge and ball bare paper; carve them with a straight shaded side-wall (crisp along the bridge, softened outward onto the cheek) wrapping into a warm capillary underside (`burnt_sienna + quinacridone_rose`). Tuck soft-edged nostrils (`0.45` to `0.70`) *inside* that underside shadow rather than floating dark commas on bare paper.
