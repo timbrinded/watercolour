@@ -2446,7 +2446,11 @@ SOUNDNESS_SOURCES = (
 
 
 def _soundness(results: dict[str, Measurements]) -> Measurements:
-    """Unsound values counted at the end of every scenario of the run, whatever else it measured."""
+    """Unsound values counted at the end of every scenario of the run, whatever else it measured. A scenario that
+    failed was never counted, so the count is then unknown."""
+    failed = sorted(name for name, measurements in results.items() if "error" in measurements and name not in DERIVED)
+    if failed:
+        return {"error": f"unsound values not counted in scenarios that failed: {', '.join(failed)}"}
     total = 0
     for measurements in results.values():
         for name, measured in measurements.items():

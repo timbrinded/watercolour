@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import time
+import traceback
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -160,12 +161,29 @@ def run_scenarios(scenarios: set[str], workers: int, timings: dict[str, float]) 
             results.update(measured)
             seconds[job[1]] = round(elapsed, 1)
             print(f"  {job[1]:<20s} {elapsed:6.1f} s  ({len(job[2])} scenarios)", file=sys.stderr, flush=True)
-    # A measurement is derived only in a run that holds every scenario it is derived from, so that a run of some
-    # gates never records one made from part of its sources.
-    for name, (sources, derive) in DERIVED.items():
-        if all(source in results for source in sources):
-            results[name] = derive(results)
+    derive_measurements(results)
     return results, seconds
+
+
+def derive_measurements(results: Results) -> None:
+    """Add to the results every derived measurement whose sources all ran.
+
+    A measurement is derived only in a run that holds every scenario it is derived from, so that a run of some gates
+    never records one made from part of its sources. One derived from a scenario that failed records an error naming
+    it, so that its checks fail as missing; a derivation that fails records its traceback, as a scenario does, so
+    that it cannot end a run that has already painted everything.
+    """
+    for name, (sources, derive) in DERIVED.items():
+        if not all(source in results for source in sources):
+            continue
+        failed = [source for source in sources if "error" in results[source]]
+        if failed:
+            results[name] = {"error": f"derived from scenarios that failed: {', '.join(failed)}"}
+            continue
+        try:
+            results[name] = derive(results)
+        except Exception:  # noqa: BLE001 - recorded, so that one failing derivation does not stop the rest
+            results[name] = {"error": traceback.format_exc()}
 
 
 # ------------------------------------------------------------------------------------------------ evaluation
