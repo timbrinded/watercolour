@@ -10,7 +10,8 @@ merged into one, keeping every condition either asked for; merged_from names the
 
 A check compares one measurement, named "<scenario>.<measurement>", with a bound:
 
-    "<=", "<", ">=", ">", "=="   compare with the bound; a list passes when every element does
+    "<=", "<", ">=", ">", "=="   compare with the bound; a list passes when every element does, and an empty list
+                                  never does; "==" with a tuple compares the whole list
     "between"                     lies within the closed interval (low, high)
     "near"                        differs from the baseline value by at most the bound
     "decreasing"                  a list that falls strictly

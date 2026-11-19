@@ -27,7 +27,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import torch
-from calibration_gates import GATES, GATES_BY_ID, ITEMS, KINDS, Check, Gate
+from calibration_gates import GATES, GATES_BY_ID, ITEMS, KINDS, Bound, Check, Gate
 from calibration_scenarios import (
     DERIVED,
     EXPERIMENTS,
@@ -195,13 +195,25 @@ def _scaled(bound: float, check: Check, base: float) -> float:
     return bound * base if check.scale == "baseline" else base + bound
 
 
+def _equal(value: Measurement, bound: Bound) -> bool:
+    """Whether a measurement equals a bound of True, False, a string or None. A bool bound wants a bool, so that a
+    count of 1 does not pass for True."""
+    if isinstance(bound, bool) and not isinstance(value, bool):
+        return False
+    return value is not None and value == bound
+
+
 def check_passes(check: Check, value: Measurement, baseline: Measurement) -> bool:
-    """Whether a measurement meets a check; a missing measurement or baseline never does."""
+    """Whether a measurement meets a check; a missing measurement or baseline never does. A list passes when every
+    element does, and an empty list, which measured nothing, never does; "==" with a tuple compares the whole list."""
     if check.op == "==" and (check.bound is None or isinstance(check.bound, bool | tuple | str)):
-        expected = list(check.bound) if isinstance(check.bound, tuple) else check.bound
-        return value is not None and value == expected
+        if isinstance(check.bound, tuple):
+            return value == list(check.bound)
+        if isinstance(value, list):
+            return bool(value) and all(_equal(element, check.bound) for element in value)
+        return _equal(value, check.bound)
     values = _numbers(value)
-    if values is None or any(math.isnan(v) for v in values):
+    if not values or any(math.isnan(v) for v in values):
         return False
     if check.op in ("decreasing", "nondecreasing"):
         pairs = list(itertools.pairwise(values))
