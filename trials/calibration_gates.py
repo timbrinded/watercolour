@@ -341,18 +341,20 @@ GATES: tuple[Gate, ...] = (
         id="R-test-suite",
         item="global",
         kind="regression",
-        metric="Failures in tests/ other than tests/test_calibration.py",
+        metric="Failures in tests/ other than tests/test_calibration.py, and pytest's exit status",
         scenario="pytest -q tests on the default device",
         comparator="==",
-        threshold="0 failures (58 tests at 0.8.0)",
+        threshold="0 failures (58 tests at 0.8.0) and exit status 0",
         source="Existing contract.",
-        checks=(Check("test_suite.failed", "==", 0),),
+        checks=(Check("test_suite.failed", "==", 0), Check("test_suite.exit_status", "==", 0)),
         merged_from=(
             "flow_exponent:R0-test-suite",
             "binder:R9-existing-suite",
             "ordered_layers:COMP-3-vocabulary-suite-hygiene (suite)",
         ),
         extended=True,
+        correction="The failure count alone passed a run in which pytest collected nothing (exit status 5) or failed "
+        "inside itself (3), since no test then fails; the exit status must also be 0.",
     ),
     Gate(
         id="R-edge-darkening",

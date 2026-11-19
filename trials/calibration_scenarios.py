@@ -2025,7 +2025,8 @@ def hygiene() -> Measurements:
 
 
 def test_suite() -> Measurements:
-    """The test suite in tests/, apart from the calibration tests, which run these gates."""
+    """The test suite in tests/, apart from the calibration tests, which run these gates. pytest's exit status is
+    kept beside the counts, since it alone shows a run that collected nothing (5) or failed inside pytest (3)."""
     run = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests", "--ignore=tests/test_calibration.py"],
         cwd=REPOSITORY,
@@ -2037,7 +2038,12 @@ def test_suite() -> Measurements:
     counts = {word: 0 for word in ("passed", "failed", "error")}
     for number, word in re.findall(r"(\d+) (passed|failed|error)", summary):
         counts[word] += int(number)
-    return {"passed": counts["passed"], "failed": counts["failed"] + counts["error"], "summary": summary}
+    return {
+        "passed": counts["passed"],
+        "failed": counts["failed"] + counts["error"],
+        "exit_status": run.returncode,
+        "summary": summary,
+    }
 
 
 def colour_difference(first: Tensor, second: Tensor) -> Tensor:
