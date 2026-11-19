@@ -127,6 +127,11 @@ def reference_value(sheet: Sheet) -> Tensor:
     return reference_module("rendering").render_view(sheet, "value")[0]
 
 
+def picture_difference(sheet: Sheet) -> float:
+    """Largest difference of value between the engine's picture of the sheet and 0.8.0's."""
+    return float((value(sheet) - reference_value(sheet)).abs().max())
+
+
 def composed_value(sheet: Sheet, layers: list[Tensor]) -> Tensor:
     """Value of the sheet with its paint composed by Kubelka and Munk as the given layers, from the paper up.
 
@@ -231,12 +236,6 @@ def checkerboard(field: Tensor) -> float:
     return float((local * alternate)[2:-2, 2:-2].mean().abs() / field.mean())
 
 
-def least_squares_slope(xs: list[float], ys: list[float]) -> float:
-    count = len(xs)
-    mean_x, mean_y = sum(xs) / count, sum(ys) / count
-    return sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / sum((x - mean_x) ** 2 for x in xs)
-
-
 def rms_width(amount: Tensor) -> float:
     """Root-mean-square spread of an amount summed along its rows, in rows."""
     rows = torch.arange(amount.numel(), dtype=torch.float32, device=amount.device)
@@ -246,6 +245,11 @@ def rms_width(amount: Tensor) -> float:
 
 def distance_from(sheet: Sheet, x: float, y: float) -> Tensor:
     return torch.sqrt((sheet._xs - x) ** 2 + (sheet._ys - y) ** 2)
+
+
+def ring_means(paint: Tensor, distance: Tensor, radii: Iterable[int], width: float) -> Tensor:
+    """The radial profile of paint about a point: its mean in each ring from a radius out to the radius plus width."""
+    return torch.stack([paint[(distance >= r) & (distance < r + width)].mean() for r in radii])
 
 
 def kept(sheet: Sheet, name: str) -> Tensor | None:
@@ -300,6 +304,12 @@ def lift_across(studio: Studio, x0: float, x1: float) -> None:
 
 def total_of(sheet: Sheet, index: int) -> float:
     return float(sheet.suspended[index].sum() + sheet.deposited[index].sum())
+
+
+def pigment_in_brush(studio: Studio) -> float:
+    brush = studio.brush
+    assert brush is not None
+    return sum(brush.concentration) * brush.reservoir
 
 
 # ------------------------------------------------------------------------------------------------ paintings: one layer
@@ -383,7 +393,7 @@ def flat_wash_flat(studio: Studio) -> Measurements:
         "interior_variation": float(interior.std() / interior.mean()),
         "edge_ratio": sum(edges) / len(edges) / float(interior.mean()),
         "drying_seconds": drying,
-        "picture_difference": float((value(sheet) - reference_value(sheet)).abs().max()),
+        "picture_difference": picture_difference(sheet),
     }
 
 
@@ -474,20 +484,15 @@ def brush_and_sheet(studio: Studio) -> Measurements:
     """A nearly empty brush of strong paint drawn through wet paint: pigment on the sheet plus in the brush."""
     sheet = sheet_of(studio)
 
-    def in_brush() -> float:
-        brush = studio.brush
-        assert brush is not None
-        return sum(brush.concentration) * brush.reservoir
-
     def on_sheet() -> float:
         return float((sheet.suspended + sheet.deposited).sum())
 
     studio.load_brush("round", 12, {"cadmium_red": 4.0}, 1.0)
     studio.stroke("painting", [[30, 64], [98, 64]], 120, smooth=False)
     studio.load_brush("round", 12, {"french_ultramarine": 6.0}, 0.03)
-    before = on_sheet() + in_brush()
+    before = on_sheet() + pigment_in_brush(studio)
     studio.stroke("painting", [[30, 66], [98, 66]], 120, smooth=False)
-    return {"relative_change": abs(on_sheet() + in_brush() - before) / before}
+    return {"relative_change": abs(on_sheet() + pigment_in_brush(studio) - before) / before}
 
 
 # ------------------------------------------------------------------------------------------------ paintings: wet work
@@ -548,10 +553,9 @@ def bloom_mop(studio: Studio) -> Measurements:
     paint = sheet.deposited[BLUE]
     distance = distance_from(sheet, 64, 64)
     away = float(paint[(distance > 24) & (distance < 30)].mean())
-    profile = [float(paint[(distance >= r) & (distance < r + 2)].mean()) for r in range(0, 30, 2)]
     return {
         "centre_over_wash": float(paint[distance < 4].mean()) / away,
-        "rim_over_wash": max(profile) / away,
+        "rim_over_wash": float(ring_means(paint, distance, range(0, 30, 2), 2).max()) / away,
         "waited_for_film": waited,
     }
 
@@ -568,7 +572,7 @@ def bloom_round(studio: Studio) -> Measurements:
     studio.dry()
     paint = sheet.deposited[BLUE]
     distance = distance_from(sheet, 64, 64)
-    profile = torch.stack([paint[(distance >= r) & (distance < r + 1)].mean() for r in range(40)])
+    profile = ring_means(paint, distance, range(40), 1)
     return {"peak_over_inside": float(profile.max()) / float(profile[:4].mean())}
 
 
@@ -585,12 +589,12 @@ def umber_bloom_shares(sheet: Sheet) -> dict[str, float]:
     """Paint at the centre of the umber bloom and on its rim, each over the wash at r 26-30."""
     paint = sheet.deposited.sum(0)
     distance = distance_from(sheet, 64, 64)
-    profile = [float(paint[(distance >= r) & (distance < r + 2)].mean()) for r in range(0, 30, 2)]
+    profile = ring_means(paint, distance, range(0, 30, 2), 2)
     surround = float(paint[(distance >= 26) & (distance < 30)].mean())
     return {
-        "centre_share": profile[0] / surround,
+        "centre_share": float(profile[0]) / surround,
         "centre_disc_share": float(paint[distance < 4].mean()) / surround,
-        "rim_share": max(profile) / surround,
+        "rim_share": float(profile.max()) / surround,
     }
 
 
@@ -600,7 +604,7 @@ def bloom_umber(studio: Studio) -> Measurements:
     paint_umber_bloom(studio)
     measurements: Measurements = {
         **umber_bloom_shares(sheet),
-        "picture_difference": float((value(sheet) - reference_value(sheet)).abs().max()),
+        "picture_difference": picture_difference(sheet),
     }
     return measurements
 
@@ -613,7 +617,8 @@ UMBER_BLOOM_SEEDS = (3, 4, 5, 6, 7)
 
 def umber_bloom_seeds() -> Measurements:
     """The umber bloom painted on several papers in one batch; the median centre and rim over the papers."""
-    shares = [umber_bloom_shares(sheet) for sheet in paint_batched(paint_umber_bloom, UMBER_BLOOM_SEEDS)]
+    sheets = paint_batched([paint_umber_bloom] * len(UMBER_BLOOM_SEEDS), UMBER_BLOOM_SEEDS)
+    shares = [umber_bloom_shares(sheet) for sheet in sheets]
     centres = [share["centre_disc_share"] for share in shares]
     rims = [share["rim_share"] for share in shares]
     return {
@@ -655,13 +660,13 @@ def wet_in_wet_dab(studio: Studio) -> Measurements:
     studio.dry()
     paint = sheet.deposited[BLUE]
     distance = distance_from(sheet, 64, 61)
-    profile = torch.tensor([float(paint[(distance >= r) & (distance < r + 1)].mean()) for r in range(40)])
+    profile = ring_means(paint, distance, range(40), 1).cpu()
     above = profile - float(profile[-5:].mean())
     return {
         "film_at_dab": film,
         "half_radius": int((above < float(above[0]) / 2).nonzero().flatten()[0]),
         "tenth_radius": int((above < 0.1 * float(above[0])).nonzero().flatten()[0]),
-        "picture_difference": float((value(sheet) - reference_value(sheet)).abs().max()),
+        "picture_difference": picture_difference(sheet),
     }
 
 
@@ -806,7 +811,7 @@ def dried_wash_lift(studio: Studio) -> Measurements:
     return {
         "lifted_share": 1.0 - float(sheet.deposited[BLUE, 60:69, 40:90].sum()) / before,
         "value_gain": float(value(sheet)[61:68, 40:90].mean()) - value_before,
-        "picture_difference": float((value(sheet) - reference_value(sheet)).abs().max()),
+        "picture_difference": picture_difference(sheet),
     }
 
 
@@ -904,7 +909,8 @@ def under_darkness(studio: Studio) -> Measurements:
         ]  # fmt: skip
 
     pictured, summed = over_bands(value(sheet)), over_bands(reference_value(sheet))
-    slope, summed_slope = least_squares_slope(bands, pictured), least_squares_slope(bands, summed)
+    slope = statistics.linear_regression(bands, pictured).slope
+    summed_slope = statistics.linear_regression(bands, summed).slope
     return {"bands": bands, "white_over_bands": pictured, "slope_ratio": slope / summed_slope}
 
 
@@ -1184,12 +1190,12 @@ def levelling_rates() -> Measurements:
             logs.append(math.log(amplitude(index)))
             if logs[-1] < logs[0] - 0.15:
                 running.discard(index)
-    rates = [-least_squares_slope(times, logs) for times, logs in records]
+    rates = [-statistics.linear_regression(times, logs).slope for times, logs in records]
     xs, ys = [math.log(d) for d in depths[:3]], [math.log(r) for r in rates[:3]]
     return {
         "depths": list(depths),
         "rates": rates,
-        "exponent": least_squares_slope(xs, ys),
+        "exponent": statistics.linear_regression(xs, ys).slope,
         "local_exponents": [(ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]) for i in range(2)],
         "rate_full_wash": rates[3],
         "rate_mobility_limit": rates[4],
@@ -1207,8 +1213,7 @@ def front_power_fit(times: list[float], fronts: list[float]) -> tuple[float, flo
     for step in range(5501):
         power = 1.5 + 0.001 * step
         ys = [front**power for front in fronts]
-        slope = least_squares_slope(times, ys)
-        intercept = sum(ys) / len(ys) - slope * sum(times) / len(times)
+        slope, intercept = statistics.linear_regression(times, ys)
         residual = math.sqrt(sum((y - intercept - slope * t) ** 2 for t, y in zip(times, ys)))
         relative = residual / math.sqrt(sum(y * y for y in ys))
         if relative < best[0]:
@@ -1248,8 +1253,8 @@ def slope_runs() -> Measurements:
         for record, sheet in zip(fronts, sheets):
             record.append(front(sheet))
     power, rate = front_power_fit(list(times), fronts[0])
-    half_rate = least_squares_slope(list(times), [x**power for x in fronts[1]])
-    late = least_squares_slope([math.log(t) for t in times[2:]], [math.log(x) for x in fronts[0][2:]])
+    half_rate = statistics.linear_regression(times, [x**power for x in fronts[1]]).slope
+    late = statistics.linear_regression([math.log(t) for t in times[2:]], [math.log(x) for x in fronts[0][2:]]).slope
     return {
         "fronts": fronts[0],
         "half_band_fronts": fronts[1],
@@ -1430,11 +1435,18 @@ def paint_alone(
     return sheet_of(studio)
 
 
-def paint_batched(script: Callable[[Studio], None], seeds: tuple[int, ...], size: int = SIZE) -> list[Sheet]:
-    sheets = [new_sheet(size, size, seed) for seed in seeds]
+def batched_studios(sheets: list[Sheet], palette: tuple[str, ...] = PALETTE) -> tuple[SharedClock, list[Studio]]:
+    """A studio for each sheet, with the sheets in one batch under one clock, so that time passes on all of them for
+    about the cost of one."""
     clock = SharedClock(SheetBatch(sheets))
-    studios = [Studio({"painting": sheet}, list(PALETTE), shared_clock=clock) for sheet in sheets]
-    clock.run([lambda studio=studio: script(studio) for studio in studios])
+    return clock, [Studio({"painting": sheet}, list(palette), shared_clock=clock) for sheet in sheets]
+
+
+def paint_batched(scripts: list[Callable[[Studio], None]], seeds: tuple[int, ...], size: int = SIZE) -> list[Sheet]:
+    """Each script on its own paper seed, the sheets painted together in one batch."""
+    sheets = [new_sheet(size, size, seed) for seed in seeds]
+    clock, studios = batched_studios(sheets)
+    clock.run([lambda script=script, studio=studio: script(studio) for script, studio in zip(scripts, studios)])
     return sheets
 
 
@@ -1442,13 +1454,10 @@ def determinism_and_batching() -> Measurements:
     """The charged wash painted twice alone on one device, and on two sheets of a batch against each alone; the
     pool and dab of tests/test_together.py the same way at 96 px, and twice alone on the CPU."""
     first, second, other = paint_alone(charged_wash, 3), paint_alone(charged_wash, 3), paint_alone(charged_wash, 4)
-    batched = paint_batched(charged_wash, (3, 4))
+    batched = paint_batched([charged_wash, charged_wash], (3, 4))
     pool = [pool_and_dab("cadmium_red", 30), pool_and_dab("french_ultramarine", 62)]
     pooled = [paint_alone(script, seed, 96) for script, seed in zip(pool, (1, 2))]
-    together = [new_sheet(96, 96, seed) for seed in (1, 2)]
-    clock = SharedClock(SheetBatch(together))
-    studios = [Studio({"painting": sheet}, list(PALETTE), shared_clock=clock) for sheet in together]
-    clock.run([lambda script=script, studio=studio: script(studio) for script, studio in zip(pool, studios)])
+    together = paint_batched(pool, (1, 2), 96)
     relative = 0.0
     for alone, sheet in zip(pooled, together):
         for name in ("water", "suspended", "deposited", "gum"):
@@ -1582,14 +1591,9 @@ def layered_batching() -> Measurements:
 
         return work
 
-    sheets = {seed: new_sheet(48, 48, seed, palette=SCENE_PALETTE) for seed in scripts}
-    clock = SharedClock(SheetBatch(list(sheets.values())))
-    clock.run(
-        [
-            painter(seed, Studio({"painting": sheet}, list(SCENE_PALETTE), shared_clock=clock))
-            for seed, sheet in sheets.items()
-        ]
-    )
+    sheets = [new_sheet(48, 48, seed, palette=SCENE_PALETTE) for seed in scripts]
+    clock, studios = batched_studios(sheets, SCENE_PALETTE)
+    clock.run([painter(seed, studio) for seed, studio in zip(scripts, studios)])
     difference = 0.0
     for seed, script in scripts.items():
         studio = new_studio(seed, 48, palette=SCENE_PALETTE)
@@ -1604,14 +1608,9 @@ def lift_conserves_pigment() -> Measurements:
     and a drained round brush drawn twice through a wash of ultramarine 1.5 losing its shine. No tissue is used,
     since tissue takes paint away."""
 
-    def in_brush(studio: Studio) -> float:
-        brush = studio.brush
-        assert brush is not None
-        return sum(brush.concentration) * brush.reservoir
-
     def held(studio: Studio) -> float:
         sheet = sheet_of(studio)
-        return float((sheet.suspended + sheet.deposited).double().sum()) + in_brush(studio)
+        return float((sheet.suspended + sheet.deposited).double().sum()) + pigment_in_brush(studio)
 
     studio = new_studio()
     for y in (56, 72):
@@ -1624,7 +1623,7 @@ def lift_conserves_pigment() -> Measurements:
         studio.stroke("painting", [[30, 64], [98, 64]], 80, smooth=False)
     studio.wait(10)
     dried_change = abs(held(studio) - before) / before
-    dried_taken = in_brush(studio)
+    dried_taken = pigment_in_brush(studio)
     dried_unsound = unsound_cells(sheet_of(studio))
 
     studio = new_studio()
@@ -1641,7 +1640,7 @@ def lift_conserves_pigment() -> Measurements:
         "dried_change": dried_change,
         "dried_taken": dried_taken,
         "wet_change": wet_change,
-        "wet_taken": in_brush(studio),
+        "wet_taken": pigment_in_brush(studio),
         "unsound_cells": dried_unsound + unsound_cells(sheet_of(studio)),
     }
 
@@ -1817,15 +1816,15 @@ def non_staining_unchanged() -> Measurements:
     reference = {name: reference_module(name) for name in ("paper", "pigments", "simulation", "studio")}
 
     def paint(package: dict[str, ModuleType] | None, name: str) -> dict[str, Tensor]:
-        palette = ["french_ultramarine", "cerulean_blue"]
+        palette = ("french_ultramarine", "cerulean_blue")
         if package is None:
-            sheet = new_sheet(96, 96, 3, cpu, tuple(palette))
-            studio = Studio({"painting": sheet}, palette)
+            studio = new_studio(3, 96, cpu, palette)
         else:
             pigments = package["pigments"].PIGMENTS
             paper = package["paper"].generate_paper(96, 96, 3, cpu)
             sheet = package["simulation"].Sheet(paper, [pigments[p] for p in palette])
-            studio = package["studio"].Studio({"painting": sheet}, palette)
+            studio = package["studio"].Studio({"painting": sheet}, list(palette))
+        sheet = studio.sheets["painting"]
         pool_and_dab(name, 48)(studio)
         studio.load_brush("round", 3, {}, 1.0)
         studio.drain(0.2)
@@ -2326,9 +2325,7 @@ def paint_family(names: list[str]) -> dict[str, Measurements]:
     has ended is cleared of water, so that it no longer holds the batch to the fine time step.
     """
     device = default_device()
-    sheets = [new_sheet(seed=PAINTINGS[name].seed, device=device) for name in names]
-    clock = SharedClock(SheetBatch(sheets))
-    studios = [Studio({"painting": sheet}, list(PALETTE), shared_clock=clock) for sheet in sheets]
+    clock, studios = batched_studios([new_sheet(seed=PAINTINGS[name].seed, device=device) for name in names])
     results: dict[str, Measurements] = {}
 
     def painter(name: str, studio: Studio) -> Callable[[], None]:
