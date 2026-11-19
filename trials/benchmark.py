@@ -24,14 +24,21 @@ from collections.abc import Callable
 from pathlib import Path
 
 import torch
-from calibration import describe, engine_digest, evaluate, load_baseline, revision
+from calibration import describe, engine_digest, evaluate, load_baseline, merged, revision
 from calibration_gates import GATES
-from calibration_scenarios import Measurements, levelling_rates, slope_runs, thin_film_on_damp_paper
+from calibration_scenarios import LAYER_FIELDS as PAINT_LAYER_FIELDS
+from calibration_scenarios import (
+    Measurements,
+    distance_from,
+    levelling_rates,
+    new_sheet,
+    slope_runs,
+    thin_film_on_damp_paper,
+)
 from torch import Tensor
 from torch.profiler import ProfilerActivity, profile
 
 import watercolor
-from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
 from watercolor.recording import FrameRecorder
 from watercolor.rendering import render
@@ -42,6 +49,7 @@ from watercolor.studio import Studio
 HERE = Path(__file__).resolve().parent
 BASELINE = HERE / "benchmark_baseline.json"
 HEIGHT, WIDTH = 540, 770
+PAPER_SEED = 5
 SIX = ("french_ultramarine", "burnt_umber", "quinacridone_rose", "phthalo_green", "cadmium_red", "opaque_white")
 THREE = ("cadmium_red", "french_ultramarine", "burnt_umber")
 # The machine counts as idle when the card is busy no more than this share of the time before the run, and the
@@ -52,11 +60,6 @@ WET_SECONDS = 2.0
 DRY_SECONDS = 40.0
 # A dry advance is quick, so each sample of it is the sum of several, to keep the timer's own noise out of it.
 DRY_ADVANCES = 5
-Metrics = Measurements
-
-
-def device() -> torch.device:
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def synchronise() -> None:
@@ -72,7 +75,7 @@ def timed(action: Callable[[], object]) -> float:
     return time.perf_counter() - started
 
 
-def summary(name: str, samples: list[float]) -> Metrics:
+def summary(name: str, samples: list[float]) -> Measurements:
     """The median of the samples under the name, and their spread beside it."""
     middle = statistics.median(samples)
     return {
@@ -82,15 +85,11 @@ def summary(name: str, samples: list[float]) -> Metrics:
     }
 
 
-def new_sheet(height: int, width: int, palette: tuple[str, ...], on: torch.device | None = None) -> Sheet:
-    return Sheet(generate_paper(height, width, 5, on or device()), [PIGMENTS[name] for name in palette])
-
-
 # Fields the approved items add, by item. Each item's allowance of memory is held against its own fields, so that
 # in one pull request the fields of the others do not count against it. Beside its two layers the ordered-layer
 # design keeps a transient flag of the paint that has set, which its prototype names _set.
 GUM_FIELDS = ("gum",)
-LAYER_FIELDS = ("underlying", "lowest", "_set")
+LAYER_FIELDS = (*PAINT_LAYER_FIELDS, "_set")
 NEW_FIELDS = GUM_FIELDS + LAYER_FIELDS
 
 
@@ -126,16 +125,16 @@ def lay_wash(sheet: Sheet) -> None:
     for index in range(count):
         top = rows.start + index * band
         sheet.suspended[index, top : top + band, columns] = 0.5 * sheet.water[top : top + band, columns]
-    distance = torch.hypot(sheet._xs - width / 2, sheet._ys - height / 2)
+    distance = distance_from(sheet, width / 2, height / 2)
     sheet.suspended[count - 1] += 3.0 * sheet.water * (distance < height / 8)
     sheet._used.update(range(count))
 
 
-def wet_and_dry_cost(repeats: int) -> Metrics:
+def wet_and_dry_cost(repeats: int) -> Measurements:
     """The 770x540 sheet with six pigments: wet advance from the laid wash, dry advance with the film removed and
     the paper at 0.8 of its capacity, rendering, saving and loading its state, and memory."""
     allocated = torch.cuda.memory_allocated() if torch.cuda.is_available() else 0
-    sheet = new_sheet(HEIGHT, WIDTH, SIX)
+    sheet = new_sheet(HEIGHT, WIDTH, PAPER_SEED, palette=SIX)
     resident = torch.cuda.memory_allocated() - allocated if torch.cuda.is_available() else None
     lay_wash(sheet)
     laid = {name: field.clone() for name, field in sheet.state().items()}
@@ -162,7 +161,7 @@ def wet_and_dry_cost(repeats: int) -> Metrics:
             to_damp()
             spent += timed(lambda: sheet.advance(DRY_SECONDS))
         dry.append(spent / (DRY_ADVANCES * DRY_SECONDS))
-    out: Metrics = {**summary("wet_seconds_per_second", wet), **summary("dry_seconds_per_second", dry)}
+    out: Measurements = {**summary("wet_seconds_per_second", wet), **summary("dry_seconds_per_second", dry)}
 
     peak = None
     if torch.cuda.is_available():
@@ -228,10 +227,10 @@ def device_work(action: Callable[[], object]) -> tuple[int | None, float | None]
     return len(on_device), sum(event.device_time for event in on_device) / 1e6
 
 
-def sizes() -> Metrics:
+def sizes() -> Measurements:
     """Tensor bytes of a sheet, and bytes of its saved state, for the sheets the memory gates name: in all, and
     leaving out the fields of the binder, of the ordered layers, or of both."""
-    out: Metrics = {}
+    out: Measurements = {}
     cpu = torch.device("cpu")
     for height, width, label, palette in (
         (256, 256, "256_3", THREE),
@@ -239,7 +238,7 @@ def sizes() -> Metrics:
         (HEIGHT, WIDTH, "770_6", SIX),
         (HEIGHT, WIDTH, "770_13", tuple(PIGMENTS)),
     ):
-        sheet = new_sheet(height, width, palette, cpu)
+        sheet = new_sheet(height, width, PAPER_SEED, cpu, palette)
         for suffix, leaving_out in (
             ("", ()),
             ("_kept", NEW_FIELDS),
@@ -251,7 +250,7 @@ def sizes() -> Metrics:
     return out
 
 
-def session_state() -> Metrics:
+def session_state() -> Measurements:
     """state.pt of a 64-pixel painting after two strokes and a wait."""
     with tempfile.TemporaryDirectory() as work:
         configuration = Configuration(
@@ -277,10 +276,10 @@ def session_state() -> Metrics:
         }
 
 
-def strokes(repeats: int) -> Metrics:
+def strokes(repeats: int) -> Measurements:
     """Wall time per Studio.stroke at 256 px: four round-10 strokes of rose 2.0 and one clear flat-8 lifting stroke."""
     palette = ["quinacridone_rose", "french_ultramarine"]
-    sheet = new_sheet(256, 256, tuple(palette))
+    sheet = new_sheet(256, 256, PAPER_SEED, palette=tuple(palette))
     empty = sheet.state()
     studio = Studio({"painting": sheet}, palette)
 
@@ -300,25 +299,23 @@ def strokes(repeats: int) -> Metrics:
     return summary("stroke_seconds", samples)
 
 
-def cpu_wet_cost(repeats: int) -> Metrics:
+def cpu_wet_cost(repeats: int) -> Measurements:
     """Wet advance per simulated second of a 128-pixel sheet on the CPU."""
-    sheet = new_sheet(128, 128, THREE, torch.device("cpu"))
+    sheet = new_sheet(128, 128, PAPER_SEED, torch.device("cpu"), THREE)
     lay_wash(sheet)
     laid = sheet.state()
     sheet.advance(0.5)
     samples = []
     for _ in range(repeats):
         sheet.load_state(laid)
-        started = time.perf_counter()
-        sheet.advance(WET_SECONDS)
-        samples.append((time.perf_counter() - started) / WET_SECONDS)
+        samples.append(timed(lambda: sheet.advance(WET_SECONDS)) / WET_SECONDS)
     return summary("cpu_wet_seconds_per_second", samples)
 
 
-def wash_drying(repeats: int) -> Metrics:
+def wash_drying(repeats: int) -> Measurements:
     """Studio.dry() from one laid 256 px wash of mop rows with strong colour charged in (three pigments)."""
     size = 256
-    sheet = new_sheet(size, size, THREE)
+    sheet = new_sheet(size, size, PAPER_SEED, palette=THREE)
     studio = Studio({"painting": sheet}, list(THREE))
     y = 0.1 * size
     while y < 0.9 * size:
@@ -335,11 +332,11 @@ def wash_drying(repeats: int) -> Metrics:
     return summary("wash_drying_seconds", samples)
 
 
-def layered_pass(repeats: int) -> Metrics:
+def layered_pass(repeats: int) -> Measurements:
     """A pass across layered paint at 256 px with six pigments: a dark band and white columns dried first, then three
     glaze strokes recorded every 0.3 s, then dried; and render() of the result, on the device and on the CPU."""
     size = 256
-    sheet = new_sheet(size, size, SIX)
+    sheet = new_sheet(size, size, PAPER_SEED, palette=SIX)
     studio = Studio({"painting": sheet}, list(SIX))
     for y in (100, 128, 156):
         studio.load_brush("flat", 20, {"burnt_umber": 2.0, "french_ultramarine": 1.0}, 1.0)
@@ -366,19 +363,19 @@ def layered_pass(repeats: int) -> Metrics:
     out = summary("end_to_end_seconds", samples)
     render(sheet)
     out |= summary("layered_render_seconds", [timed(lambda: render(sheet)) for _ in range(9)])
-    on_cpu = new_sheet(size, size, SIX, torch.device("cpu"))
+    on_cpu = new_sheet(size, size, PAPER_SEED, torch.device("cpu"), SIX)
     on_cpu.load_state(sheet.state())
     render(on_cpu)
     out |= summary("layered_render_seconds_cpu", [timed(lambda: render(on_cpu)) for _ in range(9)])
     return out
 
 
-def new_test_time() -> Metrics:
+def new_test_time() -> Measurements:
     """Wall time of the scenarios behind the film-mobility tests, run one after another."""
     return {"new_test_seconds": timed(lambda: (levelling_rates(), slope_runs(), thin_film_on_damp_paper()))}
 
 
-SECTIONS: dict[str, Callable[[int], Metrics]] = {
+SECTIONS: dict[str, Callable[[int], Measurements]] = {
     "cost": wet_and_dry_cost,
     "sizes": lambda _: sizes(),
     "session": lambda _: session_state(),
@@ -390,20 +387,23 @@ SECTIONS: dict[str, Callable[[int], Metrics]] = {
 }
 
 
+def query_card(*arguments: str) -> list[str] | None:
+    """The lines nvidia-smi prints for a query of the graphics card, or None on a machine without it."""
+    try:
+        run = subprocess.run(["nvidia-smi", *arguments], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None
+    return run.stdout.splitlines()
+
+
 def card_utilisation(samples: int = 5) -> list[int]:
     """Percentage of the time the graphics card was busy, read a few times over about a second before the run."""
     readings = []
     for _ in range(samples):
-        try:
-            listing = subprocess.run(
-                ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
-                capture_output=True,
-                text=True,
-                check=False,
-            ).stdout
-        except FileNotFoundError:
+        lines = query_card("--query-gpu=utilization.gpu", "--format=csv,noheader,nounits")
+        if lines is None:
             return []
-        readings.extend(int(line) for line in listing.split() if line.strip().isdigit())
+        readings.extend(int(line) for line in lines if line.strip().isdigit())
         time.sleep(0.2)
     return readings
 
@@ -411,17 +411,8 @@ def card_utilisation(samples: int = 5) -> list[int]:
 def other_work_on_the_card() -> list[str]:
     """Processes besides this one that hold a context on the graphics card. The desktop's own graphics clients
     appear here even when idle, so this is a record, not a test; card_utilisation is the test."""
-    try:
-        listing = subprocess.run(
-            ["nvidia-smi", "--query-compute-apps=pid,process_name", "--format=csv,noheader"],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout
-    except FileNotFoundError:
-        return []
     others = []
-    for line in listing.splitlines():
+    for line in query_card("--query-compute-apps=pid,process_name", "--format=csv,noheader") or []:
         pid, _, command = line.partition(",")
         if pid.strip() and pid.strip() != str(os.getpid()):
             others.append(f"{pid.strip()} {Path(command.strip().split(' ')[0]).name}")
@@ -444,7 +435,7 @@ def main() -> None:
     idle = max(utilisation, default=0) <= IDLE_CARD_UTILISATION and load < IDLE_LOAD_AVERAGE
     if arguments.record and not idle:
         sys.exit(f"not recorded: the machine is busy (card {utilisation} %, load average {load:.2f})")
-    metrics: Metrics = {}
+    metrics: Measurements = {}
     seconds = {}
     for name in arguments.sections:
         began = time.perf_counter()
@@ -469,11 +460,10 @@ def main() -> None:
     gates = [gate for gate in GATES if gate.kind == "performance"]
     baseline = load_baseline(arguments.baseline)
     if arguments.record:
-        # Sections recorded on the same engine join the baseline; on another engine the baseline starts afresh.
+        # The benchmark is one scenario measured in sections, so on the engine of the baseline the sections run
+        # join the ones it already holds; merged() replaces a scenario whole and would drop them.
         if baseline.get("engine_digest") == record["engine_digest"]:
-            metrics = baseline.get("measurements", {}).get("benchmark", {}) | metrics
-            measurements = {"benchmark": metrics}
-            record["timings"] = baseline.get("timings", {}) | seconds
+            measurements = {"benchmark": baseline.get("measurements", {}).get("benchmark", {}) | metrics}
         reference = measurements
     else:
         reference = baseline.get("measurements", {})
@@ -487,7 +477,7 @@ def main() -> None:
     if arguments.output:
         arguments.output.write_text(text)
     if arguments.record:
-        arguments.baseline.write_text(text)
+        arguments.baseline.write_text(json.dumps(merged(baseline, record), indent=1) + "\n")
         return
     failed = [gate.id for gate in gates if outcome[gate.id]["status"] == "fail"]
     if failed:
