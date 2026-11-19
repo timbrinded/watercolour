@@ -50,10 +50,14 @@ def absorption_of(mix: dict[str, float]) -> np.ndarray:
 
 
 def remap_values(value: np.ndarray, quantiles: list[tuple[float, float]]) -> np.ndarray:
-    """Give each pixel the value at its rank in the target distribution, so the photograph's order is kept."""
+    """Give each pixel the value at its rank in the target distribution, so the photograph's order is kept.
+
+    Equal values share the mean of their ranks: ranked one by one, in the order the pixels are stored, a flat area
+    (a crushed shadow, a blown sky) would come out as a gradient from its top to its bottom."""
     flat = value.ravel()
-    ranks = np.empty(flat.size)
-    ranks[np.argsort(flat, kind="stable")] = np.linspace(0.0, 1.0, flat.size)
+    _, inverse, counts = np.unique(flat, return_inverse=True, return_counts=True)
+    ends = np.cumsum(counts)
+    ranks = ((ends - (counts + 1) / 2) / max(flat.size - 1, 1))[inverse]
     shares, values = zip(*quantiles)
     return np.interp(ranks, shares, values).reshape(value.shape)
 

@@ -358,8 +358,8 @@ def build(arguments) -> tuple[list[dict], np.ndarray]:
 
 def backruns_in(local: np.ndarray, x0p: int, y0p: int) -> list[dict]:
     """Wait for the shape's shine to go at its deepest point, then drop clear water there and at a second deep point:
-    the water floods back into the drying wash and dries as a backrun with a dark, frilled rim (film 0.08, dwell 0.8,
-    a size 6 round, full)."""
+    the water floods back into the drying wash and dries as a backrun: a pale centre inside a dark rim that is
+    smoothly lobed, not frilled or branched (film 0.08, dwell 0.8, a size 6 round, full)."""
     depth = half_width(local, 30)
     if depth.max() < 8:
         return []

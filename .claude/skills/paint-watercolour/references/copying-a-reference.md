@@ -124,7 +124,7 @@ Start the painting with a stroke budget to match. The default of 150 is spent in
 
 | Stage | Tool | Brush | Threshold | Lays |
 |---|---|---|---|---|
-| 1 | rows | `mop` 18, wet, then clear water touched in as the film thins to 0.18 | 0.05 | The first wash, with blooms |
+| 1 | rows | `mop` 18, wet, then clear water touched in as the film thins to 0.07 | 0.05 | The first wash, with blooms |
 | 2 | rows | `round` squirrel 14, at 35 degrees | 0.20 | Dark cores |
 | 3 | rows | `round` squirrel 8, at 20 degrees | 0.08 | Middle masses |
 | 4 | rows | `round` squirrel 8, at -25 degrees, gap smoothed over a stroke width | 0.12 | Middle masses, corrected |
@@ -212,7 +212,7 @@ To rehearse a passage, crop the reference to it at the sheet's scale and run `co
 ## What this does not reach
 
 - The copy is softer than the original. Broad single-stroke washes with one clean edge are built here from many small strokes, and it shows at close range.
-- Blooms and dry-brush are faint on this engine, so back-runs and broken edges are only suggested.
+- Blooms with a dark, lobed rim are available: `--bloom` touches the water in at film 0.07, inside the 0.03 to 0.13 window where the rim forms (see Blooms in `wet-in-wet.md`). The rim does not branch or feather like a real back-run. Dry-brush remains faint, so broken edges are only suggested.
 - An even passage comes out mottled, not merely soft, unless `--even-passages` is given. With it the passage is a wash, though the smaller stages still lay their touches on top and it is not the single wash of the original.
 - Without `--even-passages` a light narrower than the brushes of the row stages is toned over. With it the light is kept in its shape, with an edge stepped by the rows that cut in round it. A line of light (a stay, a mast against a sky) is reached by neither.
 - The solver now and then gives a stroke to one strong paint alone: over a wash that was already grey, a remainder that was mostly red absorption was laid as nearly pure phthalo green, and showed as green streaks in a blue-green sea. Nothing here prevents it.

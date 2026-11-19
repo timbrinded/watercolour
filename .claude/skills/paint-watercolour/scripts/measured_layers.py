@@ -43,12 +43,13 @@ import random
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFilter
+from preview_pass import painted_width
 from torch.nn import functional
 
 # The harness's bare paper as a dry look shows it.
 PAPER = np.array([247.0, 244.0, 237.0])
-# Painted width as a multiple of size at pressure 0.9.
-WIDTH = {"round": 2.0, "mop": 2.1, "oval_wash": 2.1, "cats_tongue": 2.0, "flat": 2.1}
+# The pressure a row is laid at, and so the width it paints and the rows are spaced by.
+STROKE_PRESSURE = 0.9
 
 Absorption = dict[str, tuple[float, float, float]]
 
@@ -182,7 +183,7 @@ def mark_covered(covered: Image.Image, actions: list[dict], stroke_width: float)
 
 def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
     height, width_pixels, _ = target.shape
-    stroke_width = WIDTH.get(arguments.brush, 2.0) * arguments.size
+    stroke_width = painted_width(arguments.brush, arguments.size, STROKE_PRESSURE)
     smoothing = max(3, int(stroke_width * arguments.smoothing))
     gap = np.clip(pooled(target, smoothing, "mean") - pooled(current, smoothing, "mean"), 0.0, None)
     if arguments.keep_lights > 0:
@@ -249,7 +250,7 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
                 )
             smooth = True
         else:
-            ends = arguments.taper if arguments.wobble > 0 else 0.9
+            ends = arguments.taper if arguments.wobble > 0 else STROKE_PRESSURE
             path = [[round(start[0], 1), round(start[1], 1), ends], [round(end[0], 1), round(end[1], 1), ends]]
             smooth = False
         if strokes % 2:
@@ -303,7 +304,8 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
         covered = Image.new("L", (width_pixels, height), 0)
         mark_covered(covered, actions, stroke_width)
         for size in arguments.cut_in:
-            keep = int(WIDTH["round"] * size / 2) + 2  # the smaller brush overlaps the wet wash by half its width
+            # the smaller brush overlaps the wet wash by half its width
+            keep = int(painted_width("round", size, STROKE_PRESSURE) / 2) + 2
             mask = np.asarray(covered.filter(ImageFilter.MinFilter(2 * keep + 1))) > 0
             reached = current.copy()
             reached[mask] = np.maximum(target, current)[mask]
@@ -312,7 +314,7 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
             smaller.cut_in, smaller.no_dry, smaller.smoothing = [], True, 0.5
             smaller.longest = max(60.0, arguments.longest * size / arguments.size * 2)
             more = build(target, reached, smaller)
-            mark_covered(covered, more, WIDTH["round"] * size)
+            mark_covered(covered, more, painted_width("round", size, STROKE_PRESSURE))
             actions += more
     if not arguments.no_dry:
         actions.append({"action": "dry"})
