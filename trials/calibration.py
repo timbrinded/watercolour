@@ -346,8 +346,17 @@ def merged(baseline: dict, record: dict) -> dict:
     if baseline.get("engine_digest") != record["engine_digest"]:
         return record
     combined = dict(record)
-    for part in ("timings", "measurements", "gates"):
+    for part in ("timings", "gates"):
         combined[part] = baseline.get(part, {}) | record[part]
+    measurements = dict(baseline.get("measurements", {}))
+    for name, values in record["measurements"].items():
+        earlier = measurements.get(name)
+        if isinstance(earlier, dict) and isinstance(values, dict):
+            # A run of some gates derives measurements such as the lift ratios from paintings it did not paint.
+            # Those come back empty and must not replace what the baseline already holds.
+            values = earlier | {key: value for key, value in values.items() if value is not None}
+        measurements[name] = values
+    combined["measurements"] = measurements
     return combined
 
 
