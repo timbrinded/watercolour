@@ -1,13 +1,13 @@
 {
- "revision": "badaa5c7700cd66f2b7f9927cc22d3345f8261f1",
+ "revision": "bd129945b9a4f0f87119680145f8ea7652b569eb",
  "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
  "engine_version": "0.8.0",
  "device": "cuda",
  "torch": "2.15.0+cu132",
- "elapsed_seconds": 358.6,
+ "elapsed_seconds": 60.0,
  "timings": {
   "invariants": 166.7,
-  "wet_work": 158.4,
+  "wet_work": 58.5,
   "one_layer": 133.7,
   "layer_order": 239.5,
   "puddle": 213.7,
@@ -25,7 +25,8 @@
   "layer_flow": 72.3,
   "batching": 315.3,
   "lifting": 140.4,
-  "session": 64.1
+  "session": 64.1,
+  "bloom_seeds": 51.6
  },
  "measurements": {
   "advance_conserves_pigment": {
@@ -97,7 +98,8 @@
    "centre_share": 0.9074497934838974,
    "rim_share": 1.220799389834202,
    "picture_difference": 0.0,
-   "unsound_cells": 0
+   "unsound_cells": 0,
+   "centre_disc_share": 0.7410719466992735
   },
   "charge_wait_40": {
    "rms_width": 6.819422293439509,
@@ -923,6 +925,25 @@
    "wet_taken": 28.630806869936052,
    "unsound_cells": 0,
    "wall_seconds": 140.4
+  },
+  "umber_bloom_seeds": {
+   "centre_median": 0.7294382899693453,
+   "rim_median": 1.212663918432146,
+   "centre_by_seed": [
+    0.7410719466992735,
+    0.7190735859291422,
+    0.7294382899693453,
+    0.6966493190252533,
+    0.7555176263278485
+   ],
+   "rim_by_seed": [
+    1.220799389834202,
+    1.1761301805318507,
+    1.1856283445800204,
+    1.2134796844979285,
+    1.212663918432146
+   ],
+   "wall_seconds": 51.6
   }
  },
  "gates": {
@@ -1750,21 +1771,45 @@
      "passed": true
     },
     {
-     "metric": "bloom_umber.centre_share",
+     "metric": "umber_bloom_seeds.centre_median",
      "op": "<=",
-     "bound": 0.95,
+     "bound": 0.8,
      "scale": "absolute",
-     "value": 0.9074497934838974,
-     "baseline": 0.9074497934838974,
+     "value": 0.7294382899693453,
+     "baseline": 0.7294382899693453,
      "passed": true
     },
     {
-     "metric": "bloom_umber.rim_share",
+     "metric": "umber_bloom_seeds.centre_median",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 0.7294382899693453,
+     "baseline": 0.7294382899693453,
+     "passed": true
+    },
+    {
+     "metric": "umber_bloom_seeds.rim_median",
      "op": ">=",
      "bound": 1.15,
      "scale": "absolute",
-     "value": 1.220799389834202,
-     "baseline": 1.220799389834202,
+     "value": 1.212663918432146,
+     "baseline": 1.212663918432146,
+     "passed": true
+    },
+    {
+     "metric": "umber_bloom_seeds.rim_median",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 1.212663918432146,
+     "baseline": 1.212663918432146,
      "passed": true
     }
    ]

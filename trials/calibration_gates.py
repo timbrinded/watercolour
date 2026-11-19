@@ -455,20 +455,26 @@ GATES: tuple[Gate, ...] = (
         metric="Deposit at the centre of a bloom and on its rim against the surrounding wash",
         scenario="Clear water dropped into a wash at film 0.03, dried: the mop wash with a round-8 dab held 0.6 s "
         "(centre r<4 and highest 2 px ring within 30 px, over r 24-30); five round-12 rows of ultramarine 1.0 "
-        "(peak of the 1 px radial profile over its inner 4 px); round-12 rows of burnt umber 0.6 (centre ring and "
-        "highest ring over r 26-30)",
+        "(peak of the 1 px radial profile over its inner 4 px); round-12 rows of burnt umber 0.6 on paper seeds 3-7 "
+        "(median over the papers of the r<4 disc and of the highest 2 px ring, each over r 26-30)",
         comparator="<= / >= / within",
         threshold="Mop: centre <= 0.8 and rim >= 1.1, each within +/-15% of 0.8.0 (0.603, 1.190); round: peak "
-        "over inside >= 0.8 x 0.8.0 (1.945); umber: centre <= 0.95 and rim >= 1.15",
-        source="Curtis 1997 backrun; 0.8.0's own values plus engineering budgets.",
+        "over inside >= 0.8 x 0.8.0 (1.945); umber: median centre <= 0.8 and median rim >= 1.15, each within "
+        "+/-15% of 0.8.0",
+        source="Curtis 1997 backrun; 0.8.0's own values plus engineering budgets. The umber centre was a 2 px ring "
+        "on one paper, bounded at 0.95; on 0.8.0 that ring reads 0.59-0.91 across paper seeds 3-10, so it measured "
+        "the grain under the dab as much as the bloom. It is now the r<4 disc used for the mop bloom (0.69-0.76 "
+        "across the same papers), as a median over five papers, with the mop bloom's bounds.",
         checks=(
             Check("bloom_mop.centre_over_wash", "<=", 0.8),
             within("bloom_mop.centre_over_wash", 0.85, 1.15),
             Check("bloom_mop.rim_over_wash", ">=", 1.1),
             within("bloom_mop.rim_over_wash", 0.85, 1.15),
             Check("bloom_round.peak_over_inside", ">=", 0.8, "baseline"),
-            Check("bloom_umber.centre_share", "<=", 0.95),
-            Check("bloom_umber.rim_share", ">=", 1.15),
+            Check("umber_bloom_seeds.centre_median", "<=", 0.8),
+            within("umber_bloom_seeds.centre_median", 0.85, 1.15),
+            Check("umber_bloom_seeds.rim_median", ">=", 1.15),
+            within("umber_bloom_seeds.rim_median", 0.85, 1.15),
         ),
         merged_from=("flow_exponent:R5-bloom", "binder:R4-bloom-forms", "ordered_layers:REG-6-bloom"),
     ),

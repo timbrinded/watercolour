@@ -19,6 +19,7 @@ import math
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tarfile
@@ -571,22 +572,55 @@ def bloom_round(studio: Studio) -> Measurements:
     return {"peak_over_inside": float(profile.max()) / float(profile[:4].mean())}
 
 
-def bloom_umber(studio: Studio) -> Measurements:
+def paint_umber_bloom(studio: Studio) -> None:
     """The ordered-layer study's bloom: round-12 rows of burnt umber 0.6 and a clear dab at film 0.03."""
-    sheet = sheet_of(studio)
     reloaded_rows(studio, "round", 12, {"burnt_umber": 0.6}, 30, 100, 13)
     studio.wait_for_film("painting", 64, 64, 0.03, 300)
     studio.load_brush("round", 8, {}, 1.0)
     studio.stroke("painting", [[64, 64]], 100, smooth=False)
     studio.dry()
+
+
+def umber_bloom_shares(sheet: Sheet) -> dict[str, float]:
+    """Paint at the centre of the umber bloom and on its rim, each over the wash at r 26-30."""
     paint = sheet.deposited.sum(0)
     distance = distance_from(sheet, 64, 64)
     profile = [float(paint[(distance >= r) & (distance < r + 2)].mean()) for r in range(0, 30, 2)]
     surround = float(paint[(distance >= 26) & (distance < 30)].mean())
     return {
         "centre_share": profile[0] / surround,
+        "centre_disc_share": float(paint[distance < 4].mean()) / surround,
         "rim_share": max(profile) / surround,
+    }
+
+
+def bloom_umber(studio: Studio) -> Measurements:
+    """The umber bloom on the standard paper, with the picture against 0.8.0's renderer."""
+    sheet = sheet_of(studio)
+    paint_umber_bloom(studio)
+    measurements: Measurements = {
+        **umber_bloom_shares(sheet),
         "picture_difference": float((value(sheet) - reference_value(sheet)).abs().max()),
+    }
+    return measurements
+
+
+# The paper's grain under a 2 px ring decides much of what the ring holds: on 0.8.0 the umber bloom's centre ring
+# reads from 0.59 to 0.91 of the wash across paper seeds 3-10, where the 4 px disc reads from 0.69 to 0.76. The
+# bloom is therefore judged by the disc, and by the median over several papers.
+UMBER_BLOOM_SEEDS = (3, 4, 5, 6, 7)
+
+
+def umber_bloom_seeds() -> Measurements:
+    """The umber bloom painted on several papers in one batch; the median centre and rim over the papers."""
+    shares = [umber_bloom_shares(sheet) for sheet in paint_batched(paint_umber_bloom, UMBER_BLOOM_SEEDS)]
+    centres = [share["centre_disc_share"] for share in shares]
+    rims = [share["rim_share"] for share in shares]
+    return {
+        "centre_median": statistics.median(centres),
+        "rim_median": statistics.median(rims),
+        "centre_by_seed": centres,
+        "rim_by_seed": rims,
     }
 
 
@@ -2264,6 +2298,7 @@ EXPERIMENTS: dict[str, Experiment] = {
     "gum_bookkeeping": Experiment("invariants", gum_bookkeeping),
     "old_state_loads": Experiment("invariants", old_state_loads),
     "deep_puddle_scrubbed": Experiment("puddle", deep_puddle_scrubbed),
+    "umber_bloom_seeds": Experiment("bloom_seeds", umber_bloom_seeds),
     "rewet_without_moving_paint": Experiment("rewetting", rewet_without_moving_paint),
     "non_staining_unchanged": Experiment("non_staining", non_staining_unchanged),
     "paintings_begun_with_reference": Experiment("compatibility", paintings_begun_with_reference),
