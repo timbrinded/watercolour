@@ -378,6 +378,18 @@ def merged(baseline: dict, record: dict) -> dict:
     return combined
 
 
+def refuse_partial_recording(baseline: dict, complete: bool, full_run: str) -> None:
+    """Stop before a recording that would leave the baseline incomplete. A recording on an engine other than the
+    baseline's replaces the baseline whole, so on a new engine only a full run may record; a part of the run may
+    only be laid over a baseline of the same engine."""
+    recorded_on = baseline.get("engine_digest")
+    if not complete and recorded_on != engine_digest():
+        raise SystemExit(
+            f"not recorded: the baseline was measured on another engine (digest {str(recorded_on)[:12]}), and this "
+            f"part of the run would replace all of it. On a new engine record {full_run}."
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--item", nargs="*", default=[], choices=(*ITEMS, "global"))
@@ -391,6 +403,10 @@ def main() -> None:
     parser.add_argument("--list", action="store_true", help="list the selected gates and stop")
     arguments = parser.parse_args()
 
+    if arguments.record:
+        selected_part = arguments.item or arguments.kind or arguments.gate
+        full_run = "the standard run, with or followed by --extended, and no --gate, --item or --kind"
+        refuse_partial_recording(load_baseline(arguments.baseline), not selected_part, full_run)
     gates = select_gates(arguments.item, arguments.kind, arguments.gate, arguments.extended)
     if arguments.list:
         for gate in gates:

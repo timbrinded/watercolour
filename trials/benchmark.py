@@ -24,7 +24,15 @@ from collections.abc import Callable
 from pathlib import Path
 
 import torch
-from calibration import describe, engine_digest, evaluate, load_baseline, merged, revision
+from calibration import (
+    describe,
+    engine_digest,
+    evaluate,
+    load_baseline,
+    merged,
+    refuse_partial_recording,
+    revision,
+)
 from calibration_gates import GATES
 from calibration_scenarios import LAYER_FIELDS as PAINT_LAYER_FIELDS
 from calibration_scenarios import (
@@ -435,6 +443,9 @@ def main() -> None:
     parser.add_argument("--record", action="store_true", help="write the sections run into the baseline")
     arguments = parser.parse_args()
 
+    if arguments.record:
+        every_section = set(arguments.sections) == set(SECTIONS)
+        refuse_partial_recording(load_baseline(arguments.baseline), every_section, "a run of every section")
     started = time.perf_counter()
     others = other_work_on_the_card()
     utilisation = card_utilisation()
