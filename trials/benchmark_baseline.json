@@ -1,6 +1,8 @@
 {
  "revision": "badaa5c7700cd66f2b7f9927cc22d3345f8261f1",
  "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
+ "engine_revision": "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84",
+ "engine_modified": false,
  "engine_version": "0.8.0",
  "device": "NVIDIA GeForce RTX 3080",
  "torch": "2.15.0+cu132",

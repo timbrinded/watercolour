@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import traceback
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+import watercolor
 from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
 from watercolor.rendering import render_view
@@ -48,6 +50,7 @@ REPOSITORY = Path(__file__).resolve().parent.parent
 # The commit on main that is the 0.8.0 rig, against which the gates are calibrated.
 REFERENCE_REVISION = "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84"
 REFERENCE_PACKAGE = "watercolor_reference"
+REFERENCE_IMPORT_LOCK = threading.Lock()
 
 SIZE = 128
 SEED = 3
@@ -80,9 +83,11 @@ def default_device() -> torch.device:
 def reference_source() -> Path:
     """Directory that holds the 0.8.0 package as the directory watercolor, taken from git on first use.
 
-    It is kept outside the repository, where the linters and the type checker do not see it.
+    It is kept outside the repository, where the linters and the type checker do not see it, and in the cache of
+    the user running the suite rather than the shared temporary directory, where anyone could have placed a package
+    of that name first and had it run.
     """
-    target = Path(tempfile.gettempdir()) / f"watercolor-reference-{REFERENCE_REVISION[:12]}"
+    target = Path.home() / ".cache" / "watercolor-calibration" / f"reference-{REFERENCE_REVISION[:12]}"
     if (target / "watercolor" / "__init__.py").exists():
         return target
     archive = subprocess.run(
@@ -103,18 +108,23 @@ def reference_source() -> Path:
 
 
 def reference_module(name: str) -> ModuleType:
-    """A module of the 0.8.0 package, imported beside the engine under test."""
-    if REFERENCE_PACKAGE not in sys.modules:
-        initialiser = reference_source() / "watercolor" / "__init__.py"
-        specification = importlib.util.spec_from_file_location(
-            REFERENCE_PACKAGE, initialiser, submodule_search_locations=[str(initialiser.parent)]
-        )
-        if specification is None or specification.loader is None:
-            raise ImportError(f"cannot import the 0.8.0 package from {initialiser}")
-        package = importlib.util.module_from_spec(specification)
-        sys.modules[REFERENCE_PACKAGE] = package
-        specification.loader.exec_module(package)
-    return importlib.import_module(f"{REFERENCE_PACKAGE}.{name}")
+    """A module of the 0.8.0 package, imported beside the engine under test.
+
+    The painters of a batch run in threads and may ask for it at the same moment, so the package is registered
+    under a lock: otherwise each could build its own package object and the second would replace the first.
+    """
+    with REFERENCE_IMPORT_LOCK:
+        if REFERENCE_PACKAGE not in sys.modules:
+            initialiser = reference_source() / "watercolor" / "__init__.py"
+            specification = importlib.util.spec_from_file_location(
+                REFERENCE_PACKAGE, initialiser, submodule_search_locations=[str(initialiser.parent)]
+            )
+            if specification is None or specification.loader is None:
+                raise ImportError(f"cannot import the 0.8.0 package from {initialiser}")
+            package = importlib.util.module_from_spec(specification)
+            sys.modules[REFERENCE_PACKAGE] = package
+            specification.loader.exec_module(package)
+        return importlib.import_module(f"{REFERENCE_PACKAGE}.{name}")
 
 
 def value(sheet: Sheet) -> Tensor:
@@ -169,7 +179,7 @@ def unchanged(parameters: SimulationParameters) -> SimulationParameters:
     return parameters
 
 
-def still_water(parameters: SimulationParameters) -> SimulationParameters:
+def without_evaporation_or_absorption(parameters: SimulationParameters) -> SimulationParameters:
     """Evaporation, absorption and the drying of the paper switched off: the water stays as it was set."""
     return dataclasses.replace(parameters, evaporation_rate=0.0, absorption_rate=0.0, paper_evaporation_rate=0.0)
 
@@ -454,10 +464,12 @@ def rows_barely_touching(studio: Studio) -> Measurements:
 def tilt_run(studio: Studio) -> Measurements:
     """A loaded passage on a sheet tilted by 0.2 and on a level one: rows further that the run reaches in 30 s."""
     sheet = sheet_of(studio)
+    # Both runs start from the bare sheet, every field of it, so that nothing the tilted run leaves (gum, paint
+    # layers, masking fluid) carries into the level one. The brush's sequence of loads goes on as before.
+    bare = {name: field.clone() for name, field in sheet.state().items()}
 
     def lowest_wet_row(tilt: float) -> int:
-        for field in (sheet.water, sheet.saturation, sheet.suspended, sheet.deposited):
-            field.zero_()
+        sheet.load_state(bare)
         studio.tilt("painting", 0.0, tilt)
         studio.load_brush("round", 8, {"french_ultramarine": 1.0}, 1.0)
         studio.stroke("painting", [[30, 30, 0.9], [98, 30, 0.9]], 110, smooth=False)
@@ -617,8 +629,13 @@ def drained_lift(studio: Studio) -> Measurements:
 
 
 def wet_in_wet_dab(studio: Studio) -> Measurements:
-    """Ultramarine 4.0 dabbed into a bed of clear water 2 s old: the radii at which the dried charge falls to a
-    half and to a tenth of its peak above the background."""
+    """Ultramarine 4.0 dabbed into a bed of clear water 2 s old: the radii at which the dried charge, above the
+    background, first falls below a half and a tenth of its value at the centre.
+
+    The charge dries darker in a ring a little way out than at its centre, so these are not the radii at which it
+    falls from its peak (on 0.8.0 those are 11 and 26 px, against 18 and 29 from the centre). R-wet-in-wet's bounds
+    were set from the centre's values.
+    """
     sheet = sheet_of(studio)
     for y in (34, 52, 70, 88):
         studio.load_brush("mop", 12, {}, 1.0)
@@ -632,10 +649,18 @@ def wet_in_wet_dab(studio: Studio) -> Measurements:
     distance = distance_from(sheet, 64, 61)
     profile = ring_means(paint, distance, range(40), 1).cpu()
     above = profile - float(profile[-5:].mean())
+    centre = float(above[0])
+
+    def falls_to(share: float) -> int | None:
+        """The first radius at which the charge lies below this share of its centre's value, or None when it never
+        falls that far within the 40 px measured."""
+        below = (above < share * centre).nonzero().flatten()
+        return int(below[0]) if len(below) else None
+
     return {
         "film_at_dab": film,
-        "half_radius": int((above < float(above[0]) / 2).nonzero().flatten()[0]),
-        "tenth_radius": int((above < 0.1 * float(above[0])).nonzero().flatten()[0]),
+        "half_radius": falls_to(0.5),
+        "tenth_radius": falls_to(0.1),
         "picture_difference": picture_difference(sheet),
     }
 
@@ -1134,8 +1159,8 @@ def levelling_rates() -> Measurements:
     sheets = []
     shape = torch.empty(0)
     for depth in depths:
-        level = new_sheet(rows, width, adjust=still_water)
-        rippled = new_sheet(rows, width, adjust=still_water)
+        level = new_sheet(rows, width, adjust=without_evaporation_or_absorption)
+        rippled = new_sheet(rows, width, adjust=without_evaporation_or_absorption)
         xs = torch.arange(width, device=level.water.device, dtype=torch.float32)
         shape = torch.cos(math.pi * 8 * (xs + 0.5) / width).expand(rows, width)
         level.water.fill_(depth)
@@ -1201,7 +1226,7 @@ def slope_runs() -> Measurements:
     times = (8.0, 16.0, 32.0, 64.0, 96.0)
     sheets = []
     for band_rows in (16, 8):
-        sheet = new_sheet(rows, width, adjust=still_water)
+        sheet = new_sheet(rows, width, adjust=without_evaporation_or_absorption)
         sheet.water.fill_(background)
         sheet.water[top : top + band_rows, :] += 1.0
         sheet.tilt = (0.0, 0.2)
@@ -1249,7 +1274,7 @@ def thick_paint_checkerboard() -> Measurements:
 def deep_water_on_damp_paper() -> Measurements:
     """Deep water on fully damp paper, left 10 s with nothing drying: the corner of the explicit stability bound,
     where the film is at the mobility limit and wicking is strongest."""
-    sheet = new_sheet(adjust=still_water)
+    sheet = new_sheet(adjust=without_evaporation_or_absorption)
     sheet.saturation.copy_(sheet.capacity)
     sheet.water.fill_(0.6)
     sheet.water[40:88, 40:88] = 2.0
@@ -1274,7 +1299,7 @@ def thin_film_on_damp_paper() -> Measurements:
     out: Measurements = {}
     unsound = 0
     for film in (0.03, 0.08):
-        sheet = new_sheet(adjust=still_water)
+        sheet = new_sheet(adjust=without_evaporation_or_absorption)
         sheet.saturation.copy_(sheet.capacity)
         noise = torch.Generator(device="cpu").manual_seed(2)
         sheet.water.copy_((film * (1 + 0.3 * (torch.rand(SIZE, SIZE, generator=noise) - 0.5))).to(sheet.water.device))
@@ -1304,7 +1329,7 @@ def puddle_drains() -> Measurements:
     return {"pigment_change": abs(after - before) / before, "unsound_cells": unsound_cells(sheet)}
 
 
-def nothing_leaves(parameters: SimulationParameters) -> SimulationParameters:
+def without_evaporation(parameters: SimulationParameters) -> SimulationParameters:
     """Evaporation from the film and from the paper switched off; water still soaks from the film into the paper."""
     return dataclasses.replace(parameters, evaporation_rate=0.0, paper_evaporation_rate=0.0)
 
@@ -1322,7 +1347,7 @@ def flow_conserves_water() -> Measurements:
         before = float(sheet.water.sum())
         studio.wait(5)
         out[f"water_change_{strength:g}"] = abs(float(sheet.water.sum()) - before) / before
-    studio = new_studio(adjust=nothing_leaves)
+    studio = new_studio(adjust=without_evaporation)
     sheet = sheet_of(studio)
 
     def all_water() -> float:
@@ -1347,7 +1372,7 @@ def gum_levelling() -> Measurements:
     gum_present = False
     for depth, wavelength in cases:
         for share in shares:
-            sheet = new_sheet(adjust=lambda p: dataclasses.replace(still_water(p), marangoni=0.0))
+            sheet = new_sheet(adjust=lambda p: dataclasses.replace(without_evaporation_or_absorption(p), marangoni=0.0))
             ripple = 0.15 * depth * torch.cos(2 * torch.pi * sheet._xs / wavelength)
             sheet.water[inside] = depth + ripple[inside]
             gum = kept(sheet, "gum")
@@ -1555,9 +1580,9 @@ def layered_batching() -> Measurements:
     def painter(seed: int, studio: Studio) -> Callable[[], None]:
         def work() -> None:
             scripts[seed](studio)
-            kept = new_sheet(48, 48, seed, palette=SCENE_PALETTE)
-            kept.load_state(sheet_of(studio).state())
-            finished[seed] = kept
+            copy = new_sheet(48, 48, seed, palette=SCENE_PALETTE)
+            copy.load_state(sheet_of(studio).state())
+            finished[seed] = copy
 
         return work
 
@@ -1858,7 +1883,9 @@ def paintings_begun_with_reference() -> Measurements:
         session = Session(work / "wet_wash")
         sheet = session.studio.sheets["painting"]
         out["wet_water_equal"] = float(sheet.water.sum()) == float(saved["water"].to(sheet.water.device).sum())
-        pigment = saved["suspended"] + saved["deposited"]
+        # Both totals are summed on the sheet's device: a sum on the graphics card and one on the processor can
+        # differ in their last bit even for the same numbers.
+        pigment = (saved["suspended"] + saved["deposited"]).to(sheet.suspended.device)
         out["wet_pigment_equal"] = float((sheet.suspended + sheet.deposited).sum()) == float(pigment.sum())
         session.paint(
             [
@@ -2002,8 +2029,9 @@ def vocabulary() -> Measurements:
     }
 
 
-def hygiene() -> Measurements:
-    """Lint, formatting and types clean, and no environment variable read anywhere in the engine."""
+def source_checks() -> Measurements:
+    """Lint, formatting and types clean in the repository, and no environment variable read anywhere in the engine
+    that was measured (the imported package, which need not be the repository's own src)."""
     tools = Path(sys.executable).parent
     out: Measurements = {}
     for name, command in (
@@ -2015,8 +2043,9 @@ def hygiene() -> Measurements:
             out[name] = None
             continue
         out[name] = subprocess.run(command, cwd=REPOSITORY, capture_output=True, check=False).returncode == 0
-    engine = REPOSITORY / "src" / "watercolor"
-    reads = re.compile(r"\bos\.environ\b|\bgetenv\(|\benviron\[")
+    engine = Path(watercolor.__file__).parent
+    # os.environ and os.getenv, their byte forms, and either imported by name (from os import environ).
+    reads = re.compile(r"\benvironb?\b|\bgetenvb?\b")
     out["environment_reads"] = sum(len(reads.findall(path.read_text())) for path in engine.glob("*.py"))
     return out
 
@@ -2126,8 +2155,10 @@ def technique_trials() -> Measurements:
 
 
 class LayersHeldEmpty(Sheet):
-    """A sheet whose paint layers are emptied after every step and every touch of a brush: the engine with its
-    layer bookkeeping taken out of the physics."""
+    """A sheet whose paint layers are emptied after every public call that changes it (advance, a touch of the
+    brush, a blot, laying or rubbing away masking fluid): the engine with its layer bookkeeping taken out of the
+    physics. Within one advance the layers are rebuilt between its internal steps; emptying them there needs a hook
+    in the engine's step, which belongs with the ordered-layer implementation (#20)."""
 
     def _empty_layers(self) -> None:
         for name in LAYER_FIELDS:
@@ -2152,6 +2183,18 @@ class LayersHeldEmpty(Sheet):
         result = super().apply_brush(points, radii, contact, concentration, available_water, hairs, on_tip)
         self._empty_layers()
         return result
+
+    def blot(self, points: Tensor, radii: Tensor) -> None:
+        super().blot(points, radii)
+        self._empty_layers()
+
+    def apply_mask(self, points: Tensor, radii: Tensor) -> None:
+        super().apply_mask(points, radii)
+        self._empty_layers()
+
+    def remove_mask(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
+        super().remove_mask(points, radii)
+        self._empty_layers()
 
 
 PHYSICS_SCENARIOS = (
@@ -2290,7 +2333,7 @@ EXPERIMENTS: dict[str, Experiment] = {
     "non_staining_unchanged": Experiment("non_staining", non_staining_unchanged),
     "paintings_begun_with_reference": Experiment("compatibility", paintings_begun_with_reference),
     "vocabulary": Experiment("compatibility", vocabulary),
-    "hygiene": Experiment("compatibility", hygiene),
+    "source_checks": Experiment("compatibility", source_checks),
     "test_suite": Experiment("test_suite", test_suite),
     "technique_trials": Experiment("technique_trials", technique_trials),
     "physics_untouched": Experiment("physics_untouched", physics_untouched),

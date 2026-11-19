@@ -319,7 +319,7 @@ GATES: tuple[Gate, ...] = (
         "against 0.2) by a more opaque white, regression gates by a re-set evaporation or flow rate.",
     ),
     Gate(
-        id="C-hygiene",
+        id="C-source-checks",
         item="global",
         kind="compatibility",
         metric="ruff check, ruff format --check and pyrefly check over the repository; reads of the environment in "
@@ -329,10 +329,10 @@ GATES: tuple[Gate, ...] = (
         threshold="All clean; no environment reads",
         source="Task rules and house style; the layered prototype read WATERCOLOR_LAYERS at import.",
         checks=(
-            Check("hygiene.lint_clean", "==", True),
-            Check("hygiene.format_clean", "==", True),
-            Check("hygiene.types_clean", "==", True),
-            Check("hygiene.environment_reads", "==", 0),
+            Check("source_checks.lint_clean", "==", True),
+            Check("source_checks.format_clean", "==", True),
+            Check("source_checks.types_clean", "==", True),
+            Check("source_checks.environment_reads", "==", 0),
         ),
         merged_from=("ordered_layers:COMP-3-vocabulary-suite-hygiene (hygiene)",),
     ),

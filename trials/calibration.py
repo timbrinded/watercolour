@@ -63,6 +63,9 @@ def select_gates(
         unknown = [gate_id for gate_id in ids if gate_id not in GATES_BY_ID]
         if unknown:
             raise SystemExit(f"unknown gate {', '.join(unknown)}")
+        timed = [gate_id for gate_id in ids if GATES_BY_ID[gate_id].kind == "performance"]
+        if timed:
+            raise SystemExit(f"{', '.join(timed)}: performance gates are measured by trials/benchmark.py")
         return [GATES_BY_ID[gate_id] for gate_id in ids]
     items, kinds = set(items), set(kinds)
     return [
@@ -147,7 +150,14 @@ def perform(job: Job) -> tuple[Results, float]:
 
 def run_scenarios(scenarios: set[str], workers: int, timings: dict[str, float]) -> tuple[Results, dict[str, float]]:
     """Run the scenarios, each job in its own process, and return their measurements and the time each job took."""
-    reference_source()  # taken from git once, before the workers start
+    try:
+        reference_source()  # taken from git once, before the workers start
+    except (subprocess.CalledProcessError, OSError) as failure:
+        # A clone without the 0.8.0 commit (a shallow one, say) can still run every gate that does not compare
+        # with 0.8.0; the scenarios that do record the error themselves.
+        print(
+            f"warning: the 0.8.0 reference is not available ({failure}); gates that need it will fail", file=sys.stderr
+        )
     jobs = plan_jobs(scenarios, timings)
     workers = max(1, min(workers, len(jobs)))
     threads = max(1, (os.cpu_count() or 1) // workers)
@@ -298,11 +308,11 @@ def evaluate(gates: Iterable[Gate], results: Results, baseline: Results) -> dict
     return outcome
 
 
-def _short(value: Measurement) -> str:
+def format_measurement(value: Measurement) -> str:
     if isinstance(value, float):
         return f"{value:.4g}"
     if isinstance(value, list):
-        return "[" + ", ".join(_short(v) for v in value[:8]) + (", ..." if len(value) > 8 else "") + "]"
+        return "[" + ", ".join(format_measurement(v) for v in value[:8]) + (", ..." if len(value) > 8 else "") + "]"
     return str(value)
 
 
@@ -312,13 +322,13 @@ def describe(gate: Gate, outcome: dict) -> str:
     for check in outcome["checks"]:
         bound = check["bound"]
         if check["scale"] == "baseline":
-            bound = f"{_short(bound)} x baseline"
+            bound = f"{format_measurement(bound)} x baseline"
         elif check["scale"] == "baseline_plus":
-            bound = f"baseline + {_short(bound)}"
+            bound = f"baseline + {format_measurement(bound)}"
         mark = "ok  " if check["passed"] else "FAIL"
         lines.append(
-            f"  {mark} {check['metric']} = {_short(check['value'])} {check['op']} {_short(bound)}"
-            f"  (baseline {_short(check['baseline'])})"
+            f"  {mark} {check['metric']} = {format_measurement(check['value'])} {check['op']} {format_measurement(bound)}"
+            f"  (baseline {format_measurement(check['baseline'])})"
         )
     for scenario, error in outcome.get("errors", {}).items():
         lines.append(f"  error in {scenario}: {error.strip().splitlines()[-1]}")
@@ -348,6 +358,20 @@ def engine_digest() -> str:
     return digest.hexdigest()
 
 
+def engine_origin() -> dict[str, str | bool | None]:
+    """The commit of the git checkout that holds the engine measured, and whether its source differs from that
+    commit. The engine is whichever watercolor package is imported, which need not be the checkout holding these
+    trials: "revision" names the trials, these name the engine."""
+    source = Path(watercolor.__file__).parent
+    head = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+    if head.returncode != 0:
+        return {"engine_revision": None, "engine_modified": None}
+    status = subprocess.run(
+        ["git", "-C", str(source), "status", "--porcelain", "--", "."], capture_output=True, text=True, check=False
+    )
+    return {"engine_revision": head.stdout.strip(), "engine_modified": bool(status.stdout.strip())}
+
+
 def run_gates(gates: list[Gate], baseline_path: Path = BASELINE, workers: int = DEFAULT_JOBS) -> dict:
     """Run what the gates need and evaluate them against the baseline; the record of the run."""
     baseline = load_baseline(baseline_path)
@@ -356,6 +380,7 @@ def run_gates(gates: list[Gate], baseline_path: Path = BASELINE, workers: int = 
     return {
         "revision": revision(),
         "engine_digest": engine_digest(),
+        **engine_origin(),
         "engine_version": watercolor.ENGINE_VERSION,
         "device": str(default_device()),
         "torch": torch.__version__,

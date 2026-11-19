@@ -27,6 +27,7 @@ import torch
 from calibration import (
     describe,
     engine_digest,
+    engine_origin,
     evaluate,
     load_baseline,
     merged,
@@ -34,8 +35,8 @@ from calibration import (
     revision,
 )
 from calibration_gates import GATES
-from calibration_scenarios import LAYER_FIELDS as PAINT_LAYER_FIELDS
 from calibration_scenarios import (
+    LAYER_FIELDS,
     Measurements,
     distance_from,
     levelling_rates,
@@ -97,8 +98,8 @@ def summary(name: str, samples: list[float]) -> Measurements:
 # in one pull request the fields of the others do not count against it. Beside its two layers the ordered-layer
 # design keeps a transient flag of the paint that has set, which its prototype names _set.
 GUM_FIELDS = ("gum",)
-LAYER_FIELDS = (*PAINT_LAYER_FIELDS, "_set")
-NEW_FIELDS = GUM_FIELDS + LAYER_FIELDS
+LAYER_STATE_FIELDS = (*LAYER_FIELDS, "_set")
+NEW_FIELDS = GUM_FIELDS + LAYER_STATE_FIELDS
 
 
 def tensor_bytes(sheet: Sheet, leaving_out: tuple[str, ...] = ()) -> int:
@@ -257,7 +258,7 @@ def sizes() -> Measurements:
             ("", ()),
             ("_kept", NEW_FIELDS),
             ("_without_gum", GUM_FIELDS),
-            ("_without_layers", LAYER_FIELDS),
+            ("_without_layers", LAYER_STATE_FIELDS),
         ):
             out[f"sheet_bytes_{label}{suffix}"] = tensor_bytes(sheet, leaving_out)
             out[f"state_bytes_{label}{suffix}"] = state_bytes(sheet, leaving_out)
@@ -282,7 +283,7 @@ def session_state() -> Measurements:
         )
         saved = torch.load(session.directory / "state.pt", weights_only=True)
         for state in saved["sheets"].values():
-            for name in LAYER_FIELDS:
+            for name in LAYER_STATE_FIELDS:
                 state.pop(name, None)
         return {
             "session_state_bytes": (session.directory / "state.pt").stat().st_size,
@@ -463,6 +464,7 @@ def main() -> None:
     record = {
         "revision": revision(),
         "engine_digest": engine_digest(),
+        **engine_origin(),
         "engine_version": watercolor.ENGINE_VERSION,
         "device": torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu",
         "torch": torch.__version__,
@@ -475,7 +477,6 @@ def main() -> None:
         "timings": seconds,
     }
     measurements = {"benchmark": metrics}
-    gates = [gate for gate in GATES if gate.kind == "performance"]
     baseline = load_baseline(arguments.baseline)
     if arguments.record:
         # The benchmark is one scenario measured in sections, so on the engine of the baseline the sections run
@@ -485,6 +486,16 @@ def main() -> None:
         reference = measurements
     else:
         reference = baseline.get("measurements", {})
+    # Only the gates whose measurements this run holds are judged: a run of some sections says nothing of the rest.
+    performance = [gate for gate in GATES if gate.kind == "performance"]
+    gates = [
+        gate
+        for gate in performance
+        if all(check.metric.removeprefix("benchmark.") in measurements["benchmark"] for check in gate.checks)
+    ]
+    unmeasured = [gate.id for gate in performance if gate not in gates]
+    if unmeasured:
+        print(f"not measured in this run: {', '.join(unmeasured)}", file=sys.stderr)
     outcome = evaluate(gates, measurements, reference)
     record |= {"measurements": measurements, "gates": outcome}
     for gate in gates:

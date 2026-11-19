@@ -1,6 +1,8 @@
 {
  "revision": "b254485d2bb8f081434a50688318215f8eeba061",
  "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
+ "engine_revision": "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84",
+ "engine_modified": false,
  "engine_version": "0.8.0",
  "device": "cuda",
  "torch": "2.15.0+cu132",
@@ -709,7 +711,7 @@
    ],
    "unsound_cells": 0
   },
-  "hygiene": {
+  "source_checks": {
    "lint_clean": true,
    "format_clean": true,
    "types_clean": true,
@@ -1414,14 +1416,14 @@
     }
    ]
   },
-  "C-hygiene": {
+  "C-source-checks": {
    "status": "pass",
    "item": "global",
    "kind": "compatibility",
    "expected_on_baseline": "pass",
    "checks": [
     {
-     "metric": "hygiene.lint_clean",
+     "metric": "source_checks.lint_clean",
      "op": "==",
      "bound": true,
      "scale": "absolute",
@@ -1430,7 +1432,7 @@
      "passed": true
     },
     {
-     "metric": "hygiene.format_clean",
+     "metric": "source_checks.format_clean",
      "op": "==",
      "bound": true,
      "scale": "absolute",
@@ -1439,7 +1441,7 @@
      "passed": true
     },
     {
-     "metric": "hygiene.types_clean",
+     "metric": "source_checks.types_clean",
      "op": "==",
      "bound": true,
      "scale": "absolute",
@@ -1448,7 +1450,7 @@
      "passed": true
     },
     {
-     "metric": "hygiene.environment_reads",
+     "metric": "source_checks.environment_reads",
      "op": "==",
      "bound": 0,
      "scale": "absolute",
