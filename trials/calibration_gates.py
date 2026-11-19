@@ -63,32 +63,49 @@ GATES: tuple[Gate, ...] = (
         id="I-water-conservation",
         item="global",
         kind="invariant",
-        metric="Relative change in total water with evaporation and absorption off",
+        metric="Relative change in the water of the film with evaporation and absorption off; and relative change in "
+        "all the water (film, paper and masking fluid) with only evaporation off, while the film soaks into the "
+        "paper and spreads through it",
         scenario="Three mop-16 strokes of ultramarine 0.05 and, separately, 4.0 (strong paint thickens the film), "
-        "then a wait of 5 s (test_flow_alone_conserves_water)",
+        "then a wait of 5 s (test_flow_alone_conserves_water); three mop-16 strokes of ultramarine 0.6 with the "
+        "film's and the paper's evaporation off, then a wait of 30 s, summed in double precision",
         comparator="<=",
-        threshold="1e-4 for each",
-        source="Conservation law; existing test. Flow I1 measured 0.0 for h3f; the binder repeated it with strong paint.",
+        threshold="1e-4 for each film; 1e-6 for all the water",
+        source="Conservation law; existing test. Flow I1 measured 0.0 for h3f; the binder repeated it with strong "
+        "paint. All the water: 0.8.0 1.3e-9 while 24% of the film soaks in, so 1e-6 leaves float32 rounding a "
+        "margin of several hundred.",
         checks=(
             Check("flow_conserves_water.water_change_0.05", "<=", 1e-4),
             Check("flow_conserves_water.water_change_4", "<=", 1e-4),
+            Check("flow_conserves_water.water_and_paper_change", "<=", 1e-6),
         ),
         merged_from=("flow_exponent:I1-water-conservation", "binder:I2-water-and-pigment-conserved (water)"),
+        correction="The reviewed gates count only the film, with absorption off, so water lost or made between the "
+        "film and the paper, or in the paper's own spreading, went unseen; all the water is now counted with the "
+        "exchange running.",
     ),
     Gate(
         id="I-pigment-conservation",
         item="global",
         kind="invariant",
         metric="Relative change of pigment: on the sheet as a deep puddle drains; on the sheet plus in the brush as a "
-        "nearly empty brush works wet paint; and of suspended + deposited + mask_pigment over a brush-free advance",
+        "nearly empty brush works wet paint, and as brushes lift paint; and of suspended + deposited + mask_pigment "
+        "over a brush-free advance",
         scenario="test_pigment_is_conserved_as_a_deep_puddle_drains; test_brush_and_sheet_together_conserve_pigment; "
-        "the 48 px layered scene (umber band, white line, phthalo glaze, part dried) advanced 30 s",
+        "a damp flat 8 passed three times over two dried flat-12 strokes of quinacridone rose 1.0 and left 10 s, and "
+        "a drained round 3 drawn twice through a mop wash of ultramarine 1.5 at film 0.12 (no tissue); the 48 px "
+        "layered scene (umber band, white line, phthalo glaze, part dried) advanced 30 s",
         comparator="<=",
-        threshold="1e-4 (puddle); 0.01 (brush and sheet); 1e-6 (brush-free advance, in double precision)",
-        source="Conservation of pigment; the existing tests' thresholds; ordered INV-1 measured 8.4e-9.",
+        threshold="1e-4 (puddle); 0.01 (brush and sheet); 1e-4 (lifting, in double precision); 1e-6 (brush-free "
+        "advance, in double precision)",
+        source="Conservation of pigment; the existing tests' thresholds; ordered INV-1 measured 8.4e-9. Lifting: the "
+        "bound of test_scrubbing_paint_that_hardly_stains_lifts_no_more_than_lies_on_the_paper; 0.8.0 3.7e-9 and "
+        "2.3e-10.",
         checks=(
             Check("puddle_drains.pigment_change", "<=", 1e-4),
             Check("brush_and_sheet.relative_change", "<=", 0.01),
+            Check("lift_conserves_pigment.dried_change", "<=", 1e-4),
+            Check("lift_conserves_pigment.wet_change", "<=", 1e-4),
             Check("advance_conserves_pigment.pigment_change", "<=", 1e-6),
         ),
         merged_from=(
@@ -96,6 +113,9 @@ GATES: tuple[Gate, ...] = (
             "binder:I2-water-and-pigment-conserved (pigment)",
             "ordered_layers:INV-1-conservation",
         ),
+        correction="No reviewed gate counted pigment through a lifting stroke, the path where the hairs loosen and "
+        "wipe up settled paint: it is where the scrub fault made pigment from nothing, and the path the binder "
+        "changes (P2, P3). It is now counted, sheet and brush together.",
     ),
     Gate(
         id="I-sound-state",
@@ -151,15 +171,22 @@ GATES: tuple[Gate, ...] = (
         "alone and the same sheet in a batch of two; relative mean difference of water, suspended, deposited "
         "(and gum) for the pool and dab of tests/test_together.py",
         scenario="The determinism script on seeds 3 and 4 through SharedClock and SheetBatch against each alone; "
-        "the pool and dab on seeds 1 and 2 at 96 px",
+        "the pool and dab on seeds 1 and 2 at 96 px; the 48 px layered scene (umber band dried, white line over it "
+        "dried, phthalo glaze across both) on seeds 5 and 6, the second begun 30 s late, each compared as its "
+        "script ends",
         comparator="<= / <",
-        threshold="1e-6 (largest absolute); 1e-3 (relative mean, pool and dab)",
+        threshold="1e-6 (largest absolute, both); 1e-3 (relative mean, pool and dab)",
         source="Engine contract of together.py and tests/test_together.py. Measured 0.0 for h3f and for the "
-        "layered prototype.",
+        "layered prototype. 0.8.0 gives 0.0 for the layered scene begun late.",
         checks=(
             Check("determinism_and_batching.batched_difference", "<=", 1e-6),
             Check("determinism_and_batching.pool_batched_relative_difference", "<", 1e-3),
+            Check("layered_batching.difference", "<=", 1e-6),
         ),
+        correction="The merged scenarios lay no paint over set paint, so no layer opens in them and the layer fields "
+        "of ordered INV-4 were compared only as zeros; and their sheets are always in the same stage of drying. The "
+        "layered scene of INV-4 is added, with its two sheets in different stages, the case where a step taken for "
+        "one sheet's sake could change the other's.",
         merged_from=(
             "flow_exponent:I5-batched-equals-single",
             "binder:I6-batched-equals-single",
@@ -194,15 +221,20 @@ GATES: tuple[Gate, ...] = (
         kind="invariant",
         metric="Largest change in value of dried white-over-dark columns after each of two clear-water wettings",
         scenario="rewet_still: white 6.0 columns over the dried dark band, dried; resolubility 0 and water 0.3 set on "
-        "the band, so deposits move by less than 1e-8; wait 2 s and dry, twice",
+        "the band, so deposits move by no more than rounding; wait 2 s and dry, twice",
         comparator="<=",
-        threshold="1e-3 (and deposits moved by at most 1e-8, the scenario's premise)",
-        source="Bookkeeping identity: paint that has not moved looks the same. Measured: 0.8.0 0, prototype 0.",
+        threshold="1e-3 (and deposits moved by at most 1e-5, the scenario's premise)",
+        source="Bookkeeping identity: paint that has not moved looks the same. Measured: 0.8.0 0, prototype 0. The "
+        "premise: a deposit of 1e-5 changes the value by about 1e-5, a hundredth of the bound, so paint that moved "
+        "that little cannot account for a failure.",
         checks=(
             Check("rewet_without_moving_paint.value_change", "<=", 1e-3),
-            Check("rewet_without_moving_paint.deposit_moved", "<=", 1e-8),
+            Check("rewet_without_moving_paint.deposit_moved", "<=", 1e-5),
         ),
         merged_from=("ordered_layers:INV-6-no-layer-without-new-paint",),
+        correction="The premise was 'deposits moved by at most 1e-8', which 0.8.0 meets with 7.7e-9 on paper seed "
+        "3 but not on seed 4 (2.4e-8) or seed 5 (1.9e-7): rounding, appearing in cells that held no paint, at a "
+        "level any change to the engine's arithmetic can cross. It is now 1e-5, still a hundredth of the value bound.",
     ),
     # ------------------------------------------------------------------------------------------ global: compatibility
     Gate(
@@ -243,14 +275,18 @@ GATES: tuple[Gate, ...] = (
         item="global",
         kind="compatibility",
         metric="session.py, cli.py, studio.py and brushes.py; the session's action kinds and its verdict on "
-        "reference passes; the CLI arguments; Sheet.STATE_FIELDS; the SimulationParameters field names",
-        scenario="Static comparison against the 0.8.0 package, and Session._validate of 13 reference passes",
+        "reference passes; the CLI arguments; Sheet.STATE_FIELDS; the SimulationParameters field names and "
+        "defaults; every property of every paint; the paper made from a seed",
+        scenario="Static comparison against the 0.8.0 package, Session._validate of 13 reference passes, and a "
+        "64x96 paper (seed 3) generated by both on the CPU",
         comparator="==",
         threshold="Files byte-identical; actions, verdicts and arguments identical; every 0.8.0 state field kept; "
-        "new state fields only gum, underlying and lowest, each optional on load; parameter names identical",
+        "new state fields only gum, underlying and lowest, each optional on load; parameter names identical; every "
+        "0.8.0 parameter default, paint property and paper field identical",
         source="Compatibility rule: no new or changed action, and a 0.8.0 painting loads. The approved designs add "
         "the gum field (binder) and the underlying and lowest layers (ordered layers), and no age state "
-        "(Daniels and Shashoua 1993: insolubility appears only after ageing at 60-100 C).",
+        "(Daniels and Shashoua 1993: insolubility appears only after ageing at 60-100 C). None of them changes a "
+        "paint, the paper or a parameter's default, so a gate met by retuning one is met for the wrong reason.",
         checks=(
             Check("vocabulary.changed_files", "==", ()),
             Check("vocabulary.actions_equal", "==", True),
@@ -260,6 +296,9 @@ GATES: tuple[Gate, ...] = (
             Check("vocabulary.new_state_fields_approved", "==", True),
             Check("vocabulary.new_state_fields_optional", "==", True),
             Check("vocabulary.parameters_equal", "==", True),
+            Check("vocabulary.parameter_defaults_kept", "==", True),
+            Check("vocabulary.pigments_kept", "==", True),
+            Check("vocabulary.paper_kept", "==", True),
         ),
         merged_from=(
             "flow_exponent:C2-vocabulary-unchanged",
@@ -269,7 +308,10 @@ GATES: tuple[Gate, ...] = (
         ),
         correction="The flow gate asked for Sheet.STATE_FIELDS identical to 0.8.0 and the binder gate for no field "
         "beyond 0.8.0's but gum; in one pull request with all three items these become: new fields only those the "
-        "approved items declare (gum, underlying, lowest).",
+        "approved items declare (gum, underlying, lowest). Added in audit: paint, paper and parameter defaults "
+        "unchanged. Several gates have absolute thresholds that a retuned constant meets without the mechanism: "
+        "PHY-6 (0.8.0 0.386 and 0.475 against 0.50 and 0.60) and COMP-2-white-over-continued-painting (0.180 "
+        "against 0.2) by a more opaque white, regression gates by a re-set evaporation or flow rate.",
     ),
     Gate(
         id="C-hygiene",
@@ -311,20 +353,25 @@ GATES: tuple[Gate, ...] = (
         id="R-edge-darkening",
         item="global",
         kind="regression",
-        metric="Darkest 6-row band at the top edge of a dried stroke over the mean of rows 12-20 (edge ratio); and "
-        "the strongest paint just inside the edges of a dried flat wash over its interior",
+        metric="Darkest row of the 6 rows inward from the top edge of a dried stroke, the edge found as the first row "
+        "whose paint (columns 36-92) is at least 5% of the middle's, over the mean of rows 60-67 about the stroke's "
+        "path (edge ratio); the same at the bottom edge (far edge ratio); and the strongest paint just inside the "
+        "edges of a dried flat wash over its interior",
         scenario="Flat 14, water 1.0, stroke from (20,64) to (108,64) at 110 px/s, dried, for french ultramarine and "
         "quinacridone rose at 0.5, 1 and 4; the ordered study's flat wash (flat-12 rows of ultramarine 0.7)",
         comparator=">= / within / decreasing",
-        threshold="Every edge ratio >= 1.15; ultramarine 1.0 within +/-15% of 0.8.0 (2.03); rose 1.0 within "
-        "+/-50% (2.22); falling strictly with strength for each pigment; flat wash edge ratio >= 1.15",
-        source="test_stroke_on_dry_paper_dries_darker_at_its_edge; Deegan 1997, Curtis 1997; Gonzalez-Gutierrez "
-        "et al. 2019 (deposits saturate at high concentration); engineering budgets around 0.8.0.",
+        threshold="Every edge ratio, at both edges, >= 1.15; ultramarine 1.0 within +/-15% of 0.8.0 (2.03); rose 1.0 "
+        "within +/-50% (2.22); falling strictly with strength for each pigment; flat wash edge ratio >= 1.15",
+        source="test_stroke_on_dry_paper_dries_darker_at_its_edge; Deegan 1997, Curtis 1997 (every edge of a wash "
+        "drying on dry paper darkens); Gonzalez-Gutierrez et al. 2019 (deposits saturate at high concentration); "
+        "engineering budgets around 0.8.0. 0.8.0's far edges: ultramarine 1.65/1.53/1.28, rose 1.70 at 1.0.",
         checks=(
             Check("edge_french_ultramarine_1.edge_ratio", ">=", 1.15),
             within("edge_french_ultramarine_1.edge_ratio", 0.85, 1.15),
             Check("edges.french_ultramarine", ">=", 1.15),
             Check("edges.quinacridone_rose", ">=", 1.15),
+            Check("edges.french_ultramarine_far", ">=", 1.15),
+            Check("edges.quinacridone_rose_far", ">=", 1.15),
             Check("edges.french_ultramarine", "decreasing"),
             Check("edges.quinacridone_rose", "decreasing"),
             within("edge_quinacridone_rose_1.edge_ratio", 0.5, 1.5),
@@ -337,6 +384,11 @@ GATES: tuple[Gate, ...] = (
             "binder:R3-edge-look-band",
             "ordered_layers:REG-5-flat-wash (edge)",
         ),
+        correction="The reviewed metric, carried from the test, took the darkest of rows 48-53 whatever the stroke "
+        "did: on 0.8.0 the stroke's paint begins at row 50 and its rim lies at row 51, so a flow that spread the "
+        "stroke three rows further would leave the rim outside the band and read as a loss of edge darkening. The "
+        "edge is now found from the paint, which gives the same values on 0.8.0, and the bottom edge is held to the "
+        "same floor.",
     ),
     Gate(
         id="R-stroke-width",
@@ -786,15 +838,19 @@ GATES: tuple[Gate, ...] = (
         id="P3-memory-checkpoint",
         item="flow_exponent",
         kind="performance",
-        metric="Per-sheet tensor bytes and torch.save size of Sheet.state()",
+        metric="Per-sheet tensor bytes and torch.save size of Sheet.state(), leaving out the fields the binder (gum) "
+        "and the ordered layers (underlying, lowest, _set) add",
         scenario="256 px sheet with 3 pigments (cadmium red, ultramarine, burnt umber)",
         comparator="==",
         threshold="Equal to 0.8.0 (5,242,916 and 3,673,037 bytes)",
         source="No new state.",
         checks=(
-            Check("benchmark.sheet_bytes_256_3", "near", 0),
-            Check("benchmark.state_bytes_256_3", "near", 0),
+            Check("benchmark.sheet_bytes_256_3_kept", "near", 0),
+            Check("benchmark.state_bytes_256_3_kept", "near", 0),
         ),
+        correction="Measured over the sheet in all, the flow item's 'no new state' fails as soon as the binder or "
+        "the layers add their approved fields in the same pull request. Each item's memory gate now counts every "
+        "field but those the other items add (X3, X4, PERF-5 likewise).",
     ),
     Gate(
         id="P4-added-test-time",
@@ -872,7 +928,8 @@ GATES: tuple[Gate, ...] = (
         id="P4-coffee-ring-weakens-with-gum",
         item="binder",
         kind="physical",
-        metric="Edge ratio of the dried edge stroke with its gum multiplied by k in {0, 1, 3} at once after the stroke",
+        metric="Edge ratio of the dried edge stroke (rim sought inward from the edge found in the paint, as in "
+        "R-edge-darkening) with its gum multiplied by k in {0, 1, 3} at once after the stroke",
         scenario="Flat 14, french ultramarine 1.0, water 1.0, stroke from (20,64) to (108,64) at 110 px/s; Sheet.gum "
         "multiplied by k; dried",
         comparator="strictly decreasing in k",
@@ -986,26 +1043,32 @@ GATES: tuple[Gate, ...] = (
         id="X3-memory",
         item="binder",
         kind="performance",
-        metric="Tensor bytes added per sheet, and peak transient allocation during a wet advance, over 0.8.0",
-        scenario="benchmark.py, 770x540, 6 pigments (torch.cuda.memory_allocated and max_memory_allocated)",
+        metric="Tensor bytes added per sheet, leaving out the ordered layers' fields, and peak transient allocation "
+        "during a wet advance, over 0.8.0",
+        scenario="benchmark.py: the tensors of a 770x540 sheet with 6 pigments; the peak by "
+        "torch.cuda.max_memory_allocated during a wet advance",
         comparator="<=",
         threshold="4*H*W + 1024 bytes added; peak <= 1.10 x baseline",
         source="Stated engineering budget (one float32 field).",
         checks=(
-            Check("benchmark.sheet_bytes", "<=", 4 * 540 * 770 + 1024, "baseline_plus"),
+            Check("benchmark.sheet_bytes_770_6_without_layers", "<=", 4 * 540 * 770 + 1024, "baseline_plus"),
             Check("benchmark.peak_wet_bytes", "<=", 1.10, "baseline"),
         ),
+        correction="The bytes added are counted leaving out the ordered layers' fields (underlying, lowest, _set), "
+        "which would otherwise exceed this allowance in the one pull request; peak transient memory is the whole "
+        "engine's.",
     ),
     Gate(
         id="X4-checkpoint-size",
         item="binder",
         kind="performance",
-        metric="state.pt bytes, engine minus 0.8.0, for the same 64 px painting",
+        metric="state.pt bytes, engine minus 0.8.0, for the same 64 px painting, leaving out the ordered layers' fields",
         scenario="Session.create at 64 px, two strokes, a wait",
         comparator="<=",
         threshold="4*H*W + 1024 bytes per sheet",
         source="Stated engineering budget.",
-        checks=(Check("benchmark.session_state_bytes", "<=", 4 * 64 * 64 + 1024, "baseline_plus"),),
+        checks=(Check("benchmark.session_state_bytes_without_layers", "<=", 4 * 64 * 64 + 1024, "baseline_plus"),),
+        correction="The saved state is counted leaving out the ordered layers' fields, for the reason given on X3.",
     ),
     Gate(
         id="X5-stroke-cost",
@@ -1107,6 +1170,7 @@ GATES: tuple[Gate, ...] = (
         "Columns laid after: share >= 0.9. Value non-decreasing across the transition.",
         source="Painting practice and gum softness (handprint; AIC); the set criterion is the engine's own dry stage.",
         checks=(
+            Check("set_time.damp_moment_reached", "==", True),
             Check("set_time.unset_share_largest", "<=", 0.05),
             Check("set_time.unset_picture_error_largest", "<=", 1e-4),
             Check("set_time.set_share_least", ">=", 0.9),
@@ -1114,7 +1178,10 @@ GATES: tuple[Gate, ...] = (
         ),
         expected_on_baseline="fail",
         correction="The review laid the columns after fixed waits (5, 60, 60 and 400 s); here the moments are found "
-        "by the readings the gate names, in 1 s looks, and each column is classed set or unset by its reading.",
+        "by the readings the gate names, in 1 s looks, and each column is classed set or unset by its reading. "
+        "Added in audit: the second column must land in the damp moment it is meant to test (film gone, paper "
+        "still above damp_threshold; 0.8.0 reads 0.613 against 0.6), since a column classed set there would leave "
+        "the gate passing without testing that moment.",
     ),
     Gate(
         id="PHY-6-fine-white-line",
@@ -1247,7 +1314,7 @@ GATES: tuple[Gate, ...] = (
             Check("benchmark.wet_process_seconds_per_second", "<=", 1.05, "baseline"),
             Check("benchmark.wet_seconds_per_second", "<=", 1.10, "baseline"),
         ),
-        correction="Measured by benchmark.py on the binding 770x540 sheet against the baseline recorded alone on 0.8.0, not with both engines interleaved in one process at 256 px; kernel count and device time come from torch.profiler over one simulated second.",
+        correction="Measured by benchmark.py on the binding 770x540 sheet against the baseline recorded alone on 0.8.0, not with both engines interleaved in one process at 256 px; kernel count and device time come from torch.profiler over one simulated second, process CPU time is the median of the repeats.",
     ),
     Gate(
         id="PERF-2-dry",
@@ -1263,7 +1330,7 @@ GATES: tuple[Gate, ...] = (
             Check("benchmark.dry_device_seconds_per_second", "<=", 1.10, "baseline"),
             Check("benchmark.dry_process_seconds_per_second", "<=", 1.10, "baseline"),
         ),
-        correction="Measured by benchmark.py on the binding 770x540 sheet against the baseline recorded alone on 0.8.0, not with both engines interleaved in one process at 256 px; over ten simulated seconds of coarse steps.",
+        correction="Measured by benchmark.py on the binding 770x540 sheet against the baseline recorded alone on 0.8.0, not with both engines interleaved in one process at 256 px; kernels and device time over ten simulated seconds of coarse steps; process CPU time is the median of the repeats, each summed over five advances of 40 s, since one advance of 10 s takes 14 ms of processor time and a single reading of it is mostly noise.",
     ),
     Gate(
         id="PERF-3-end-to-end",
@@ -1298,19 +1365,22 @@ GATES: tuple[Gate, ...] = (
         id="PERF-5-memory-and-state",
         item="ordered_layers",
         kind="performance",
-        metric="Extra per-sheet tensor bytes; extra state.pt bytes",
+        metric="Extra per-sheet tensor bytes; extra state.pt bytes; each leaving out the binder's gum field",
         scenario="Sheets of 256x256x6, 770x540x6 and 770x540x13",
         comparator="<=",
         threshold="extra memory <= 2*P*H*W*4 + H*W bytes; extra state <= 2*P*H*W*4 + 64 KiB",
         source="Analytic size of the design (two float32 pigment fields and a flag).",
         checks=(
-            Check("benchmark.sheet_bytes_256_6", "<=", 2 * 6 * 256 * 256 * 4 + 256 * 256, "baseline_plus"),
-            Check("benchmark.state_bytes_256_6", "<=", 2 * 6 * 256 * 256 * 4 + 65536, "baseline_plus"),
-            Check("benchmark.sheet_bytes_770_6", "<=", 2 * 6 * 540 * 770 * 4 + 540 * 770, "baseline_plus"),
-            Check("benchmark.state_bytes_770_6", "<=", 2 * 6 * 540 * 770 * 4 + 65536, "baseline_plus"),
-            Check("benchmark.sheet_bytes_770_13", "<=", 2 * 13 * 540 * 770 * 4 + 540 * 770, "baseline_plus"),
-            Check("benchmark.state_bytes_770_13", "<=", 2 * 13 * 540 * 770 * 4 + 65536, "baseline_plus"),
+            Check("benchmark.sheet_bytes_256_6_without_gum", "<=", 2 * 6 * 256 * 256 * 4 + 256 * 256, "baseline_plus"),
+            Check("benchmark.state_bytes_256_6_without_gum", "<=", 2 * 6 * 256 * 256 * 4 + 65536, "baseline_plus"),
+            Check("benchmark.sheet_bytes_770_6_without_gum", "<=", 2 * 6 * 540 * 770 * 4 + 540 * 770, "baseline_plus"),
+            Check("benchmark.state_bytes_770_6_without_gum", "<=", 2 * 6 * 540 * 770 * 4 + 65536, "baseline_plus"),
+            Check(
+                "benchmark.sheet_bytes_770_13_without_gum", "<=", 2 * 13 * 540 * 770 * 4 + 540 * 770, "baseline_plus"
+            ),
+            Check("benchmark.state_bytes_770_13_without_gum", "<=", 2 * 13 * 540 * 770 * 4 + 65536, "baseline_plus"),
         ),
+        correction="Counted leaving out the binder's gum field, for the reason given on P3.",
     ),
 )
 

@@ -90,6 +90,12 @@ def scenario_of(metric: str) -> str:
 
 
 def required_scenarios(gates: Iterable[Gate]) -> set[str]:
+    """The scenarios the gates measure, with every painting of each family they touch.
+
+    What a painting measures in a batch can depend, by rounding, on the paintings beside it: on 0.8.0 the commute
+    paintings differ by 3e-8 between the standard run and a run of the global gates alone. Families are therefore
+    always painted whole, so that any selection of gates measures exactly what the baseline did.
+    """
     needed: set[str] = set()
     for gate in gates:
         for check in gate.checks:
@@ -100,6 +106,8 @@ def required_scenarios(gates: Iterable[Gate]) -> set[str]:
                 needed.add(name)
             else:
                 raise KeyError(f"gate {gate.id} measures {check.metric}, which no scenario provides")
+    families = {PAINTINGS[name].family for name in needed if name in PAINTINGS}
+    needed.update(name for name, painting in PAINTINGS.items() if painting.family in families)
     return needed
 
 

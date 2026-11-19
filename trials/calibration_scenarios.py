@@ -304,9 +304,15 @@ def total_of(sheet: Sheet, index: int) -> float:
 # ------------------------------------------------------------------------------------------------ paintings: one layer
 
 
+EDGE_BAND_ROWS = 6  # rows inward from the edge of a dried stroke in which its darker rim is sought
+EDGE_PAINTED_SHARE = 0.05  # a row belongs to the stroke where its paint is at least this share of the middle's
+
+
 def edge_stroke(name: str, strength: float, gum_scale: float | None = None) -> Callable[[Studio], Measurements]:
     """A flat-14 stroke on dry paper, dried: the darker edge of a wash and the width of the stroke.
 
+    The middle of the stroke lies about its path at y = 64 however far the wash spreads, but its edges move with
+    the flow, so each edge is found from the paint itself and its rim is sought in the rows just inside it.
     With a gum scale, the gum the stroke laid is multiplied by it at once, before the stroke dries.
     """
     index = PALETTE.index(name)
@@ -320,10 +326,15 @@ def edge_stroke(name: str, strength: float, gum_scale: float | None = None) -> C
             gum.mul_(gum_scale)
         drying = studio.dry()
         deposited = sheet.deposited[index]
-        across = deposited[48:80, 36:92].mean(dim=1)
+        across = deposited[:, 36:92].mean(dim=1)
+        middle = float(across[60:68].mean())
+        stroke_rows = (across > EDGE_PAINTED_SHARE * middle).nonzero().flatten()
+        top, bottom = int(stroke_rows.min()), int(stroke_rows.max())
         painted = (deposited.sum(dim=1) > 0).nonzero()
         return {
-            "edge_ratio": float(across[:6].max()) / float(across[12:20].mean()),
+            "edge_ratio": float(across[top : top + EDGE_BAND_ROWS].max()) / middle,
+            "far_edge_ratio": float(across[bottom - EDGE_BAND_ROWS + 1 : bottom + 1].max()) / middle,
+            "edge_rows": [top, bottom],
             "painted_rows": int(painted.max() - painted.min() + 1),
             "drying_seconds": drying,
             "gum_present": has_gum(sheet),
@@ -963,6 +974,9 @@ def set_time(studio: Studio) -> Measurements:
         "set_columns": settled,
         "dark_beneath_share": shares,
         "over_band": pictured,
+        # The second column is meant to land after the film has gone but before the paper has set; on 0.8.0 the
+        # paper reads 0.613 against a threshold of 0.6 there, so a change in drying could carry it past that moment.
+        "damp_moment_reached": not moments[1]["set"] and moments[1]["film"] <= p.wet_threshold,
         "unset_share_largest": max((shares[i] for i in unset), default=0.0),
         "unset_picture_error_largest": max((abs(pictured[i] - summed[i]) for i in unset), default=0.0),
         "set_share_least": min((shares[i] for i in settled), default=None),
@@ -1281,9 +1295,16 @@ def puddle_drains() -> Measurements:
     return {"pigment_change": abs(after - before) / before, "unsound_cells": unsound_cells(sheet)}
 
 
+def nothing_leaves(parameters: SimulationParameters) -> SimulationParameters:
+    """Evaporation from the film and from the paper switched off; water still soaks from the film into the paper."""
+    return dataclasses.replace(parameters, evaporation_rate=0.0, paper_evaporation_rate=0.0)
+
+
 def flow_conserves_water() -> Measurements:
     """Flow alone, with nothing evaporating or soaking in, for 5 s after a mop wash: the water on the sheet.
-    Once with pale paint and once with strong paint, which thickens the film."""
+    Once with pale paint and once with strong paint, which thickens the film. Then, with only evaporation off, the
+    same wash left 30 s while it soaks into the paper and spreads through it: the water in the film, in the paper
+    and on any masking fluid together, in double precision."""
     out: Measurements = {}
     for strength in (0.05, 4.0):
         studio = new_studio(adjust=nothing_soaks_away)
@@ -1292,6 +1313,17 @@ def flow_conserves_water() -> Measurements:
         before = float(sheet.water.sum())
         studio.wait(5)
         out[f"water_change_{strength:g}"] = abs(float(sheet.water.sum()) - before) / before
+    studio = new_studio(adjust=nothing_leaves)
+    sheet = sheet_of(studio)
+
+    def all_water() -> float:
+        return float(sheet.water.double().sum() + sheet.saturation.double().sum() + sheet.mask_water.double().sum())
+
+    lay_rows(studio, "mop", 16, {"french_ultramarine": 0.6})
+    before = all_water()
+    studio.wait(30)
+    out["water_and_paper_change"] = abs(all_water() - before) / before
+    out["soaked_into_paper"] = float(sheet.saturation.double().sum()) / before
     return out
 
 
@@ -1491,6 +1523,93 @@ def layered_scene(studio: Studio) -> None:
 
 
 SCENE_PALETTE = ("burnt_umber", "opaque_white", "phthalo_green")
+
+
+def later_scene(studio: Studio) -> None:
+    """The layered scene begun 30 s late."""
+    studio.wait(30.0)
+    layered_scene(studio)
+
+
+def layered_batching() -> Measurements:
+    """The layered scene painted on two sheets of one batch, the second begun 30 s after the first, so that each is
+    set or drying while the other holds water, against each painted alone. Each sheet is compared as its own script
+    ends, since the batch carries a finished sheet on: every state field, the paint layers among them, and the
+    value view."""
+    scripts = {5: layered_scene, 6: later_scene}
+    finished: dict[int, Sheet] = {}
+
+    def painter(seed: int, studio: Studio) -> Callable[[], None]:
+        def work() -> None:
+            scripts[seed](studio)
+            kept = new_sheet(48, 48, seed, palette=SCENE_PALETTE)
+            kept.load_state(sheet_of(studio).state())
+            finished[seed] = kept
+
+        return work
+
+    sheets = {seed: new_sheet(48, 48, seed, palette=SCENE_PALETTE) for seed in scripts}
+    clock = SharedClock(SheetBatch(list(sheets.values())))
+    clock.run(
+        [
+            painter(seed, Studio({"painting": sheet}, list(SCENE_PALETTE), shared_clock=clock))
+            for seed, sheet in sheets.items()
+        ]
+    )
+    difference = 0.0
+    for seed, script in scripts.items():
+        studio = new_studio(seed, 48, palette=SCENE_PALETTE)
+        script(studio)
+        difference = max(difference, state_difference(finished[seed], sheet_of(studio)))
+    return {"difference": difference, "unsound_cells": sum(unsound_cells(sheet) for sheet in finished.values())}
+
+
+def lift_conserves_pigment() -> Measurements:
+    """Pigment on the sheet plus in the brush while brushes lift paint, which is the path the hairs' scrubbing and
+    wiping take: a damp flat brush passed three times over two dried strokes of quinacridone rose 1.0 and left 10 s,
+    and a drained round brush drawn twice through a wash of ultramarine 1.5 losing its shine. No tissue is used,
+    since tissue takes paint away."""
+
+    def in_brush(studio: Studio) -> float:
+        brush = studio.brush
+        assert brush is not None
+        return sum(brush.concentration) * brush.reservoir
+
+    def held(studio: Studio) -> float:
+        sheet = sheet_of(studio)
+        return float((sheet.suspended + sheet.deposited).double().sum()) + in_brush(studio)
+
+    studio = new_studio()
+    for y in (56, 72):
+        studio.load_brush("flat", 12, {"quinacridone_rose": 1.0}, 1.0)
+        studio.stroke("painting", [[24, y, 0.9], [104, y, 0.9]], 120, smooth=False)
+    studio.dry()
+    studio.load_brush("flat", 8, {}, 0.8)
+    before = held(studio)
+    for _ in range(3):
+        studio.stroke("painting", [[30, 64], [98, 64]], 80, smooth=False)
+    studio.wait(10)
+    dried_change = abs(held(studio) - before) / before
+    dried_taken = in_brush(studio)
+    dried_unsound = unsound_cells(sheet_of(studio))
+
+    studio = new_studio()
+    lay_rows(studio, "mop", 16, {"french_ultramarine": 1.5})
+    studio.wait_for_film("painting", 64, 64, 0.12, 400)
+    wet_change = 0.0
+    for _ in range(2):
+        studio.load_brush("round", 3, {}, 1.0)
+        studio.drain(0.2)
+        before = held(studio)
+        studio.stroke("painting", [[64, 36, 0.8], [64, 92, 0.8]], 120, smooth=False)
+        wet_change = max(wet_change, abs(held(studio) - before) / before)
+    return {
+        "dried_change": dried_change,
+        "dried_taken": dried_taken,
+        "wet_change": wet_change,
+        "wet_taken": in_brush(studio),
+        "unsound_cells": dried_unsound + unsound_cells(sheet_of(studio)),
+    }
 
 
 def advance_conserves_pigment() -> Measurements:
@@ -1842,7 +1961,32 @@ def vocabulary() -> Measurements:
     new_fields = [name for name in Sheet.STATE_FIELDS if name not in old_fields]
     parameter_names = [field.name for field in dataclasses.fields(SimulationParameters)]
     old_parameter_names = [field.name for field in dataclasses.fields(old_simulation.SimulationParameters)]
+    # The constants a gate could be met by retuning, rather than by the mechanism it asks for: every property of
+    # every 0.8.0 paint, the default of every 0.8.0 parameter, and the paper made from a seed.
+    missing = object()
+    old_pigments = reference_module("pigments").PIGMENTS
+    pigments_kept = all(
+        name in PIGMENTS
+        and all(
+            getattr(PIGMENTS[name], field.name, missing) == getattr(old, field.name)
+            for field in dataclasses.fields(old)
+        )
+        for name, old in old_pigments.items()
+    )
+    old_defaults = dataclasses.asdict(old_simulation.SimulationParameters())
+    defaults = dataclasses.asdict(SimulationParameters())
+    defaults_kept = all(defaults.get(name, missing) == value for name, value in old_defaults.items())
+    cpu = torch.device("cpu")
+    old_paper = reference_module("paper").generate_paper(64, 96, 3, cpu)
+    paper = generate_paper(64, 96, 3, cpu)
+    paper_kept = all(
+        torch.equal(getattr(paper, field.name), getattr(old_paper, field.name))
+        for field in dataclasses.fields(old_paper)
+    )
     return {
+        "pigments_kept": pigments_kept,
+        "parameter_defaults_kept": defaults_kept,
+        "paper_kept": paper_kept,
         "changed_files": changed,
         "actions_equal": actions_equal,
         "validation_equal": validation_equal,
@@ -2114,6 +2258,8 @@ EXPERIMENTS: dict[str, Experiment] = {
     "determinism_and_batching": Experiment("determinism", determinism_and_batching),
     "session_resume": Experiment("session", session_resume),
     "advance_conserves_pigment": Experiment("invariants", advance_conserves_pigment),
+    "lift_conserves_pigment": Experiment("lifting", lift_conserves_pigment),
+    "layered_batching": Experiment("batching", layered_batching),
     "flow_onto_set_paint": Experiment("layer_flow", flow_onto_set_paint),
     "gum_bookkeeping": Experiment("invariants", gum_bookkeeping),
     "old_state_loads": Experiment("invariants", old_state_loads),
@@ -2177,10 +2323,11 @@ def _series(results: dict[str, Measurements], names: list[str], measurement: str
 
 
 def _edges(results: dict[str, Measurements]) -> Measurements:
-    out: Measurements = {
-        name: _series(results, [f"edge_{name}_{s:g}" for s in (0.5, 1.0, 4.0)], "edge_ratio")
-        for name in ("french_ultramarine", "quinacridone_rose")
-    }
+    out: Measurements = {}
+    for name in ("french_ultramarine", "quinacridone_rose"):
+        scenarios = [f"edge_{name}_{s:g}" for s in (0.5, 1.0, 4.0)]
+        out[name] = _series(results, scenarios, "edge_ratio")
+        out[f"{name}_far"] = _series(results, scenarios, "far_edge_ratio")
     order = ["edge_gum_scaled_0", "edge_french_ultramarine_1", "edge_gum_scaled_3"]
     out["gum_scaled"] = _series(results, order, "edge_ratio")
     return out
@@ -2266,6 +2413,7 @@ def _commute(results: dict[str, Measurements]) -> Measurements:
 
 SOUNDNESS_SOURCES = (
     "puddle_drains", "deep_water_on_damp_paper", "thin_film_on_damp_paper", "slope_runs", "deep_puddle_scrubbed",
+    "lift_conserves_pigment",
 )  # fmt: skip
 
 

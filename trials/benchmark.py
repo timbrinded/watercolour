@@ -7,13 +7,16 @@ is taken after a warm-up, over several repeats, and written with its spread.
 
 Run it alone on the machine: other work on the graphics card makes the times meaningless. The performance gates of
 trials/calibration_gates.py are evaluated against the baseline recorded on the 0.8.0 rig, and the command exits
-with status 1 if any fails. With --record the run is written as the baseline instead.
+with status 1 if any fails, or if the card or the processors were busy when it began, since its times then bind
+nothing. With --record the sections run are written into the baseline instead, which is refused on a busy machine.
 """
 
 import argparse
 import io
 import json
+import os
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -41,6 +44,10 @@ BASELINE = HERE / "benchmark_baseline.json"
 HEIGHT, WIDTH = 540, 770
 SIX = ("french_ultramarine", "burnt_umber", "quinacridone_rose", "phthalo_green", "cadmium_red", "opaque_white")
 THREE = ("cadmium_red", "french_ultramarine", "burnt_umber")
+# The machine counts as idle when the card is busy no more than this share of the time before the run, and the
+# processors' one-minute load average is below this. Other agents' processor load once slowed a recording by 5-20%.
+IDLE_CARD_UTILISATION = 10
+IDLE_LOAD_AVERAGE = 2.0
 WET_SECONDS = 2.0
 DRY_SECONDS = 40.0
 # A dry advance is quick, so each sample of it is the sum of several, to keep the timer's own noise out of it.
@@ -79,14 +86,30 @@ def new_sheet(height: int, width: int, palette: tuple[str, ...], on: torch.devic
     return Sheet(generate_paper(height, width, 5, on or device()), [PIGMENTS[name] for name in palette])
 
 
-def tensor_bytes(sheet: Sheet) -> int:
-    return sum(value.numel() * value.element_size() for value in vars(sheet).values() if isinstance(value, Tensor))
+# Fields the approved items add, by item. Each item's allowance of memory is held against its own fields, so that
+# in one pull request the fields of the others do not count against it. Beside its two layers the ordered-layer
+# design keeps a transient flag of the paint that has set, which its prototype names _set.
+GUM_FIELDS = ("gum",)
+LAYER_FIELDS = ("underlying", "lowest", "_set")
+NEW_FIELDS = GUM_FIELDS + LAYER_FIELDS
 
 
-def state_bytes(sheet: Sheet) -> int:
+def tensor_bytes(sheet: Sheet, leaving_out: tuple[str, ...] = ()) -> int:
+    return sum(
+        value.numel() * value.element_size()
+        for name, value in vars(sheet).items()
+        if isinstance(value, Tensor) and name not in leaving_out
+    )
+
+
+def saved_bytes(state: object) -> int:
     buffer = io.BytesIO()
-    torch.save(sheet.state(), buffer)
+    torch.save(state, buffer)
     return buffer.getbuffer().nbytes
+
+
+def state_bytes(sheet: Sheet, leaving_out: tuple[str, ...] = ()) -> int:
+    return saved_bytes({name: field for name, field in sheet.state().items() if name not in leaving_out})
 
 
 def lay_wash(sheet: Sheet) -> None:
@@ -167,11 +190,25 @@ def wet_and_dry_cost(repeats: int) -> Metrics:
         out |= summary("checkpoint_seconds", saving) | summary("load_seconds", loading)
         out["checkpoint_bytes"] = path.stat().st_size
 
-    for phase, prepare, seconds in (("wet", to_laid, 1.0), ("dry", to_damp, 10.0)):
-        prepare()
+    # Processor time of this process, sampled as the wall times are: a dry sample is the sum of several advances, so
+    # that a few milliseconds of other work in the process do not swamp it.
+    wet_process, dry_process = [], []
+    for _ in range(repeats):
+        to_laid()
         started = time.process_time()
-        timed(lambda seconds=seconds: sheet.advance(seconds))
-        out[f"{phase}_process_seconds_per_second"] = (time.process_time() - started) / seconds
+        timed(lambda: sheet.advance(WET_SECONDS))
+        wet_process.append((time.process_time() - started) / WET_SECONDS)
+        spent = 0.0
+        for _ in range(DRY_ADVANCES):
+            to_damp()
+            started = time.process_time()
+            timed(lambda: sheet.advance(DRY_SECONDS))
+            spent += time.process_time() - started
+        dry_process.append(spent / (DRY_ADVANCES * DRY_SECONDS))
+    out |= summary("wet_process_seconds_per_second", wet_process) | summary(
+        "dry_process_seconds_per_second", dry_process
+    )
+    for phase, prepare, seconds in (("wet", to_laid, 1.0), ("dry", to_damp, 10.0)):
         prepare()
         kernels, device_seconds = device_work(lambda seconds=seconds: sheet.advance(seconds))
         out[f"{phase}_kernels_per_second"] = None if kernels is None else kernels / seconds
@@ -192,7 +229,8 @@ def device_work(action: Callable[[], object]) -> tuple[int | None, float | None]
 
 
 def sizes() -> Metrics:
-    """Tensor bytes of a sheet, and bytes of its saved state, for the sheets the memory gates name."""
+    """Tensor bytes of a sheet, and bytes of its saved state, for the sheets the memory gates name: in all, and
+    leaving out the fields of the binder, of the ordered layers, or of both."""
     out: Metrics = {}
     cpu = torch.device("cpu")
     for height, width, label, palette in (
@@ -202,8 +240,14 @@ def sizes() -> Metrics:
         (HEIGHT, WIDTH, "770_13", tuple(PIGMENTS)),
     ):
         sheet = new_sheet(height, width, palette, cpu)
-        out[f"sheet_bytes_{label}"] = tensor_bytes(sheet)
-        out[f"state_bytes_{label}"] = state_bytes(sheet)
+        for suffix, leaving_out in (
+            ("", ()),
+            ("_kept", NEW_FIELDS),
+            ("_without_gum", GUM_FIELDS),
+            ("_without_layers", LAYER_FIELDS),
+        ):
+            out[f"sheet_bytes_{label}{suffix}"] = tensor_bytes(sheet, leaving_out)
+            out[f"state_bytes_{label}{suffix}"] = state_bytes(sheet, leaving_out)
     return out
 
 
@@ -223,7 +267,14 @@ def session_state() -> Metrics:
                 {"action": "wait", "seconds": 2},
             ]
         )
-        return {"session_state_bytes": (session.directory / "state.pt").stat().st_size}
+        saved = torch.load(session.directory / "state.pt", weights_only=True)
+        for state in saved["sheets"].values():
+            for name in LAYER_FIELDS:
+                state.pop(name, None)
+        return {
+            "session_state_bytes": (session.directory / "state.pt").stat().st_size,
+            "session_state_bytes_without_layers": saved_bytes(saved),
+        }
 
 
 def strokes(repeats: int) -> Metrics:
@@ -339,11 +390,27 @@ SECTIONS: dict[str, Callable[[int], Metrics]] = {
 }
 
 
-def other_work_on_the_card() -> list[str]:
-    """Processes besides this one that are computing on the graphics card."""
-    import os
-    import subprocess
+def card_utilisation(samples: int = 5) -> list[int]:
+    """Percentage of the time the graphics card was busy, read a few times over about a second before the run."""
+    readings = []
+    for _ in range(samples):
+        try:
+            listing = subprocess.run(
+                ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout
+        except FileNotFoundError:
+            return []
+        readings.extend(int(line) for line in listing.split() if line.strip().isdigit())
+        time.sleep(0.2)
+    return readings
 
+
+def other_work_on_the_card() -> list[str]:
+    """Processes besides this one that hold a context on the graphics card. The desktop's own graphics clients
+    appear here even when idle, so this is a record, not a test; card_utilisation is the test."""
     try:
         listing = subprocess.run(
             ["nvidia-smi", "--query-compute-apps=pid,process_name", "--format=csv,noheader"],
@@ -367,11 +434,16 @@ def main() -> None:
     parser.add_argument("--sections", nargs="*", default=list(SECTIONS), choices=list(SECTIONS))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--baseline", type=Path, default=BASELINE)
-    parser.add_argument("--record", action="store_true", help="write the run as the baseline")
+    parser.add_argument("--record", action="store_true", help="write the sections run into the baseline")
     arguments = parser.parse_args()
 
     started = time.perf_counter()
     others = other_work_on_the_card()
+    utilisation = card_utilisation()
+    load = os.getloadavg()[0]
+    idle = max(utilisation, default=0) <= IDLE_CARD_UTILISATION and load < IDLE_LOAD_AVERAGE
+    if arguments.record and not idle:
+        sys.exit(f"not recorded: the machine is busy (card {utilisation} %, load average {load:.2f})")
     metrics: Metrics = {}
     seconds = {}
     for name in arguments.sections:
@@ -387,18 +459,30 @@ def main() -> None:
         "torch": torch.__version__,
         "repeats": arguments.repeats,
         "other_processes_on_the_card": others,
+        "card_utilisation_before": utilisation,
+        "load_average_before": round(load, 2),
+        "idle": idle,
         "elapsed_seconds": round(time.perf_counter() - started, 1),
         "timings": seconds,
     }
     measurements = {"benchmark": metrics}
     gates = [gate for gate in GATES if gate.kind == "performance"]
-    reference = measurements if arguments.record else load_baseline(arguments.baseline).get("measurements", {})
+    baseline = load_baseline(arguments.baseline)
+    if arguments.record:
+        # Sections recorded on the same engine join the baseline; on another engine the baseline starts afresh.
+        if baseline.get("engine_digest") == record["engine_digest"]:
+            metrics = baseline.get("measurements", {}).get("benchmark", {}) | metrics
+            measurements = {"benchmark": metrics}
+            record["timings"] = baseline.get("timings", {}) | seconds
+        reference = measurements
+    else:
+        reference = baseline.get("measurements", {})
     outcome = evaluate(gates, measurements, reference)
     record |= {"measurements": measurements, "gates": outcome}
     for gate in gates:
         print(describe(gate, outcome[gate.id]))
     if others:
-        print(f"other work on the graphics card during the run: {others}")
+        print(f"graphics clients holding the card: {others}")
     text = json.dumps(record, indent=1) + "\n"
     if arguments.output:
         arguments.output.write_text(text)
@@ -408,6 +492,9 @@ def main() -> None:
     failed = [gate.id for gate in gates if outcome[gate.id]["status"] == "fail"]
     if failed:
         print(f"failing: {', '.join(failed)}")
+    if not idle:
+        print(f"the machine was busy when the run began (card {utilisation} %, load average {load:.2f}): not binding")
+    if failed or not idle:
         sys.exit(1)
 
 

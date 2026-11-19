@@ -169,7 +169,7 @@ holds the engine to the quality gates in `trials/calibration_gates.py`: physical
 uv run python trials/benchmark.py
 ```
 
-measures what the engine costs on a 770x540 sheet (wall time per simulated second while wet and while drying, rendering, saving) and holds it to the performance gates against `trials/benchmark_baseline.json`. Run it with nothing else on the graphics card.
+measures what the engine costs on a 770x540 sheet (wall time per simulated second while wet and while drying, rendering, saving) and holds it to the performance gates against `trials/benchmark_baseline.json`. Run it with nothing else on the graphics card: it reads how busy the card and the processors are before it starts, fails a run begun on a busy machine, and will not record a baseline there.
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run pyrefly check
