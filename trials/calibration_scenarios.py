@@ -25,7 +25,7 @@ import sys
 import tarfile
 import tempfile
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -2227,13 +2227,26 @@ class Experiment:
     extended: bool = False  # too long for the standard run; selected by name or with --extended
 
 
+# The paints, strengths, films and waits of the paintings that derived measurements gather into series, each mapped
+# to the name of its painting. The registry, the derived measurements and their sources all read these, so that
+# they name the same paintings.
+EDGE_PAINTS = ("french_ultramarine", "quinacridone_rose")
+EDGE_STRENGTHS = (0.5, 1.0, 4.0)
+EDGES = {(paint, strength): f"edge_{paint}_{strength:g}" for paint in EDGE_PAINTS for strength in EDGE_STRENGTHS}
+# The edge stroke whose gum is taken away and trebled; edges.gum_scaled sets the stroke as laid between the two.
+GUM_SCALED_STROKE = ("french_ultramarine", 1.0)
+GUM_SCALED = {scale: f"edge_gum_scaled_{scale:g}" for scale in (0.0, 3.0)}
+CHARGE_FILMS = {film: f"charge_film_{film:g}" for film in (0.5, 0.3, 0.15)}
+CHARGE_WAITS = {wait: f"charge_wait_{wait:g}" for wait in (5.0, 20.0, 40.0)}
+CHARGE_ROSES = {strength: f"charge_rose_{strength:g}" for strength in (0.5, 2.0, 6.0)}
+STAINING_LIFT_PAINTS = ("quinacridone_rose", "phthalo_green")
+LIFT_PAINTS = (*STAINING_LIFT_PAINTS, "french_ultramarine", "cerulean_blue")
+LIFT_STRENGTHS = (0.25, 1.0, 4.0)
+LIFTS = {(paint, strength): f"lift_{paint}_{strength:g}" for paint in LIFT_PAINTS for strength in LIFT_STRENGTHS}
+
 PAINTINGS: dict[str, Painting] = {
-    **{
-        f"edge_{name}_{strength:g}": Painting("one_layer", edge_stroke(name, strength))
-        for name in ("french_ultramarine", "quinacridone_rose")
-        for strength in (0.5, 1.0, 4.0)
-    },
-    **{f"edge_gum_scaled_{k:g}": Painting("one_layer", edge_stroke("french_ultramarine", 1.0, k)) for k in (0.0, 3.0)},
+    **{name: Painting("one_layer", edge_stroke(paint, strength)) for (paint, strength), name in EDGES.items()},
+    **{name: Painting("one_layer", edge_stroke(*GUM_SCALED_STROKE, scale)) for scale, name in GUM_SCALED.items()},
     "flat_wash_mop": Painting("one_layer", flat_wash_mop),
     "flat_wash_round": Painting("one_layer", flat_wash_round),
     "flat_wash_flat": Painting("one_layer", flat_wash_flat),
@@ -2246,10 +2259,10 @@ PAINTINGS: dict[str, Painting] = {
     "tilt_run": Painting("one_layer", tilt_run),
     **{f"wet_balance_{s:g}": Painting("one_layer", wet_balance(s)) for s in (1.0, 4.0)},
     "brush_and_sheet": Painting("one_layer", brush_and_sheet),
-    **{f"charge_film_{film:g}": Painting("wet_work", charge(film=film)) for film in (0.5, 0.3, 0.15)},
+    **{name: Painting("wet_work", charge(film=film)) for film, name in CHARGE_FILMS.items()},
     "charge_dry_paper": Painting("wet_work", charge(wash=False)),
-    **{f"charge_wait_{wait:g}": Painting("wet_work", charge(wait=wait)) for wait in (5.0, 20.0, 40.0)},
-    **{f"charge_rose_{s:g}": Painting("wet_work", charge_rose(s)) for s in (0.5, 2.0, 6.0)},
+    **{name: Painting("wet_work", charge(wait=wait)) for wait, name in CHARGE_WAITS.items()},
+    **{name: Painting("wet_work", charge_rose(strength)) for strength, name in CHARGE_ROSES.items()},
     "bloom_mop": Painting("wet_work", bloom_mop),
     "bloom_round": Painting("wet_work", bloom_round),
     "bloom_umber": Painting("wet_work", bloom_umber),
@@ -2257,11 +2270,7 @@ PAINTINGS: dict[str, Painting] = {
     "wet_in_wet_dab": Painting("wet_work", wet_in_wet_dab),
     "damp_lift": Painting("wet_work", damp_lift),
     "unset_mixing": Painting("wet_work", unset_mixing),
-    **{
-        f"lift_{name}_{s:g}": Painting("over_dried", lift(name, s))
-        for name in ("quinacridone_rose", "phthalo_green", "french_ultramarine", "cerulean_blue")
-        for s in (0.25, 1.0, 4.0)
-    },
+    **{name: Painting("over_dried", lift(paint, strength)) for (paint, strength), name in LIFTS.items()},
     "lift_under_glaze": Painting("over_dried", lift_under_glaze),
     **{f"glaze_disturbance_{s:g}": Painting("over_dried", glaze_disturbance(s)) for s in (0.5, 2.0)},
     "glaze_over_rose": Painting("over_dried", glaze_over_rose),
@@ -2351,7 +2360,7 @@ def run_experiment(name: str) -> Measurements:
 # ------------------------------------------------------------------------------------------------ derived measurements
 
 
-def _series(results: dict[str, Measurements], names: list[str], measurement: str) -> list | None:
+def _series(results: dict[str, Measurements], names: Iterable[str], measurement: str) -> list | None:
     """One measurement from each of several scenarios, in order; None if any is missing."""
     values = [results.get(name, {}).get(measurement) for name in names]
     return None if any(value is None for value in values) else values
@@ -2359,28 +2368,29 @@ def _series(results: dict[str, Measurements], names: list[str], measurement: str
 
 def _edges(results: dict[str, Measurements]) -> Measurements:
     out: Measurements = {}
-    for name in ("french_ultramarine", "quinacridone_rose"):
-        scenarios = [f"edge_{name}_{s:g}" for s in (0.5, 1.0, 4.0)]
-        out[name] = _series(results, scenarios, "edge_ratio")
-        out[f"{name}_far"] = _series(results, scenarios, "far_edge_ratio")
-    order = ["edge_gum_scaled_0", "edge_french_ultramarine_1", "edge_gum_scaled_3"]
-    out["gum_scaled"] = _series(results, order, "edge_ratio")
+    for paint in EDGE_PAINTS:
+        scenarios = [EDGES[paint, strength] for strength in EDGE_STRENGTHS]
+        out[paint] = _series(results, scenarios, "edge_ratio")
+        out[f"{paint}_far"] = _series(results, scenarios, "far_edge_ratio")
+    gum_scaled = [GUM_SCALED[0.0], EDGES[GUM_SCALED_STROKE], GUM_SCALED[3.0]]
+    out["gum_scaled"] = _series(results, gum_scaled, "edge_ratio")
     return out
 
 
+def _lifted_shares(results: dict[str, Measurements], paint: str) -> list | None:
+    return _series(results, (LIFTS[paint, strength] for strength in LIFT_STRENGTHS), "lifted_share")
+
+
 def _lifts(results: dict[str, Measurements]) -> Measurements:
-    return {
-        name: _series(results, [f"lift_{name}_{s:g}" for s in (0.25, 1.0, 4.0)], "lifted_share")
-        for name in ("quinacridone_rose", "phthalo_green", "french_ultramarine", "cerulean_blue")
-    }
+    return {paint: _lifted_shares(results, paint) for paint in LIFT_PAINTS}
 
 
 def _lift_ratios(results: dict[str, Measurements]) -> Measurements:
     out: Measurements = {}
-    for name in ("quinacridone_rose", "phthalo_green"):
-        shares = _series(results, [f"lift_{name}_{s:g}" for s in (0.25, 1.0, 4.0)], "lifted_share")
-        out[f"{name}_steps"] = None if shares is None else [b / a - 1.0 for a, b in itertools.pairwise(shares)]
-    alone = _series(results, ["lift_quinacridone_rose_1"], "lifted_share")
+    for paint in STAINING_LIFT_PAINTS:
+        shares = _lifted_shares(results, paint)
+        out[f"{paint}_steps"] = None if shares is None else [b / a - 1.0 for a, b in itertools.pairwise(shares)]
+    alone = _series(results, [LIFTS["quinacridone_rose", 1.0]], "lifted_share")
     damp = _series(results, ["damp_lift"], "lifted_share")
     glazed = _series(results, ["lift_under_glaze"], "lifted_share")
     out["damp_over_dry"] = None if alone is None or damp is None else damp[0] / alone[0]
@@ -2389,31 +2399,38 @@ def _lift_ratios(results: dict[str, Measurements]) -> Measurements:
 
 
 def _charges(results: dict[str, Measurements]) -> Measurements:
-    widths = _series(results, [f"charge_film_{film:g}" for film in (0.5, 0.3, 0.15)], "rms_width")
+    widths = _series(results, CHARGE_FILMS.values(), "rms_width")
     dry = _series(results, ["charge_dry_paper"], "rms_width")
     return {
         "widths": widths,
         "widths_over_dry": None if widths is None or dry is None else [w / dry[0] for w in widths],
         "film_0.5_over_dry": None if widths is None or dry is None else widths[0] / dry[0],
-        "waited_widths": _series(results, [f"charge_wait_{wait:g}" for wait in (5, 20, 40)], "rms_width"),
-        "rose_radii": _series(results, [f"charge_rose_{s:g}" for s in (0.5, 2.0, 6.0)], "radius"),
+        "waited_widths": _series(results, CHARGE_WAITS.values(), "rms_width"),
+        "rose_radii": _series(results, CHARGE_ROSES.values(), "radius"),
     }
+
+
+def _asymmetries(
+    results: dict[str, Measurements], on_top: str, beneath: str, measurements: tuple[str, ...]
+) -> list[list[float]] | None:
+    """For each measurement, column by column, its value with the paint laid over the umber less its value with the
+    umber laid over the paint; None if either painting lacks any of them."""
+    over, under = results.get(on_top, {}), results.get(beneath, {})
+    differences = []
+    for measurement in measurements:
+        first, second = over.get(measurement), under.get(measurement)
+        if not (isinstance(first, list) and isinstance(second, list)):
+            return None
+        differences.append([a - b for a, b in zip(first, second)])
+    return differences
 
 
 def _order(results: dict[str, Measurements]) -> Measurements:
     """Order asymmetry A = V(paint over the umber) - V(umber over the paint), pictured and composed."""
-    on_top, beneath = results.get("order_on_top", {}), results.get("order_beneath", {})
-    top_pictured, top_composed = on_top.get("pictured"), on_top.get("composed")
-    under_pictured, under_composed = beneath.get("pictured"), beneath.get("composed")
-    if not (
-        isinstance(top_pictured, list)
-        and isinstance(top_composed, list)
-        and isinstance(under_pictured, list)
-        and isinstance(under_composed, list)
-    ):
-        return {"white_margin": None, "signs_agree": None}
-    pictured = [a - b for a, b in zip(top_pictured, under_pictured)]
-    composed = [a - b for a, b in zip(top_composed, under_composed)]
+    found = _asymmetries(results, "order_on_top", "order_beneath", ("pictured", "composed"))
+    if found is None:
+        return {}
+    pictured, composed = found
     white = ORDER_PAINTS.index("opaque_white")
     return {
         "asymmetry": pictured,
@@ -2427,18 +2444,10 @@ def _commute(results: dict[str, Measurements]) -> Measurements:
     """The order asymmetry of transparent paint as pictured, and the part of it that the picture adds to what 0.8.0
     shows of the same sheets. The paint itself settles a little differently on dried umber than on bare paper,
     which 0.8.0 shows too; only the rest comes from how the layers are composed."""
-    on_top, beneath = results.get("commute_on_top", {}), results.get("commute_beneath", {})
-    over, under = on_top.get("pictured"), beneath.get("pictured")
-    over_summed, under_summed = on_top.get("summed"), beneath.get("summed")
-    if not (
-        isinstance(over, list)
-        and isinstance(under, list)
-        and isinstance(over_summed, list)
-        and isinstance(under_summed, list)
-    ):
-        return {"differences": None, "optical_differences": None}
-    pictured = [a - b for a, b in zip(over, under)]
-    summed = [a - b for a, b in zip(over_summed, under_summed)]
+    found = _asymmetries(results, "commute_on_top", "commute_beneath", ("pictured", "summed"))
+    if found is None:
+        return {}
+    pictured, summed = found
     return {
         "differences": [abs(a) for a in pictured],
         "summed_differences": [abs(a) for a in summed],
@@ -2463,33 +2472,18 @@ def _soundness(results: dict[str, Measurements]) -> Measurements:
 
 
 DERIVED: dict[str, tuple[tuple[str, ...], Callable[[dict[str, Measurements]], Measurements]]] = {
-    "edges": (
-        (
-            *(f"edge_{n}_{s:g}" for n in ("french_ultramarine", "quinacridone_rose") for s in (0.5, 1.0, 4.0)),
-            "edge_gum_scaled_0",
-            "edge_gum_scaled_3",
-        ),
-        _edges,
-    ),
-    "lifts": (
-        tuple(f"lift_{n}_{s:g}" for n in ("french_ultramarine", "cerulean_blue") for s in (0.25, 1.0, 4.0)),
-        _lifts,
-    ),
+    "edges": ((*EDGES.values(), *GUM_SCALED.values()), _edges),
+    "lifts": (tuple(LIFTS.values()), _lifts),
     "lift_ratios": (
         (
-            *(f"lift_{n}_{s:g}" for n in ("quinacridone_rose", "phthalo_green") for s in (0.25, 1.0, 4.0)),
+            *(LIFTS[paint, strength] for paint in STAINING_LIFT_PAINTS for strength in LIFT_STRENGTHS),
             "damp_lift",
             "lift_under_glaze",
         ),
         _lift_ratios,
     ),
     "charges": (
-        (
-            *(f"charge_film_{f:g}" for f in (0.5, 0.3, 0.15)),
-            "charge_dry_paper",
-            *(f"charge_wait_{w:g}" for w in (5, 20, 40)),
-            *(f"charge_rose_{s:g}" for s in (0.5, 2.0, 6.0)),
-        ),
+        (*CHARGE_FILMS.values(), "charge_dry_paper", *CHARGE_WAITS.values(), *CHARGE_ROSES.values()),
         _charges,
     ),
     "order": (("order_on_top", "order_beneath"), _order),
