@@ -2193,7 +2193,6 @@ class Experiment:
 
     group: str
     run: Callable[[], Measurements]
-    extended: bool = False  # too long for the standard run; selected by name or with --extended
 
 
 # The paints, strengths, films and waits of the paintings that derived measurements gather into series, each mapped
@@ -2286,9 +2285,9 @@ EXPERIMENTS: dict[str, Experiment] = {
     "paintings_begun_with_reference": Experiment("compatibility", paintings_begun_with_reference),
     "vocabulary": Experiment("compatibility", vocabulary),
     "hygiene": Experiment("compatibility", hygiene),
-    "test_suite": Experiment("test_suite", test_suite, extended=True),
-    "technique_trials": Experiment("technique_trials", technique_trials, extended=True),
-    "physics_untouched": Experiment("physics_untouched", physics_untouched, extended=True),
+    "test_suite": Experiment("test_suite", test_suite),
+    "technique_trials": Experiment("technique_trials", technique_trials),
+    "physics_untouched": Experiment("physics_untouched", physics_untouched),
 }
 
 

@@ -13,7 +13,8 @@ A check compares one measurement, named "<scenario>.<measurement>", with a bound
     "<=", "<", ">=", ">", "=="   compare with the bound; a list passes when every element does
     "between"                     lies within the closed interval (low, high)
     "near"                        differs from the baseline value by at most the bound
-    "increasing", "decreasing"    a list that rises (falls) strictly; "nondecreasing" may also stay level
+    "decreasing"                  a list that falls strictly
+    "nondecreasing"               a list that rises or stays level
 
 With scale "baseline" the bound is multiplied by the measurement's value on the 0.8.0 baseline (element by element
 for a list); with "baseline_plus" it is added to it. A measurement that is missing or None fails its check.

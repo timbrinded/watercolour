@@ -189,11 +189,9 @@ def _numbers(value: Measurement) -> list[float] | None:
     return None
 
 
-def _scaled(bound: float, check: Check, base: float | None) -> float | None:
+def _scaled(bound: float, check: Check, base: float) -> float:
     if check.scale == "absolute":
         return bound
-    if base is None:
-        return None
     return bound * base if check.scale == "baseline" else base + bound
 
 
@@ -205,36 +203,32 @@ def check_passes(check: Check, value: Measurement, baseline: Measurement) -> boo
     values = _numbers(value)
     if values is None or any(math.isnan(v) for v in values):
         return False
-    if check.op in ("increasing", "decreasing", "nondecreasing"):
+    if check.op in ("decreasing", "nondecreasing"):
         pairs = list(itertools.pairwise(values))
-        if check.op == "increasing":
-            return all(b > a for a, b in pairs)
         if check.op == "decreasing":
             return all(b < a for a, b in pairs)
         return all(b >= a for a, b in pairs)
-    bases: list[float | None] = [None] * len(values)
+    bases = [0.0] * len(values)  # an absolute bound other than "near" never reads the baseline
     if check.scale != "absolute" or check.op == "near":
         base_values = _numbers(baseline)
         if base_values is None or len(base_values) != len(values):
             return False
-        bases = list(base_values)
+        bases = base_values
     for v, base in zip(values, bases):
         if check.op == "near":
-            if base is None or not isinstance(check.bound, int | float) or abs(v - base) > check.bound:
+            if not isinstance(check.bound, int | float) or abs(v - base) > check.bound:
                 return False
             continue
         if check.op == "between":
             if not isinstance(check.bound, tuple) or len(check.bound) != 2:
                 raise TypeError(f"{check.metric}: 'between' needs a pair")
             low, high = (_scaled(float(edge), check, base) for edge in check.bound)
-            if low is None or high is None or not low <= v <= high:
+            if not low <= v <= high:
                 return False
             continue
         if not isinstance(check.bound, int | float):
             raise TypeError(f"{check.metric}: '{check.op}' needs a number")
         limit = _scaled(float(check.bound), check, base)
-        if limit is None:
-            return False
         if not {"<=": v <= limit, "<": v < limit, ">=": v >= limit, ">": v > limit, "==": v == limit}[check.op]:
             return False
     return True
