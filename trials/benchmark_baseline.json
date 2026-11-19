@@ -1,5 +1,5 @@
 {
- "revision": "badaa5c7700cd66f2b7f9927cc22d3345f8261f1",
+ "revision": "f915d377ad98aecfca6f9bad683250cdff9c5c6e",
  "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
  "engine_revision": "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84",
  "engine_modified": false,
@@ -8,10 +8,10 @@
  "torch": "2.15.0+cu132",
  "repeats": 5,
  "other_processes_on_the_card": [
-  "8328 claude-desktop",
-  "7261 swaync",
-  "1903305 webstorm",
-  "2086871 spotify"
+  "7617 python",
+  "8705 claude-desktop",
+  "15759 chrome",
+  "7652 swaync"
  ],
  "card_utilisation_before": [
   0,
@@ -20,14 +20,14 @@
   0,
   0
  ],
- "load_average_before": 0.99,
+ "load_average_before": 1.68,
  "idle": true,
- "elapsed_seconds": 27.9,
+ "elapsed_seconds": 29.1,
  "timings": {
   "cost": 24.4,
   "sizes": 0.4,
   "session": 2.0,
-  "strokes": 31.3,
+  "strokes": 22.9,
   "cpu": 5.1,
   "wash_drying": 261.9,
   "layered_pass": 207.8,
@@ -116,23 +116,23 @@
    "sheet_bytes_770_13": 83160156,
    "state_bytes_770_13": 73184013,
    "session_state_bytes": 184673,
-   "stroke_seconds": 1.0286155433976092,
-   "stroke_seconds_spread": 0.034641386884616994,
+   "stroke_seconds": 0.7474620001999938,
+   "stroke_seconds_spread": 0.006268886175813603,
    "stroke_seconds_samples": [
-    1.0608613905962556,
-    1.0436168455984443,
-    1.0263726711971686,
-    1.0252287216018885,
-    1.0286155433976092
+    0.7474620001999938,
+    0.750932068599991,
+    0.749944888999994,
+    0.7462463143999912,
+    0.7468838516000005
    ],
-   "cpu_wet_seconds_per_second": 0.4881115345051512,
-   "cpu_wet_seconds_per_second_spread": 0.013431562336920517,
+   "cpu_wet_seconds_per_second": 0.48528148200000487,
+   "cpu_wet_seconds_per_second_spread": 0.015233943132416501,
    "cpu_wet_seconds_per_second_samples": [
-    0.4881115345051512,
-    0.49074378551449627,
-    0.4851633640064392,
-    0.4878874700079905,
-    0.4917194645095151
+    0.4916643770000064,
+    0.48631645450001315,
+    0.48528148200000487,
+    0.48487413500004095,
+    0.48427162650000355
    ],
    "wash_drying_seconds": 84.41320500700385,
    "wash_drying_seconds_spread": 0.01417418192875666,
@@ -396,8 +396,8 @@
      "op": "<=",
      "bound": 1.15,
      "scale": "baseline",
-     "value": 1.0286155433976092,
-     "baseline": 1.0286155433976092,
+     "value": 0.7474620001999938,
+     "baseline": 0.7474620001999938,
      "passed": true
     }
    ]
@@ -413,8 +413,8 @@
      "op": "<=",
      "bound": 1.25,
      "scale": "baseline",
-     "value": 0.4881115345051512,
-     "baseline": 0.4881115345051512,
+     "value": 0.48528148200000487,
+     "baseline": 0.48528148200000487,
      "passed": true
     }
    ]
