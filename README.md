@@ -157,13 +157,13 @@ paints each technique on its own sheet and writes the pictures to `trials/output
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card. The calibration gates that apply to every change repaint their scenarios and take about ten minutes more, so they run only when asked for: `uv run pytest --calibration` runs them as tests with the rest (add `-m calibration` for them alone), and `trials/calibration.py` below runs them with the rest of the suite.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about nine and a half minutes on an RTX 3080. The calibration gates that apply to every change repaint their scenarios and take about five minutes more, so they run only when asked for: `uv run pytest --calibration` runs them as tests with the rest (add `-m calibration` for them alone), and `trials/calibration.py` below runs them with the rest of the suite.
 
 ```bash
 uv run python trials/calibration.py [--item ITEM] [--kind KIND] [--gate ID] [--extended]
 ```
 
-holds the engine to the quality gates in `trials/calibration_gates.py`: physical laws, each with its source, ordinary watercolour behaviour, invariants, and compatibility with paintings begun on 0.8.0. Each gate is measured against the values recorded on the 0.8.0 rig in `trials/calibration_baseline.json`, and the command fails if any selected gate does. The standard run takes about five minutes on a graphics card with nothing else on it; `--extended` adds the long gates, the test suite and the technique trials.
+holds the engine to the quality gates in `trials/calibration_gates.py`: physical laws, each with its source, ordinary watercolour behaviour, invariants, and compatibility with paintings begun on 0.8.0. Each gate is measured against the values recorded on the 0.8.0 rig in `trials/calibration_baseline.json`, and the command fails if any selected gate does. The standard run takes about six minutes on an RTX 3080 with nothing else on it; `--extended` adds the long gates, the test suite and the technique trials.
 
 ```bash
 uv run python trials/benchmark.py
