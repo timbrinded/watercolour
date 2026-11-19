@@ -157,7 +157,7 @@ paints each technique on its own sheet and writes the pictures to `trials/output
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development), the session rules, and the behaviours a painter relies on (a flat wash drying evenly in its usual time, a bloom drying pale inside a darker rim, paint charged into a wet wash spreading to twice its width on dry paper). They take about twelve minutes on an RTX 3080.
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run pyrefly check
