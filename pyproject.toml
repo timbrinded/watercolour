@@ -36,5 +36,4 @@ search-path = ["src", "trials"]
 
 [tool.pytest.ini_options]
 pythonpath = ["trials"]
-markers = ["calibration: the global gates of the calibration suite, which repaint their scenarios and take minutes"]
-addopts = "-m 'not calibration'"
+markers = ["calibration: the global gates of the calibration suite, run only with --calibration (tests/conftest.py)"]

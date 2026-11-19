@@ -16,8 +16,6 @@ PALETTE = ["cadmium_red", "french_ultramarine"]
 
 @pytest.fixture
 def studio() -> Studio:
-    from watercolor.simulation import Sheet
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pigments = [PIGMENTS[name] for name in PALETTE]
     sheet = Sheet(generate_paper(SIZE, SIZE, 3, device), pigments)
