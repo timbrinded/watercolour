@@ -1,0 +1,555 @@
+{
+ "revision": "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84",
+ "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
+ "engine_version": "0.8.0",
+ "device": "NVIDIA GeForce RTX 3080",
+ "torch": "2.15.0+cu132",
+ "repeats": 5,
+ "other_processes_on_the_card": [
+  "8328 claude-desktop",
+  "7261 swaync",
+  "1903305 webstorm",
+  "2086871 spotify"
+ ],
+ "elapsed_seconds": 594.1,
+ "timings": {
+  "cost": 18.7,
+  "sizes": 0.3,
+  "session": 2.0,
+  "strokes": 31.3,
+  "cpu": 5.1,
+  "wash_drying": 261.9,
+  "layered_pass": 207.8,
+  "new_tests": 67.0
+ },
+ "measurements": {
+  "benchmark": {
+   "wet_seconds_per_second": 0.5142946289997781,
+   "wet_seconds_per_second_spread": 0.004802418410215404,
+   "wet_seconds_per_second_samples": [
+    0.5142946289997781,
+    0.5140377359930426,
+    0.5147800834965892,
+    0.516274481502478,
+    0.5138046235078946
+   ],
+   "dry_seconds_per_second": 0.0010349527149810455,
+   "dry_seconds_per_second_spread": 0.006662140226535082,
+   "dry_seconds_per_second_samples": [
+    0.0010360509699967224,
+    0.0010291559698816855,
+    0.0010358980648743454,
+    0.001033517215109896,
+    0.0010349527149810455
+   ],
+   "sheet_bytes": 48232872,
+   "resident_bytes": 45928448,
+   "peak_wet_bytes": 126845440,
+   "render_seconds": 0.002626786008477211,
+   "render_seconds_spread": 0.01540285331626774,
+   "render_seconds_samples": [
+    0.002658098004758358,
+    0.002625905006425455,
+    0.002617638005176559,
+    0.002626786008477211,
+    0.002622811996843666,
+    0.0026554389914963394,
+    0.0026330050022806972,
+    0.002651757007697597,
+    0.0026246790075674653
+   ],
+   "dry_render_seconds": 0.002629824011819437,
+   "dry_render_seconds_spread": 0.012813403797352293,
+   "dry_render_seconds_samples": [
+    0.00265480499365367,
+    0.002626292989589274,
+    0.0026266020140610635,
+    0.0026211079966742545,
+    0.002632249001180753,
+    0.002629824011819437,
+    0.002632307994645089,
+    0.002631940005812794,
+    0.002626825007610023
+   ],
+   "checkpoint_seconds": 0.024743210000451654,
+   "checkpoint_seconds_spread": 0.16842616607195166,
+   "checkpoint_seconds_samples": [
+    0.028434273990569636,
+    0.024743364978348836,
+    0.024743210000451654,
+    0.02433579199714586,
+    0.02426686999388039
+   ],
+   "load_seconds": 0.012038960994686931,
+   "load_seconds_spread": 0.05958338042363991,
+   "load_seconds_samples": [
+    0.012486966996220872,
+    0.012143594998633489,
+    0.011769645003369078,
+    0.012038960994686931,
+    0.011807840986875817
+   ],
+   "checkpoint_bytes": 38256689,
+   "wet_process_seconds_per_second": 0.515876381,
+   "wet_kernels_per_second": 42260.0,
+   "wet_device_seconds_per_second": 0.34690423700000056,
+   "dry_process_seconds_per_second": 0.0014087998999997354,
+   "dry_kernels_per_second": 83.0,
+   "dry_device_seconds_per_second": 0.0005952754000000061,
+   "sheet_bytes_256_3": 5242916,
+   "state_bytes_256_3": 3673037,
+   "sheet_bytes_256_6": 7602248,
+   "state_bytes_256_6": 6032333,
+   "sheet_bytes_770_6": 48232872,
+   "state_bytes_770_6": 38256781,
+   "sheet_bytes_770_13": 83160156,
+   "state_bytes_770_13": 73184013,
+   "session_state_bytes": 184673,
+   "stroke_seconds": 1.0286155433976092,
+   "stroke_seconds_spread": 0.034641386884616994,
+   "stroke_seconds_samples": [
+    1.0608613905962556,
+    1.0436168455984443,
+    1.0263726711971686,
+    1.0252287216018885,
+    1.0286155433976092
+   ],
+   "cpu_wet_seconds_per_second": 0.4881115345051512,
+   "cpu_wet_seconds_per_second_spread": 0.013431562336920517,
+   "cpu_wet_seconds_per_second_samples": [
+    0.4881115345051512,
+    0.49074378551449627,
+    0.4851633640064392,
+    0.4878874700079905,
+    0.4917194645095151
+   ],
+   "wash_drying_seconds": 84.41320500700385,
+   "wash_drying_seconds_spread": 0.01417418192875666,
+   "wash_drying_seconds_samples": [
+    84.02093789802166,
+    85.21742602298036,
+    84.41320500700385
+   ],
+   "end_to_end_seconds": 47.387430780014256,
+   "end_to_end_seconds_spread": 0.0022344429792962544,
+   "end_to_end_seconds_samples": [
+    47.4658085280098,
+    47.35992401599651,
+    47.387430780014256
+   ],
+   "layered_render_seconds": 0.0028038359887432307,
+   "layered_render_seconds_spread": 0.12418950977843662,
+   "layered_render_seconds_samples": [
+    0.0028086809907108545,
+    0.0028038359887432307,
+    0.0031091150012798607,
+    0.00298602701514028,
+    0.0027701159997377545,
+    0.0027609079843387008,
+    0.002776531007839367,
+    0.002804792980896309,
+    0.002776592009468004
+   ],
+   "layered_render_seconds_cpu": 0.008188763982616365,
+   "layered_render_seconds_cpu_spread": 0.09708412796887708,
+   "layered_render_seconds_cpu_samples": [
+    0.00849732497590594,
+    0.007987914985278621,
+    0.00862101701204665,
+    0.007826018001651391,
+    0.008448498992947862,
+    0.008188763982616365,
+    0.007890482986113057,
+    0.008552633982617408,
+    0.007978679001098499
+   ],
+   "new_test_seconds": 66.9531866729958
+  }
+ },
+ "gates": {
+  "P1-wet-cost": {
+   "status": "pass",
+   "item": "flow_exponent",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.wet_seconds_per_second",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 0.5142946289997781,
+     "baseline": 0.5142946289997781,
+     "passed": true
+    }
+   ]
+  },
+  "P2-whole-wash-cost": {
+   "status": "pass",
+   "item": "flow_exponent",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.wash_drying_seconds",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 84.41320500700385,
+     "baseline": 84.41320500700385,
+     "passed": true
+    }
+   ]
+  },
+  "P3-memory-checkpoint": {
+   "status": "pass",
+   "item": "flow_exponent",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.sheet_bytes_256_3",
+     "op": "near",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 5242916,
+     "baseline": 5242916,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.state_bytes_256_3",
+     "op": "near",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 3673037,
+     "baseline": 3673037,
+     "passed": true
+    }
+   ]
+  },
+  "P4-added-test-time": {
+   "status": "pass",
+   "item": "flow_exponent",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.new_test_seconds",
+     "op": "<=",
+     "bound": 120.0,
+     "scale": "absolute",
+     "value": 66.9531866729958,
+     "baseline": 66.9531866729958,
+     "passed": true
+    }
+   ]
+  },
+  "X1-wet-cost": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.wet_seconds_per_second",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.5142946289997781,
+     "baseline": 0.5142946289997781,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.dry_seconds_per_second",
+     "op": "between",
+     "bound": [
+      0.95,
+      1.05
+     ],
+     "scale": "baseline",
+     "value": 0.0010349527149810455,
+     "baseline": 0.0010349527149810455,
+     "passed": true
+    }
+   ]
+  },
+  "X2-dry-cost": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.dry_seconds_per_second",
+     "op": "<=",
+     "bound": 1.05,
+     "scale": "baseline",
+     "value": 0.0010349527149810455,
+     "baseline": 0.0010349527149810455,
+     "passed": true
+    }
+   ]
+  },
+  "X3-memory": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.sheet_bytes",
+     "op": "<=",
+     "bound": 1664224,
+     "scale": "baseline_plus",
+     "value": 48232872,
+     "baseline": 48232872,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.peak_wet_bytes",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 126845440,
+     "baseline": 126845440,
+     "passed": true
+    }
+   ]
+  },
+  "X4-checkpoint-size": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.session_state_bytes",
+     "op": "<=",
+     "bound": 17408,
+     "scale": "baseline_plus",
+     "value": 184673,
+     "baseline": 184673,
+     "passed": true
+    }
+   ]
+  },
+  "X5-stroke-cost": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.stroke_seconds",
+     "op": "<=",
+     "bound": 1.15,
+     "scale": "baseline",
+     "value": 1.0286155433976092,
+     "baseline": 1.0286155433976092,
+     "passed": true
+    }
+   ]
+  },
+  "X6-cpu-wet-cost": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.cpu_wet_seconds_per_second",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.4881115345051512,
+     "baseline": 0.4881115345051512,
+     "passed": true
+    }
+   ]
+  },
+  "PERF-1-wet": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.wet_kernels_per_second",
+     "op": "<=",
+     "bound": 1.05,
+     "scale": "baseline",
+     "value": 42260.0,
+     "baseline": 42260.0,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.wet_device_seconds_per_second",
+     "op": "<=",
+     "bound": 1.05,
+     "scale": "baseline",
+     "value": 0.34690423700000056,
+     "baseline": 0.34690423700000056,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.wet_process_seconds_per_second",
+     "op": "<=",
+     "bound": 1.05,
+     "scale": "baseline",
+     "value": 0.515876381,
+     "baseline": 0.515876381,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.wet_seconds_per_second",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 0.5142946289997781,
+     "baseline": 0.5142946289997781,
+     "passed": true
+    }
+   ]
+  },
+  "PERF-2-dry": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.dry_kernels_per_second",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 83.0,
+     "baseline": 83.0,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.dry_device_seconds_per_second",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 0.0005952754000000061,
+     "baseline": 0.0005952754000000061,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.dry_process_seconds_per_second",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 0.0014087998999997354,
+     "baseline": 0.0014087998999997354,
+     "passed": true
+    }
+   ]
+  },
+  "PERF-3-end-to-end": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.end_to_end_seconds",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "baseline",
+     "value": 47.387430780014256,
+     "baseline": 47.387430780014256,
+     "passed": true
+    }
+   ]
+  },
+  "PERF-4-render-layered": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.layered_render_seconds",
+     "op": "<=",
+     "bound": 2.0,
+     "scale": "baseline",
+     "value": 0.0028038359887432307,
+     "baseline": 0.0028038359887432307,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.layered_render_seconds_cpu",
+     "op": "<=",
+     "bound": 2.0,
+     "scale": "baseline",
+     "value": 0.008188763982616365,
+     "baseline": 0.008188763982616365,
+     "passed": true
+    }
+   ]
+  },
+  "PERF-5-memory-and-state": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "performance",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "benchmark.sheet_bytes_256_6",
+     "op": "<=",
+     "bound": 3211264,
+     "scale": "baseline_plus",
+     "value": 7602248,
+     "baseline": 7602248,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.state_bytes_256_6",
+     "op": "<=",
+     "bound": 3211264,
+     "scale": "baseline_plus",
+     "value": 6032333,
+     "baseline": 6032333,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.sheet_bytes_770_6",
+     "op": "<=",
+     "bound": 20374200,
+     "scale": "baseline_plus",
+     "value": 48232872,
+     "baseline": 48232872,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.state_bytes_770_6",
+     "op": "<=",
+     "bound": 20023936,
+     "scale": "baseline_plus",
+     "value": 38256781,
+     "baseline": 38256781,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.sheet_bytes_770_13",
+     "op": "<=",
+     "bound": 43659000,
+     "scale": "baseline_plus",
+     "value": 83160156,
+     "baseline": 83160156,
+     "passed": true
+    },
+    {
+     "metric": "benchmark.state_bytes_770_13",
+     "op": "<=",
+     "bound": 43308736,
+     "scale": "baseline_plus",
+     "value": 73184013,
+     "baseline": 73184013,
+     "passed": true
+    }
+   ]
+  }
+ }
+}

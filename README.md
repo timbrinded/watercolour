@@ -157,7 +157,19 @@ paints each technique on its own sheet and writes the pictures to `trials/output
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card. The calibration gates that apply to every change run with them, which brings the whole to about twelve minutes.
+
+```bash
+uv run python trials/calibration.py [--item ITEM] [--kind KIND] [--gate ID] [--extended]
+```
+
+holds the engine to the quality gates in `trials/calibration_gates.py`: physical laws, each with its source, ordinary watercolour behaviour, invariants, and compatibility with paintings begun on 0.8.0. Each gate is measured against the values recorded on the 0.8.0 rig in `trials/calibration_baseline.json`, and the command fails if any selected gate does. The standard run takes about five minutes on a graphics card with nothing else on it; `--extended` adds the long gates, the test suite and the technique trials.
+
+```bash
+uv run python trials/benchmark.py
+```
+
+measures what the engine costs on a 770x540 sheet (wall time per simulated second while wet and while drying, rendering, saving) and holds it to the performance gates against `trials/benchmark_baseline.json`. Run it with nothing else on the graphics card.
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run pyrefly check

@@ -1,0 +1,3040 @@
+{
+ "revision": "d1bb128172a533a15fa3ae6cc7ff4cbb31f36d84",
+ "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
+ "engine_version": "0.8.0",
+ "device": "cuda",
+ "torch": "2.15.0+cu132",
+ "elapsed_seconds": 4229.8,
+ "timings": {
+  "invariants": 787.0,
+  "wet_work": 316.0,
+  "one_layer": 261.0,
+  "layer_order": 466.7,
+  "puddle": 389.0,
+  "physics": 158.1,
+  "determinism": 188.7,
+  "over_dried": 469.8,
+  "layers": 467.8,
+  "compatibility": 214.5,
+  "non_staining": 200.2,
+  "rewetting": 304.5,
+  "slope": 95.6,
+  "physics_untouched": 0.6,
+  "technique_trials": 4224.8,
+  "test_suite": 2469.1
+ },
+ "measurements": {
+  "advance_conserves_pigment": {
+   "pigment_change": 8.298663674054544e-09,
+   "unsound_cells": 0,
+   "wall_seconds": 276.5
+  },
+  "flow_onto_set_paint": {
+   "cells_reached": 27,
+   "least_share": 0.0,
+   "wall_seconds": 270.0
+  },
+  "gum_bookkeeping": {
+   "gum_present": false,
+   "advance_change": null,
+   "wait_change": null,
+   "laid_over_pigment": null,
+   "mask_change": null,
+   "wall_seconds": 0.0
+  },
+  "old_state_loads": {
+   "gum_rebuilt": true,
+   "continues_finite": true,
+   "wall_seconds": 23.3
+  },
+  "session_resume": {
+   "resumed_from_action": 2,
+   "session_difference": 0.0,
+   "clocks_equal": true,
+   "loaded_difference": 0.0,
+   "continued_difference": 0.0,
+   "wall_seconds": 217.2
+  },
+  "charge_dry_paper": {
+   "rms_width": 2.3082072649337766,
+   "film_at_charge": 0.0,
+   "unsound_cells": 0
+  },
+  "damp_lift": {
+   "lifted_share": 0.06408914856219658,
+   "paper_fullness": 0.6380630135536194,
+   "waited": 56.0,
+   "unsound_cells": 0
+  },
+  "bloom_round": {
+   "peak_over_inside": 1.9453592017062051,
+   "unsound_cells": 0
+  },
+  "drained_lift": {
+   "lifted_ratio": 0.7459409449073247,
+   "taken": 28.630806869936052,
+   "unsound_cells": 0
+  },
+  "unset_mixing": {
+   "film_at_first_charge": 0.9038352966308594,
+   "film_at_second_charge": 0.005808211397379637,
+   "paper_at_second_charge": 0.8153640031814575,
+   "second_charge_unset": true,
+   "layered_paint": 0.0,
+   "picture_difference": 0.0,
+   "unsound_cells": 0
+  },
+  "charge_wait_5": {
+   "rms_width": 13.424758903284935,
+   "film_at_charge": 0.9126898646354675,
+   "unsound_cells": 0
+  },
+  "bloom_umber": {
+   "centre_share": 0.9074497934838974,
+   "rim_share": 1.220799389834202,
+   "picture_difference": 0.0,
+   "unsound_cells": 0
+  },
+  "charge_wait_40": {
+   "rms_width": 6.819422293439509,
+   "film_at_charge": 0.4148551821708679,
+   "unsound_cells": 0
+  },
+  "charge_film_0.5": {
+   "rms_width": 8.208691377786241,
+   "film_at_charge": 0.4985790252685547,
+   "unsound_cells": 0
+  },
+  "charge_wait_20": {
+   "rms_width": 10.527468763752156,
+   "film_at_charge": 0.6450377702713013,
+   "unsound_cells": 0
+  },
+  "charge_film_0.3": {
+   "rms_width": 5.615099013314127,
+   "film_at_charge": 0.2931074798107147,
+   "unsound_cells": 0
+  },
+  "charge_film_0.15": {
+   "rms_width": 6.478015106343731,
+   "film_at_charge": 0.1438465267419815,
+   "unsound_cells": 0
+  },
+  "bloom_mop": {
+   "centre_over_wash": 0.6030056413158131,
+   "rim_over_wash": 1.1898596122338756,
+   "waited_for_film": 86.0,
+   "unsound_cells": 0
+  },
+  "wet_in_wet_dab": {
+   "film_at_dab": 1.0283195972442627,
+   "half_radius": 18,
+   "tenth_radius": 29,
+   "picture_difference": 0.0,
+   "unsound_cells": 0
+  },
+  "charge_rose_2": {
+   "radius": 19.80499722390949,
+   "unsound_cells": 0
+  },
+  "charge_rose_6": {
+   "radius": 21.606104009486533,
+   "unsound_cells": 0
+  },
+  "charge_rose_0.5": {
+   "radius": 18.495359921424804,
+   "unsound_cells": 0
+  },
+  "brush_and_sheet": {
+   "relative_change": 9.887706821304974e-08,
+   "unsound_cells": 0
+  },
+  "drying_film_growth": {
+   "deepest_over_laid": 0.6350461169544225,
+   "unsound_cells": 0
+  },
+  "wet_balance_4": {
+   "suspended_share": 0.7180166289801102,
+   "unsound_cells": 0
+  },
+  "wet_balance_1": {
+   "suspended_share": 0.7955149595479112,
+   "unsound_cells": 0
+  },
+  "rows_barely_touching": {
+   "deepest_film": 1.0185788869857788,
+   "unsound_cells": 0
+  },
+  "shine_round": {
+   "film_at_start": 0.736326277256012,
+   "seconds_to_film": [
+    34.0,
+    50.0,
+    53.0
+   ],
+   "unsound_cells": 0
+  },
+  "tilt_run": {
+   "run_rows": 18,
+   "unsound_cells": 0
+  },
+  "shine_mop": {
+   "film_at_start": 0.9183560013771057,
+   "seconds_to_film": [
+    51.0,
+    69.0,
+    73.0
+   ],
+   "unsound_cells": 0
+  },
+  "wet_phase": {
+   "seconds_with_film": 88.0,
+   "unsound_cells": 0
+  },
+  "edge_french_ultramarine_4": {
+   "edge_ratio": 1.5891259688690302,
+   "painted_rows": 30,
+   "drying_seconds": 160.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_quinacridone_rose_4": {
+   "edge_ratio": 1.7111704232017946,
+   "painted_rows": 30,
+   "drying_seconds": 160.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_gum_scaled_0": {
+   "edge_ratio": 2.0287269593545574,
+   "painted_rows": 30,
+   "drying_seconds": 192.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_gum_scaled_3": {
+   "edge_ratio": 2.0287269593545574,
+   "painted_rows": 30,
+   "drying_seconds": 192.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_quinacridone_rose_1": {
+   "edge_ratio": 2.2190912409803785,
+   "painted_rows": 30,
+   "drying_seconds": 192.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_french_ultramarine_1": {
+   "edge_ratio": 2.0287269593545574,
+   "painted_rows": 30,
+   "drying_seconds": 192.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_french_ultramarine_0.5": {
+   "edge_ratio": 2.33235208255123,
+   "painted_rows": 30,
+   "drying_seconds": 200.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "edge_quinacridone_rose_0.5": {
+   "edge_ratio": 2.5717206111646354,
+   "painted_rows": 30,
+   "drying_seconds": 200.0,
+   "gum_present": false,
+   "unsound_cells": 0
+  },
+  "patch_drying": {
+   "drying_seconds": 216.0,
+   "unsound_cells": 0
+  },
+  "flat_wash_flat": {
+   "interior_variation": 0.14073164761066437,
+   "edge_ratio": 1.9563090117069097,
+   "drying_seconds": 232.0,
+   "picture_difference": 0.0,
+   "unsound_cells": 0
+  },
+  "flat_wash_round": {
+   "block_variation": 0.08329465985298157,
+   "unsound_cells": 0
+  },
+  "flat_wash_mop": {
+   "box_variation": 0.07521296292543411,
+   "drying_seconds": 280.0,
+   "unsound_cells": 0
+  },
+  "commute_on_top": {
+   "pictured": [
+    0.19993619620800018,
+    0.155922532081604,
+    0.16173022985458374
+   ],
+   "summed": [
+    0.19993619620800018,
+    0.155922532081604,
+    0.16173022985458374
+   ],
+   "composed": [
+    0.20079588890075684,
+    0.15273773670196533,
+    0.1576780527830124
+   ],
+   "unsound_cells": 0
+  },
+  "commute_beneath": {
+   "pictured": [
+    0.18334166705608368,
+    0.19495657086372375,
+    0.147481307387352
+   ],
+   "summed": [
+    0.18334166705608368,
+    0.19495657086372375,
+    0.147481307387352
+   ],
+   "composed": [
+    0.18373140692710876,
+    0.1975313276052475,
+    0.15212707221508026
+   ],
+   "unsound_cells": 0
+  },
+  "order_on_top": {
+   "pictured": [
+    0.19993619620800018,
+    0.30041247606277466,
+    0.19081619381904602,
+    0.480945885181427
+   ],
+   "summed": [
+    0.19993619620800018,
+    0.30041247606277466,
+    0.19081619381904602,
+    0.480945885181427
+   ],
+   "composed": [
+    0.20079588890075684,
+    0.32719361782073975,
+    0.19594070315361023,
+    0.662876307964325
+   ],
+   "unsound_cells": 0
+  },
+  "order_beneath": {
+   "pictured": [
+    0.1862150877714157,
+    0.3110808730125427,
+    0.18814972043037415,
+    0.45453810691833496
+   ],
+   "summed": [
+    0.1862150877714157,
+    0.3110808730125427,
+    0.18814972043037415,
+    0.45453810691833496
+   ],
+   "composed": [
+    0.1866014301776886,
+    0.2985376715660095,
+    0.18479549884796143,
+    0.3247719407081604
+   ],
+   "unsound_cells": 0
+  },
+  "under_darkness": {
+   "bands": [
+    0.6943413615226746,
+    0.5640557408332825,
+    0.3379342555999756,
+    0.13212880492210388
+   ],
+   "white_over_bands": [
+    0.7910618484020233,
+    0.7213190197944641,
+    0.6140818893909454,
+    0.544745534658432
+   ],
+   "slope_ratio": 1.0,
+   "unsound_cells": 0
+  },
+  "set_time": {
+   "moments": [
+    {
+     "clock": 7.999999999999988,
+     "film": 0.44405683875083923,
+     "paper": 0.13035692274570465,
+     "set": false
+    },
+    {
+     "clock": 49.000000000000426,
+     "film": 0.0006846910691820085,
+     "paper": 0.6128734350204468,
+     "set": false
+    },
+    {
+     "clock": 50.00000000000044,
+     "film": 0.0,
+     "paper": 0.5795787572860718,
+     "set": true
+    },
+    {
+     "clock": 351.00000000000045,
+     "film": 0.0,
+     "paper": 0.0,
+     "set": true
+    }
+   ],
+   "set_columns": [
+    2,
+    3
+   ],
+   "dark_beneath_share": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "over_band": [
+    0.4916909337043762,
+    0.44387349486351013,
+    0.42115747928619385,
+    0.47353672981262207
+   ],
+   "unset_share_largest": 0.0,
+   "unset_picture_error_largest": 0.0,
+   "set_share_least": 0.0,
+   "unsound_cells": 0
+  },
+  "deep_puddle_scrubbed": {
+   "unsound_cells_wet": 0,
+   "unsound_cells_rewetted": 0,
+   "wall_seconds": 389.0
+  },
+  "deep_water_on_damp_paper": {
+   "finite": true,
+   "water_error": 0.0,
+   "roughness": 0.005172356031835079,
+   "unsound_cells": 0,
+   "wall_seconds": 22.7
+  },
+  "flow_conserves_water": {
+   "water_change_0.05": 1.4270974407861594e-07,
+   "water_change_4": 0.0,
+   "wall_seconds": 46.8
+  },
+  "gum_levelling": {
+   "gum_present": false,
+   "viscosity_0.05": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "viscosity_spread_0.05": 1.0,
+   "viscosity_0.1": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "viscosity_spread_0.1": 1.0,
+   "viscosity_0.2": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "viscosity_spread_0.2": 1.0,
+   "wall_seconds": 1.5
+  },
+  "levelling_rates": {
+   "depths": [
+    0.2,
+    0.45,
+    0.9,
+    1.0,
+    1.3
+   ],
+   "rates": [
+    0.1491827908345386,
+    0.753969915267769,
+    3.026384981473606,
+    3.7419418735288597,
+    6.2882298795814435
+   ],
+   "exponent": 2.001102974639987,
+   "local_exponents": [
+    1.9979279307299054,
+    2.0050166584272033
+   ],
+   "rate_full_wash": 3.7419418735288597,
+   "rate_mobility_limit": 6.2882298795814435,
+   "finite": true,
+   "wall_seconds": 2.1
+  },
+  "puddle_drains": {
+   "pigment_change": 0.0,
+   "unsound_cells": 0,
+   "wall_seconds": 16.2
+  },
+  "thick_paint_checkerboard": {
+   "checkerboard": 9.23130864975974e-05,
+   "wall_seconds": 22.5
+  },
+  "thin_film_on_damp_paper": {
+   "checkerboard_0.03": 0.008315680548548698,
+   "deepest_over_start_0.03": 2.532844924512027,
+   "water_error_0.03": 9.93791412375113e-07,
+   "finite_0.03": true,
+   "checkerboard_0.08": 0.009236373007297516,
+   "deepest_over_start_0.08": 2.759753492983177,
+   "water_error_0.08": 9.316793912332323e-08,
+   "finite_0.08": true,
+   "unsound_cells": 0,
+   "wall_seconds": 46.2
+  },
+  "determinism_and_batching": {
+   "repeat_difference": 0.0,
+   "batched_difference": 0.0,
+   "pool_batched_relative_difference": 0.0,
+   "cpu_repeat_difference": 0.0,
+   "unsound_cells": 0,
+   "wall_seconds": 188.7
+  },
+  "lift_cerulean_blue_4": {
+   "lifted_share": 0.4859512718326401,
+   "unsound_cells": 0
+  },
+  "lift_french_ultramarine_4": {
+   "lifted_share": 0.41739172149628584,
+   "unsound_cells": 0
+  },
+  "lift_phthalo_green_4": {
+   "lifted_share": 0.0667975064995274,
+   "unsound_cells": 0
+  },
+  "lift_quinacridone_rose_4": {
+   "lifted_share": 0.08798566639902751,
+   "unsound_cells": 0
+  },
+  "lift_french_ultramarine_1": {
+   "lifted_share": 0.4166318569753069,
+   "unsound_cells": 0
+  },
+  "lift_quinacridone_rose_1": {
+   "lifted_share": 0.08803285411637446,
+   "unsound_cells": 0
+  },
+  "lift_phthalo_green_1": {
+   "lifted_share": 0.06683282218614124,
+   "unsound_cells": 0
+  },
+  "lift_cerulean_blue_1": {
+   "lifted_share": 0.484504824268149,
+   "unsound_cells": 0
+  },
+  "lift_phthalo_green_0.25": {
+   "lifted_share": 0.06680676806320739,
+   "unsound_cells": 0
+  },
+  "lift_french_ultramarine_0.25": {
+   "lifted_share": 0.41515551648567633,
+   "unsound_cells": 0
+  },
+  "lift_quinacridone_rose_0.25": {
+   "lifted_share": 0.08799490183317063,
+   "unsound_cells": 0
+  },
+  "lift_cerulean_blue_0.25": {
+   "lifted_share": 0.4823096873534211,
+   "unsound_cells": 0
+  },
+  "dried_wash_lift": {
+   "lifted_share": 0.4780789304664138,
+   "value_gain": 0.14387154579162598,
+   "picture_difference": 0.0,
+   "unsound_cells": 0
+  },
+  "lift_under_glaze": {
+   "lifted_share": 0.08781144693907499,
+   "unsound_cells": 0
+  },
+  "glaze_over_rose": {
+   "variation_over_patch": 0.05643709376454353,
+   "patch_over_paper": 1.1241406035142703,
+   "unsound_cells": 0
+  },
+  "glaze_disturbance_2": {
+   "moved_share": 0.026078376919031143,
+   "unsound_cells": 0
+  },
+  "glaze_disturbance_0.5": {
+   "moved_share": 0.029067162424325943,
+   "unsound_cells": 0
+  },
+  "fine_line": {
+   "one_coat_peak": 0.38551050424575806,
+   "two_coats_peak": 0.4751647412776947,
+   "unsound_cells": 0
+  },
+  "drybrush_white": {
+   "dark_beneath_share": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "cells_not_layered": 234,
+   "unsound_cells": 0
+  },
+  "glaze_over_white": {
+   "chroma_ratio": [
+    0.7424733835313907,
+    0.735151286817309,
+    0.7104590788708957,
+    0.7074499356125095
+   ],
+   "unsound_cells": 0
+  },
+  "white_coats": {
+   "layering_fraction": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "contrast": [
+    0.4304457928558968,
+    0.4913033918698211,
+    0.506188647379348,
+    0.5458023124988026,
+    0.5141544633498983,
+    0.5818110422345689,
+    0.6153499931349203,
+    0.652148554058028
+   ],
+   "unsound_cells": 0
+  },
+  "rewet": {
+   "layered_gain_before": 0.0,
+   "layered_gain_kept": null,
+   "white_in_lowest_layer": 0.0,
+   "unsound_cells": 0
+  },
+  "four_glazes": {
+   "pictured": [
+    0.4023532271385193,
+    0.40861791372299194,
+    0.3918866813182831,
+    0.3620990216732025
+   ],
+   "every_layer_kept": [
+    0.4259369373321533,
+    0.44409164786338806,
+    0.430408239364624,
+    0.40161260962486267
+   ],
+   "one_summed_layer": [
+    0.4023532271385193,
+    0.40861791372299194,
+    0.3918866813182831,
+    0.3620990216732025
+   ],
+   "error_to_every_layer": [
+    0.023583710193634033,
+    0.03547373414039612,
+    0.03852155804634094,
+    0.039513587951660156
+   ],
+   "nearer_every_layer": [
+    false,
+    false,
+    false,
+    false
+   ],
+   "unsound_cells": 0
+  },
+  "hygiene": {
+   "lint_clean": true,
+   "format_clean": true,
+   "types_clean": true,
+   "environment_reads": 0,
+   "wall_seconds": 1.3
+  },
+  "paintings_begun_with_reference": {
+   "wet_water_equal": true,
+   "wet_pigment_equal": true,
+   "wet_unsound_cells": 0,
+   "rose_strokes_counted": 2,
+   "dried_value_difference": 0.0,
+   "dried_layer_total": 0,
+   "white_over_umber": 0.5269982814788818,
+   "umber_alone": 0.3465920090675354,
+   "white_gain": 0.18040627241134644,
+   "dried_unsound_cells": 0,
+   "saved_fields_complete": true,
+   "wall_seconds": 212.9
+  },
+  "vocabulary": {
+   "changed_files": [],
+   "actions_equal": true,
+   "validation_equal": true,
+   "arguments_equal": true,
+   "state_fields_kept": true,
+   "new_state_fields": [],
+   "new_state_fields_approved": true,
+   "new_state_fields_optional": true,
+   "parameters_equal": true,
+   "wall_seconds": 0.2
+  },
+  "non_staining_unchanged": {
+   "largest_relative_difference": 0.0,
+   "wall_seconds": 200.2
+  },
+  "rewet_without_moving_paint": {
+   "value_change": 0.0,
+   "deposit_moved": 7.675864388545506e-09,
+   "wall_seconds": 304.5
+  },
+  "slope_runs": {
+   "fronts": [
+    28.626524880582288,
+    37.21593282354035,
+    54.735158494030486,
+    78.75583448602083,
+    96.16614173713894
+   ],
+   "half_band_fronts": [
+    18.909088563441784,
+    25.834251421746153,
+    39.284080832243646,
+    55.13970090577922,
+    67.1583335881659
+   ],
+   "time_exponent": 0.5141388174807198,
+   "volume_exponent": 0.5145306908675885,
+   "late_time_exponent": 0.5142696361064544,
+   "unsound_cells": 0,
+   "wall_seconds": 95.6
+  },
+  "edges": {
+   "french_ultramarine": [
+    2.33235208255123,
+    2.0287269593545574,
+    1.5891259688690302
+   ],
+   "quinacridone_rose": [
+    2.5717206111646354,
+    2.2190912409803785,
+    1.7111704232017946
+   ],
+   "gum_scaled": [
+    2.0287269593545574,
+    2.0287269593545574,
+    2.0287269593545574
+   ]
+  },
+  "lifts": {
+   "quinacridone_rose": [
+    0.08799490183317063,
+    0.08803285411637446,
+    0.08798566639902751
+   ],
+   "phthalo_green": [
+    0.06680676806320739,
+    0.06683282218614124,
+    0.0667975064995274
+   ],
+   "french_ultramarine": [
+    0.41515551648567633,
+    0.4166318569753069,
+    0.41739172149628584
+   ],
+   "cerulean_blue": [
+    0.4823096873534211,
+    0.484504824268149,
+    0.4859512718326401
+   ]
+  },
+  "lift_ratios": {
+   "quinacridone_rose_steps": [
+    0.0004313009323628769,
+    -0.000536023940386765
+   ],
+   "phthalo_green_steps": [
+    0.0003899922670889122,
+    -0.0005284183049383273
+   ],
+   "damp_over_dry": 0.7280139807517129,
+   "under_glaze_over_alone": 0.9974849483238748
+  },
+  "charges": {
+   "widths": [
+    8.208691377786241,
+    5.615099013314127,
+    6.478015106343731
+   ],
+   "widths_over_dry": [
+    3.556306013975635,
+    2.4326667273856044,
+    2.8065136111291062
+   ],
+   "film_0.5_over_dry": 3.556306013975635,
+   "waited_widths": [
+    13.424758903284935,
+    10.527468763752156,
+    6.819422293439509
+   ],
+   "rose_radii": [
+    18.495359921424804,
+    19.80499722390949,
+    21.606104009486533
+   ]
+  },
+  "order": {
+   "asymmetry": [
+    0.013721108436584473,
+    -0.010668396949768066,
+    0.002666473388671875,
+    0.02640777826309204
+   ],
+   "composed_asymmetry": [
+    0.014194458723068237,
+    0.028655946254730225,
+    0.011145204305648804,
+    0.33810436725616455
+   ],
+   "white_margin": -0.14264440536499023,
+   "signs_agree": true
+  },
+  "commute": {
+   "differences": [
+    0.016594529151916504,
+    0.03903403878211975,
+    0.01424892246723175
+   ],
+   "summed_differences": [
+    0.016594529151916504,
+    0.03903403878211975,
+    0.01424892246723175
+   ],
+   "optical_differences": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "soundness": {
+   "unsound_cells": 0
+  },
+  "physics_untouched": {
+   "layers_present": false,
+   "largest_difference": 0.0,
+   "wall_seconds": 0.6
+  },
+  "technique_trials": {
+   "failed_trials": [],
+   "transparent_glaze_difference": 0.0,
+   "wall_seconds": 4224.8
+  },
+  "test_suite": {
+   "passed": 58,
+   "failed": 0,
+   "summary": "58 passed in 2467.76s (0:41:07)",
+   "wall_seconds": 2469.1
+  }
+ },
+ "gates": {
+  "I-water-conservation": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "flow_conserves_water.water_change_0.05",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 1.4270974407861594e-07,
+     "baseline": 1.4270974407861594e-07,
+     "passed": true
+    },
+    {
+     "metric": "flow_conserves_water.water_change_4",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "I-pigment-conservation": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "puddle_drains.pigment_change",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "brush_and_sheet.relative_change",
+     "op": "<=",
+     "bound": 0.01,
+     "scale": "absolute",
+     "value": 9.887706821304974e-08,
+     "baseline": 9.887706821304974e-08,
+     "passed": true
+    },
+    {
+     "metric": "advance_conserves_pigment.pigment_change",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 8.298663674054544e-09,
+     "baseline": 8.298663674054544e-09,
+     "passed": true
+    }
+   ]
+  },
+  "I-sound-state": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "soundness.unsound_cells",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    },
+    {
+     "metric": "deep_puddle_scrubbed.unsound_cells_wet",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    },
+    {
+     "metric": "deep_puddle_scrubbed.unsound_cells_rewetted",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    }
+   ]
+  },
+  "I-determinism": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "determinism_and_batching.repeat_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "determinism_and_batching.cpu_repeat_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "I-batched-equals-single": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "determinism_and_batching.batched_difference",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "determinism_and_batching.pool_batched_relative_difference",
+     "op": "<",
+     "bound": 0.001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "I-save-and-resume": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "session_resume.resumed_from_action",
+     "op": "==",
+     "bound": 2,
+     "scale": "absolute",
+     "value": 2,
+     "baseline": 2,
+     "passed": true
+    },
+    {
+     "metric": "session_resume.session_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "session_resume.clocks_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "session_resume.loaded_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "session_resume.continued_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "I-unmoved-paint-unchanged": {
+   "status": "pass",
+   "item": "global",
+   "kind": "invariant",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "rewet_without_moving_paint.value_change",
+     "op": "<=",
+     "bound": 0.001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "rewet_without_moving_paint.deposit_moved",
+     "op": "<=",
+     "bound": 1e-08,
+     "scale": "absolute",
+     "value": 7.675864388545506e-09,
+     "baseline": 7.675864388545506e-09,
+     "passed": true
+    }
+   ]
+  },
+  "C-continue-0.8.0-painting": {
+   "status": "pass",
+   "item": "global",
+   "kind": "compatibility",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "paintings_begun_with_reference.wet_water_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.wet_pigment_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.wet_unsound_cells",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.rose_strokes_counted",
+     "op": "==",
+     "bound": 2,
+     "scale": "absolute",
+     "value": 2,
+     "baseline": 2,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.dried_value_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.dried_layer_total",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.dried_unsound_cells",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    },
+    {
+     "metric": "paintings_begun_with_reference.saved_fields_complete",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    }
+   ]
+  },
+  "C-vocabulary-unchanged": {
+   "status": "pass",
+   "item": "global",
+   "kind": "compatibility",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "vocabulary.changed_files",
+     "op": "==",
+     "bound": [],
+     "scale": "absolute",
+     "value": [],
+     "baseline": [],
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.actions_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.validation_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.arguments_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.state_fields_kept",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.new_state_fields_approved",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.new_state_fields_optional",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "vocabulary.parameters_equal",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    }
+   ]
+  },
+  "C-hygiene": {
+   "status": "pass",
+   "item": "global",
+   "kind": "compatibility",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "hygiene.lint_clean",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "hygiene.format_clean",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "hygiene.types_clean",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "hygiene.environment_reads",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    }
+   ]
+  },
+  "R-edge-darkening": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "edge_french_ultramarine_1.edge_ratio",
+     "op": ">=",
+     "bound": 1.15,
+     "scale": "absolute",
+     "value": 2.0287269593545574,
+     "baseline": 2.0287269593545574,
+     "passed": true
+    },
+    {
+     "metric": "edge_french_ultramarine_1.edge_ratio",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 2.0287269593545574,
+     "baseline": 2.0287269593545574,
+     "passed": true
+    },
+    {
+     "metric": "edges.french_ultramarine",
+     "op": ">=",
+     "bound": 1.15,
+     "scale": "absolute",
+     "value": [
+      2.33235208255123,
+      2.0287269593545574,
+      1.5891259688690302
+     ],
+     "baseline": [
+      2.33235208255123,
+      2.0287269593545574,
+      1.5891259688690302
+     ],
+     "passed": true
+    },
+    {
+     "metric": "edges.quinacridone_rose",
+     "op": ">=",
+     "bound": 1.15,
+     "scale": "absolute",
+     "value": [
+      2.5717206111646354,
+      2.2190912409803785,
+      1.7111704232017946
+     ],
+     "baseline": [
+      2.5717206111646354,
+      2.2190912409803785,
+      1.7111704232017946
+     ],
+     "passed": true
+    },
+    {
+     "metric": "edges.french_ultramarine",
+     "op": "decreasing",
+     "bound": null,
+     "scale": "absolute",
+     "value": [
+      2.33235208255123,
+      2.0287269593545574,
+      1.5891259688690302
+     ],
+     "baseline": [
+      2.33235208255123,
+      2.0287269593545574,
+      1.5891259688690302
+     ],
+     "passed": true
+    },
+    {
+     "metric": "edges.quinacridone_rose",
+     "op": "decreasing",
+     "bound": null,
+     "scale": "absolute",
+     "value": [
+      2.5717206111646354,
+      2.2190912409803785,
+      1.7111704232017946
+     ],
+     "baseline": [
+      2.5717206111646354,
+      2.2190912409803785,
+      1.7111704232017946
+     ],
+     "passed": true
+    },
+    {
+     "metric": "edge_quinacridone_rose_1.edge_ratio",
+     "op": "between",
+     "bound": [
+      0.5,
+      1.5
+     ],
+     "scale": "baseline",
+     "value": 2.2190912409803785,
+     "baseline": 2.2190912409803785,
+     "passed": true
+    },
+    {
+     "metric": "flat_wash_flat.edge_ratio",
+     "op": ">=",
+     "bound": 1.15,
+     "scale": "absolute",
+     "value": 1.9563090117069097,
+     "baseline": 1.9563090117069097,
+     "passed": true
+    }
+   ]
+  },
+  "R-stroke-width": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "edge_french_ultramarine_1.painted_rows",
+     "op": "near",
+     "bound": 1,
+     "scale": "absolute",
+     "value": 30,
+     "baseline": 30,
+     "passed": true
+    }
+   ]
+  },
+  "R-flat-wash-evenness": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "flat_wash_mop.box_variation",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.07521296292543411,
+     "baseline": 0.07521296292543411,
+     "passed": true
+    },
+    {
+     "metric": "flat_wash_round.block_variation",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.08329465985298157,
+     "baseline": 0.08329465985298157,
+     "passed": true
+    },
+    {
+     "metric": "flat_wash_flat.interior_variation",
+     "op": "<=",
+     "bound": 0.16,
+     "scale": "absolute",
+     "value": 0.14073164761066437,
+     "baseline": 0.14073164761066437,
+     "passed": true
+    }
+   ]
+  },
+  "R-drying-time": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "edge_french_ultramarine_1.drying_seconds",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 192.0,
+     "baseline": 192.0,
+     "passed": true
+    },
+    {
+     "metric": "flat_wash_mop.drying_seconds",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 280.0,
+     "baseline": 280.0,
+     "passed": true
+    },
+    {
+     "metric": "wet_phase.seconds_with_film",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 88.0,
+     "baseline": 88.0,
+     "passed": true
+    },
+    {
+     "metric": "patch_drying.drying_seconds",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 216.0,
+     "baseline": 216.0,
+     "passed": true
+    },
+    {
+     "metric": "flat_wash_flat.drying_seconds",
+     "op": "between",
+     "bound": [
+      0.9,
+      1.1
+     ],
+     "scale": "baseline",
+     "value": 232.0,
+     "baseline": 232.0,
+     "passed": true
+    }
+   ]
+  },
+  "R-bloom": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "bloom_mop.centre_over_wash",
+     "op": "<=",
+     "bound": 0.8,
+     "scale": "absolute",
+     "value": 0.6030056413158131,
+     "baseline": 0.6030056413158131,
+     "passed": true
+    },
+    {
+     "metric": "bloom_mop.centre_over_wash",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 0.6030056413158131,
+     "baseline": 0.6030056413158131,
+     "passed": true
+    },
+    {
+     "metric": "bloom_mop.rim_over_wash",
+     "op": ">=",
+     "bound": 1.1,
+     "scale": "absolute",
+     "value": 1.1898596122338756,
+     "baseline": 1.1898596122338756,
+     "passed": true
+    },
+    {
+     "metric": "bloom_mop.rim_over_wash",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 1.1898596122338756,
+     "baseline": 1.1898596122338756,
+     "passed": true
+    },
+    {
+     "metric": "bloom_round.peak_over_inside",
+     "op": ">=",
+     "bound": 0.8,
+     "scale": "baseline",
+     "value": 1.9453592017062051,
+     "baseline": 1.9453592017062051,
+     "passed": true
+    },
+    {
+     "metric": "bloom_umber.centre_share",
+     "op": "<=",
+     "bound": 0.95,
+     "scale": "absolute",
+     "value": 0.9074497934838974,
+     "baseline": 0.9074497934838974,
+     "passed": true
+    },
+    {
+     "metric": "bloom_umber.rim_share",
+     "op": ">=",
+     "bound": 1.15,
+     "scale": "absolute",
+     "value": 1.220799389834202,
+     "baseline": 1.220799389834202,
+     "passed": true
+    }
+   ]
+  },
+  "R-lifting": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "drained_lift.lifted_ratio",
+     "op": "<",
+     "bound": 0.8,
+     "scale": "absolute",
+     "value": 0.7459409449073247,
+     "baseline": 0.7459409449073247,
+     "passed": true
+    },
+    {
+     "metric": "drained_lift.lifted_ratio",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 0.7459409449073247,
+     "baseline": 0.7459409449073247,
+     "passed": true
+    },
+    {
+     "metric": "drained_lift.taken",
+     "op": ">",
+     "bound": 5.0,
+     "scale": "absolute",
+     "value": 28.630806869936052,
+     "baseline": 28.630806869936052,
+     "passed": true
+    },
+    {
+     "metric": "lifts.french_ultramarine",
+     "op": "between",
+     "bound": [
+      0.97,
+      1.03
+     ],
+     "scale": "baseline",
+     "value": [
+      0.41515551648567633,
+      0.4166318569753069,
+      0.41739172149628584
+     ],
+     "baseline": [
+      0.41515551648567633,
+      0.4166318569753069,
+      0.41739172149628584
+     ],
+     "passed": true
+    },
+    {
+     "metric": "lifts.cerulean_blue",
+     "op": "between",
+     "bound": [
+      0.97,
+      1.03
+     ],
+     "scale": "baseline",
+     "value": [
+      0.4823096873534211,
+      0.484504824268149,
+      0.4859512718326401
+     ],
+     "baseline": [
+      0.4823096873534211,
+      0.484504824268149,
+      0.4859512718326401
+     ],
+     "passed": true
+    },
+    {
+     "metric": "dried_wash_lift.lifted_share",
+     "op": ">=",
+     "bound": 0.4,
+     "scale": "absolute",
+     "value": 0.4780789304664138,
+     "baseline": 0.4780789304664138,
+     "passed": true
+    },
+    {
+     "metric": "dried_wash_lift.value_gain",
+     "op": ">=",
+     "bound": 0.1,
+     "scale": "absolute",
+     "value": 0.14387154579162598,
+     "baseline": 0.14387154579162598,
+     "passed": true
+    }
+   ]
+  },
+  "R-tilt-run": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "tilt_run.run_rows",
+     "op": ">=",
+     "bound": 6,
+     "scale": "absolute",
+     "value": 18,
+     "baseline": 18,
+     "passed": true
+    },
+    {
+     "metric": "tilt_run.run_rows",
+     "op": ">=",
+     "bound": 0.75,
+     "scale": "baseline",
+     "value": 18,
+     "baseline": 18,
+     "passed": true
+    }
+   ]
+  },
+  "R-wet-in-wet": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "charges.widths_over_dry",
+     "op": ">=",
+     "bound": 1.5,
+     "scale": "absolute",
+     "value": [
+      3.556306013975635,
+      2.4326667273856044,
+      2.8065136111291062
+     ],
+     "baseline": [
+      3.556306013975635,
+      2.4326667273856044,
+      2.8065136111291062
+     ],
+     "passed": true
+    },
+    {
+     "metric": "charges.film_0.5_over_dry",
+     "op": ">=",
+     "bound": 2.0,
+     "scale": "absolute",
+     "value": 3.556306013975635,
+     "baseline": 3.556306013975635,
+     "passed": true
+    },
+    {
+     "metric": "charges.widths",
+     "op": "between",
+     "bound": [
+      0.8,
+      1.2
+     ],
+     "scale": "baseline",
+     "value": [
+      8.208691377786241,
+      5.615099013314127,
+      6.478015106343731
+     ],
+     "baseline": [
+      8.208691377786241,
+      5.615099013314127,
+      6.478015106343731
+     ],
+     "passed": true
+    },
+    {
+     "metric": "charges.waited_widths",
+     "op": "between",
+     "bound": [
+      0.8,
+      1.2
+     ],
+     "scale": "baseline",
+     "value": [
+      13.424758903284935,
+      10.527468763752156,
+      6.819422293439509
+     ],
+     "baseline": [
+      13.424758903284935,
+      10.527468763752156,
+      6.819422293439509
+     ],
+     "passed": true
+    },
+    {
+     "metric": "charges.rose_radii",
+     "op": "between",
+     "bound": [
+      0.8,
+      1.2
+     ],
+     "scale": "baseline",
+     "value": [
+      18.495359921424804,
+      19.80499722390949,
+      21.606104009486533
+     ],
+     "baseline": [
+      18.495359921424804,
+      19.80499722390949,
+      21.606104009486533
+     ],
+     "passed": true
+    },
+    {
+     "metric": "wet_in_wet_dab.half_radius",
+     "op": "between",
+     "bound": [
+      16,
+      20
+     ],
+     "scale": "absolute",
+     "value": 18,
+     "baseline": 18,
+     "passed": true
+    },
+    {
+     "metric": "wet_in_wet_dab.tenth_radius",
+     "op": "between",
+     "bound": [
+      26,
+      32
+     ],
+     "scale": "absolute",
+     "value": 29,
+     "baseline": 29,
+     "passed": true
+    }
+   ]
+  },
+  "R-stability": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "drying_film_growth.deepest_over_laid",
+     "op": "<=",
+     "bound": 1.1,
+     "scale": "absolute",
+     "value": 0.6350461169544225,
+     "baseline": 0.6350461169544225,
+     "passed": true
+    },
+    {
+     "metric": "rows_barely_touching.deepest_film",
+     "op": "<",
+     "bound": 2.0,
+     "scale": "absolute",
+     "value": 1.0185788869857788,
+     "baseline": 1.0185788869857788,
+     "passed": true
+    },
+    {
+     "metric": "thick_paint_checkerboard.checkerboard",
+     "op": "<",
+     "bound": 0.01,
+     "scale": "absolute",
+     "value": 9.23130864975974e-05,
+     "baseline": 9.23130864975974e-05,
+     "passed": true
+    },
+    {
+     "metric": "deep_water_on_damp_paper.finite",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "deep_water_on_damp_paper.water_error",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "deep_water_on_damp_paper.roughness",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.005172356031835079,
+     "baseline": 0.005172356031835079,
+     "passed": true
+    }
+   ]
+  },
+  "R-thin-film-on-damp-paper": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "thin_film_on_damp_paper.checkerboard_0.03",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.008315680548548698,
+     "baseline": 0.008315680548548698,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.deepest_over_start_0.03",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 2.532844924512027,
+     "baseline": 2.532844924512027,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.checkerboard_0.08",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.009236373007297516,
+     "baseline": 0.009236373007297516,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.deepest_over_start_0.08",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 2.759753492983177,
+     "baseline": 2.759753492983177,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.finite_0.03",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.finite_0.08",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.water_error_0.03",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 9.93791412375113e-07,
+     "baseline": 9.93791412375113e-07,
+     "passed": true
+    },
+    {
+     "metric": "thin_film_on_damp_paper.water_error_0.08",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 9.316793912332323e-08,
+     "baseline": 9.316793912332323e-08,
+     "passed": true
+    }
+   ]
+  },
+  "R-shine-timing": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "shine_round.seconds_to_film",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": [
+      34.0,
+      50.0,
+      53.0
+     ],
+     "baseline": [
+      34.0,
+      50.0,
+      53.0
+     ],
+     "passed": true
+    },
+    {
+     "metric": "shine_mop.seconds_to_film",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": [
+      51.0,
+      69.0,
+      73.0
+     ],
+     "baseline": [
+      51.0,
+      69.0,
+      73.0
+     ],
+     "passed": true
+    }
+   ]
+  },
+  "R-staining-wet-balance": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "wet_balance_1.suspended_share",
+     "op": "between",
+     "bound": [
+      0.95,
+      1.05
+     ],
+     "scale": "baseline",
+     "value": 0.7955149595479112,
+     "baseline": 0.7955149595479112,
+     "passed": true
+    },
+    {
+     "metric": "wet_balance_4.suspended_share",
+     "op": "between",
+     "bound": [
+      0.95,
+      1.05
+     ],
+     "scale": "baseline",
+     "value": 0.7180166289801102,
+     "baseline": 0.7180166289801102,
+     "passed": true
+    }
+   ]
+  },
+  "R-glaze-over-dried-paint": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "glaze_over_rose.variation_over_patch",
+     "op": "<=",
+     "bound": 1.25,
+     "scale": "baseline",
+     "value": 0.05643709376454353,
+     "baseline": 0.05643709376454353,
+     "passed": true
+    },
+    {
+     "metric": "glaze_over_rose.patch_over_paper",
+     "op": "between",
+     "bound": [
+      0.9,
+      1.1
+     ],
+     "scale": "baseline",
+     "value": 1.1241406035142703,
+     "baseline": 1.1241406035142703,
+     "passed": true
+    }
+   ]
+  },
+  "R-glaze-disturbance": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "glaze_disturbance_0.5.moved_share",
+     "op": "between",
+     "bound": [
+      0.75,
+      1.25
+     ],
+     "scale": "baseline",
+     "value": 0.029067162424325943,
+     "baseline": 0.029067162424325943,
+     "passed": true
+    },
+    {
+     "metric": "glaze_disturbance_2.moved_share",
+     "op": "between",
+     "bound": [
+      0.75,
+      1.25
+     ],
+     "scale": "baseline",
+     "value": 0.026078376919031143,
+     "baseline": 0.026078376919031143,
+     "passed": true
+    }
+   ]
+  },
+  "R-later-layer-does-not-unstain": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "lift_ratios.under_glaze_over_alone",
+     "op": "between",
+     "bound": [
+      0.85,
+      1.15
+     ],
+     "scale": "baseline",
+     "value": 0.9974849483238748,
+     "baseline": 0.9974849483238748,
+     "passed": true
+    }
+   ]
+  },
+  "R-single-paint-picture": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "flat_wash_flat.picture_difference",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "bloom_umber.picture_difference",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "dried_wash_lift.picture_difference",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "wet_in_wet_dab.picture_difference",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "R-unset-paint-mixes": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "unset_mixing.second_charge_unset",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "unset_mixing.layered_paint",
+     "op": "<=",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "unset_mixing.picture_difference",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "R-transparent-paint-commutes": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "commute.optical_differences",
+     "op": "<=",
+     "bound": 0.03,
+     "scale": "absolute",
+     "value": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "baseline": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "passed": true
+    }
+   ]
+  },
+  "G1-levelling-exponent": {
+   "status": "fail",
+   "item": "flow_exponent",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "levelling_rates.exponent",
+     "op": "between",
+     "bound": [
+      2.75,
+      3.25
+     ],
+     "scale": "absolute",
+     "value": 2.001102974639987,
+     "baseline": 2.001102974639987,
+     "passed": false
+    },
+    {
+     "metric": "levelling_rates.local_exponents",
+     "op": "between",
+     "bound": [
+      2.75,
+      3.25
+     ],
+     "scale": "absolute",
+     "value": [
+      1.9979279307299054,
+      2.0050166584272033
+     ],
+     "baseline": [
+      1.9979279307299054,
+      2.0050166584272033
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "G2-slope-run-time-exponent": {
+   "status": "fail",
+   "item": "flow_exponent",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "slope_runs.time_exponent",
+     "op": "between",
+     "bound": [
+      0.292,
+      0.375
+     ],
+     "scale": "absolute",
+     "value": 0.5141388174807198,
+     "baseline": 0.5141388174807198,
+     "passed": false
+    }
+   ]
+  },
+  "G3-slope-run-volume-exponent": {
+   "status": "fail",
+   "item": "flow_exponent",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "slope_runs.volume_exponent",
+     "op": ">=",
+     "bound": 0.583,
+     "scale": "absolute",
+     "value": 0.5145306908675885,
+     "baseline": 0.5145306908675885,
+     "passed": false
+    }
+   ]
+  },
+  "R-cal-full-wash-calibration": {
+   "status": "pass",
+   "item": "flow_exponent",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "levelling_rates.rate_full_wash",
+     "op": "between",
+     "bound": [
+      0.95,
+      1.05
+     ],
+     "scale": "baseline",
+     "value": 3.7419418735288597,
+     "baseline": 3.7419418735288597,
+     "passed": true
+    },
+    {
+     "metric": "levelling_rates.rate_mobility_limit",
+     "op": "between",
+     "bound": [
+      0.95,
+      1.05
+     ],
+     "scale": "baseline",
+     "value": 6.2882298795814435,
+     "baseline": 6.2882298795814435,
+     "passed": true
+    }
+   ]
+  },
+  "P1-gum-viscosity-matches-data": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "gum_levelling.viscosity_0.05",
+     "op": "between",
+     "bound": [
+      3.0,
+      6.7
+     ],
+     "scale": "absolute",
+     "value": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "baseline": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "passed": false
+    },
+    {
+     "metric": "gum_levelling.viscosity_0.1",
+     "op": "between",
+     "bound": [
+      6.7,
+      13.5
+     ],
+     "scale": "absolute",
+     "value": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "baseline": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "passed": false
+    },
+    {
+     "metric": "gum_levelling.viscosity_0.2",
+     "op": "between",
+     "bound": [
+      33.0,
+      74.0
+     ],
+     "scale": "absolute",
+     "value": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "baseline": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "passed": false
+    },
+    {
+     "metric": "gum_levelling.viscosity_spread_0.05",
+     "op": "<=",
+     "bound": 1.2,
+     "scale": "absolute",
+     "value": 1.0,
+     "baseline": 1.0,
+     "passed": true
+    },
+    {
+     "metric": "gum_levelling.viscosity_spread_0.1",
+     "op": "<=",
+     "bound": 1.2,
+     "scale": "absolute",
+     "value": 1.0,
+     "baseline": 1.0,
+     "passed": true
+    },
+    {
+     "metric": "gum_levelling.viscosity_spread_0.2",
+     "op": "<=",
+     "bound": 1.2,
+     "scale": "absolute",
+     "value": 1.0,
+     "baseline": 1.0,
+     "passed": true
+    }
+   ]
+  },
+  "P2-lift-rises-with-strength-staining": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "lift_ratios.quinacridone_rose_steps",
+     "op": ">=",
+     "bound": 0.01,
+     "scale": "absolute",
+     "value": [
+      0.0004313009323628769,
+      -0.000536023940386765
+     ],
+     "baseline": [
+      0.0004313009323628769,
+      -0.000536023940386765
+     ],
+     "passed": false
+    },
+    {
+     "metric": "lift_ratios.phthalo_green_steps",
+     "op": ">=",
+     "bound": 0.01,
+     "scale": "absolute",
+     "value": [
+      0.0003899922670889122,
+      -0.0005284183049383273
+     ],
+     "baseline": [
+      0.0003899922670889122,
+      -0.0005284183049383273
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "P3-damp-paper-lifts-more": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "lift_ratios.damp_over_dry",
+     "op": ">",
+     "bound": 1.0,
+     "scale": "absolute",
+     "value": 0.7280139807517129,
+     "baseline": 0.7280139807517129,
+     "passed": false
+    },
+    {
+     "metric": "damp_lift.paper_fullness",
+     "op": ">=",
+     "bound": 0.5,
+     "scale": "absolute",
+     "value": 0.6380630135536194,
+     "baseline": 0.6380630135536194,
+     "passed": true
+    }
+   ]
+  },
+  "P4-coffee-ring-weakens-with-gum": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "edges.gum_scaled",
+     "op": "decreasing",
+     "bound": null,
+     "scale": "absolute",
+     "value": [
+      2.0287269593545574,
+      2.0287269593545574,
+      2.0287269593545574
+     ],
+     "baseline": [
+      2.0287269593545574,
+      2.0287269593545574,
+      2.0287269593545574
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "I1-gum-conserved-in-advance": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "gum_bookkeeping.advance_change",
+     "op": "<=",
+     "bound": 1e-05,
+     "scale": "absolute",
+     "value": null,
+     "baseline": null,
+     "passed": false
+    },
+    {
+     "metric": "gum_bookkeeping.wait_change",
+     "op": "<=",
+     "bound": 1e-05,
+     "scale": "absolute",
+     "value": null,
+     "baseline": null,
+     "passed": false
+    }
+   ]
+  },
+  "I3-gum-laid-with-pigment": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "gum_bookkeeping.laid_over_pigment",
+     "op": "between",
+     "bound": [
+      0.9,
+      1.1
+     ],
+     "scale": "absolute",
+     "value": null,
+     "baseline": null,
+     "passed": false
+    }
+   ]
+  },
+  "I7-gum-conserved-through-masking-fluid": {
+   "status": "fail",
+   "item": "binder",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "gum_bookkeeping.mask_change",
+     "op": "<=",
+     "bound": 1e-05,
+     "scale": "absolute",
+     "value": null,
+     "baseline": null,
+     "passed": false
+    }
+   ]
+  },
+  "R0-non-staining-paint-unchanged": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "non_staining_unchanged.largest_relative_difference",
+     "op": "<=",
+     "bound": 1e-06,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "C1-old-state-loads-and-rebuilds-gum": {
+   "status": "pass",
+   "item": "binder",
+   "kind": "compatibility",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "old_state_loads.gum_rebuilt",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    },
+    {
+     "metric": "old_state_loads.continues_finite",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    }
+   ]
+  },
+  "PHY-1-layering-fraction": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "white_coats.layering_fraction",
+     "op": ">=",
+     "bound": 0.75,
+     "scale": "absolute",
+     "value": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "baseline": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "PHY-2-ground-insensitivity": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "under_darkness.slope_ratio",
+     "op": "<=",
+     "bound": 0.6,
+     "scale": "absolute",
+     "value": 1.0,
+     "baseline": 1.0,
+     "passed": false
+    }
+   ]
+  },
+  "PHY-3-order-follows-scattering": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "order.white_margin",
+     "op": ">=",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": -0.14264440536499023,
+     "baseline": -0.14264440536499023,
+     "passed": false
+    },
+    {
+     "metric": "order.signs_agree",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": true,
+     "baseline": true,
+     "passed": true
+    }
+   ]
+  },
+  "PHY-4-glaze-over-white": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "glaze_over_white.chroma_ratio",
+     "op": ">=",
+     "bound": 0.85,
+     "scale": "absolute",
+     "value": [
+      0.7424733835313907,
+      0.735151286817309,
+      0.7104590788708957,
+      0.7074499356125095
+     ],
+     "baseline": [
+      0.7424733835313907,
+      0.735151286817309,
+      0.7104590788708957,
+      0.7074499356125095
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "PHY-5-set-transition": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "set_time.unset_share_largest",
+     "op": "<=",
+     "bound": 0.05,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "set_time.unset_picture_error_largest",
+     "op": "<=",
+     "bound": 0.0001,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    },
+    {
+     "metric": "set_time.set_share_least",
+     "op": ">=",
+     "bound": 0.9,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": false
+    },
+    {
+     "metric": "set_time.over_band",
+     "op": "nondecreasing",
+     "bound": null,
+     "scale": "absolute",
+     "value": [
+      0.4916909337043762,
+      0.44387349486351013,
+      0.42115747928619385,
+      0.47353672981262207
+     ],
+     "baseline": [
+      0.4916909337043762,
+      0.44387349486351013,
+      0.42115747928619385,
+      0.47353672981262207
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "PHY-6-fine-white-line": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "fine_line.two_coats_peak",
+     "op": ">=",
+     "bound": 0.6,
+     "scale": "absolute",
+     "value": 0.4751647412776947,
+     "baseline": 0.4751647412776947,
+     "passed": false
+    },
+    {
+     "metric": "fine_line.one_coat_peak",
+     "op": ">=",
+     "bound": 0.5,
+     "scale": "absolute",
+     "value": 0.38551050424575806,
+     "baseline": 0.38551050424575806,
+     "passed": false
+    }
+   ]
+  },
+  "PHY-7-layers-survive-rewetting": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "rewet.layered_gain_kept",
+     "op": ">=",
+     "bound": 0.8,
+     "scale": "absolute",
+     "value": null,
+     "baseline": null,
+     "passed": false
+    },
+    {
+     "metric": "rewet.white_in_lowest_layer",
+     "op": "<=",
+     "bound": 0.05,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "COMP-2-white-over-continued-painting": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "paintings_begun_with_reference.white_gain",
+     "op": ">",
+     "bound": 0.2,
+     "scale": "absolute",
+     "value": 0.18040627241134644,
+     "baseline": 0.18040627241134644,
+     "passed": false
+    }
+   ]
+  },
+  "PHY-8-merge-fidelity": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "four_glazes.nearer_every_layer",
+     "op": "==",
+     "bound": true,
+     "scale": "absolute",
+     "value": [
+      false,
+      false,
+      false,
+      false
+     ],
+     "baseline": [
+      false,
+      false,
+      false,
+      false
+     ],
+     "passed": false
+    },
+    {
+     "metric": "four_glazes.error_to_every_layer",
+     "op": "<=",
+     "bound": 0.05,
+     "scale": "absolute",
+     "value": [
+      0.023583710193634033,
+      0.03547373414039612,
+      0.03852155804634094,
+      0.039513587951660156
+     ],
+     "baseline": [
+      0.023583710193634033,
+      0.03547373414039612,
+      0.03852155804634094,
+      0.039513587951660156
+     ],
+     "passed": true
+    }
+   ]
+  },
+  "INV-5-flow-opens-layers": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "flow_onto_set_paint.least_share",
+     "op": ">=",
+     "bound": 0.99,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": false
+    }
+   ]
+  },
+  "INV-7-brush-wetting-opens-layers": {
+   "status": "fail",
+   "item": "ordered_layers",
+   "kind": "physical",
+   "expected_on_baseline": "fail",
+   "checks": [
+    {
+     "metric": "drybrush_white.cells_not_layered",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 234,
+     "baseline": 234,
+     "passed": false
+    },
+    {
+     "metric": "drybrush_white.dark_beneath_share",
+     "op": ">=",
+     "bound": 0.9,
+     "scale": "absolute",
+     "value": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "baseline": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "passed": false
+    }
+   ]
+  },
+  "R-test-suite": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "test_suite.failed",
+     "op": "==",
+     "bound": 0,
+     "scale": "absolute",
+     "value": 0,
+     "baseline": 0,
+     "passed": true
+    }
+   ]
+  },
+  "R-technique-trials": {
+   "status": "pass",
+   "item": "global",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "technique_trials.failed_trials",
+     "op": "==",
+     "bound": [],
+     "scale": "absolute",
+     "value": [],
+     "baseline": [],
+     "passed": true
+    },
+    {
+     "metric": "technique_trials.transparent_glaze_difference",
+     "op": "<=",
+     "bound": 1.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  },
+  "REG-1-physics-untouched": {
+   "status": "pass",
+   "item": "ordered_layers",
+   "kind": "regression",
+   "expected_on_baseline": "pass",
+   "checks": [
+    {
+     "metric": "physics_untouched.largest_difference",
+     "op": "==",
+     "bound": 0.0,
+     "scale": "absolute",
+     "value": 0.0,
+     "baseline": 0.0,
+     "passed": true
+    }
+   ]
+  }
+ }
+}

@@ -33,3 +33,6 @@ line-length = 120
 
 [tool.pyrefly]
 search-path = ["src", "trials"]
+
+[tool.pytest.ini_options]
+pythonpath = ["trials"]
