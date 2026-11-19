@@ -115,8 +115,11 @@ GATES: tuple[Gate, ...] = (
             "ordered_layers:INV-1-conservation",
         ),
         correction="No reviewed gate counted pigment through a lifting stroke, the path where the hairs loosen and "
-        "wipe up settled paint: it is where the scrub fault made pigment from nothing, and the path the binder "
-        "changes (P2, P3). It is now counted, sheet and brush together.",
+        "wipe up settled paint, which the binder changes (P2, P3). It is now counted, sheet and brush together. Its "
+        "paints stain at 1.0 and above, more than the strongest scrub of 0.6, so it does not reach the scrub fault, "
+        "which made pigment from nothing only where a paint stains less than the brush scrubs; "
+        "test_scrubbing_paint_that_hardly_stains_lifts_no_more_than_lies_on_the_paper in tests/test_simulation.py "
+        "covers that case.",
     ),
     Gate(
         id="I-sound-state",
