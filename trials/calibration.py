@@ -160,8 +160,10 @@ def run_scenarios(scenarios: set[str], workers: int, timings: dict[str, float]) 
             results.update(measured)
             seconds[job[1]] = round(elapsed, 1)
             print(f"  {job[1]:<20s} {elapsed:6.1f} s  ({len(job[2])} scenarios)", file=sys.stderr, flush=True)
+    # A measurement is derived only in a run that holds every scenario it is derived from, so that a run of some
+    # gates never records one made from part of its sources.
     for name, (sources, derive) in DERIVED.items():
-        if any(source in results for source in sources):
+        if all(source in results for source in sources):
             results[name] = derive(results)
     return results, seconds
 
@@ -342,21 +344,13 @@ def run_gates(gates: list[Gate], baseline_path: Path = BASELINE, workers: int = 
 
 def merged(baseline: dict, record: dict) -> dict:
     """The baseline with a new recording laid over it, so that gates recorded in separate runs (the standard run
-    and the extended one) share one file. Both must have measured the same engine."""
+    and the extended one) share one file. Both must have measured the same engine. Each scenario's entry is
+    replaced whole, so that a measurement a scenario no longer takes leaves the baseline with it."""
     if baseline.get("engine_digest") != record["engine_digest"]:
         return record
     combined = dict(record)
-    for part in ("timings", "gates"):
+    for part in ("timings", "measurements", "gates"):
         combined[part] = baseline.get(part, {}) | record[part]
-    measurements = dict(baseline.get("measurements", {}))
-    for name, values in record["measurements"].items():
-        earlier = measurements.get(name)
-        if isinstance(earlier, dict) and isinstance(values, dict):
-            # A run of some gates derives measurements such as the lift ratios from paintings it did not paint.
-            # Those come back empty and must not replace what the baseline already holds.
-            values = earlier | {key: value for key, value in values.items() if value is not None}
-        measurements[name] = values
-    combined["measurements"] = measurements
     return combined
 
 
