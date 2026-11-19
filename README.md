@@ -157,7 +157,7 @@ paints each technique on its own sheet and writes the pictures to `trials/output
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card. The calibration gates that apply to every change run with them, which brings the whole to about twelve minutes.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development) and the session rules. They take about three minutes on a graphics card. The calibration gates that apply to every change repaint their scenarios and take about ten minutes more, so they run only when asked for: `uv run pytest -m calibration` runs them as tests, and `trials/calibration.py` below runs them with the rest of the suite.
 
 ```bash
 uv run python trials/calibration.py [--item ITEM] [--kind KIND] [--gate ID] [--extended]
