@@ -576,57 +576,27 @@ def bloom_round(studio: Studio) -> Measurements:
     return {"peak_over_inside": float(profile.max()) / float(profile[:4].mean())}
 
 
-def paint_umber_bloom(studio: Studio) -> None:
-    """The ordered-layer study's bloom: round-12 rows of burnt umber 0.6 and a clear dab at film 0.03."""
+def umber_bloom(studio: Studio) -> Measurements:
+    """The ordered-layer study's bloom: round-12 rows of burnt umber 0.6 and a clear dab at film 0.03, dried. Paint
+    within 4 px of the centre and on the highest 2 px ring within 30 px, each over the wash at r 26-30."""
+    sheet = sheet_of(studio)
     reloaded_rows(studio, "round", 12, {"burnt_umber": 0.6}, 30, 100, 13)
     studio.wait_for_film("painting", 64, 64, 0.03, 300)
     studio.load_brush("round", 8, {}, 1.0)
     studio.stroke("painting", [[64, 64]], 100, smooth=False)
     studio.dry()
-
-
-def umber_bloom_shares(sheet: Sheet) -> dict[str, float]:
-    """Paint at the centre of the umber bloom and on its rim, each over the wash at r 26-30."""
     paint = sheet.deposited.sum(0)
     distance = distance_from(sheet, 64, 64)
-    profile = ring_means(paint, distance, range(0, 30, 2), 2)
     surround = float(paint[(distance >= 26) & (distance < 30)].mean())
     return {
-        "centre_share": float(profile[0]) / surround,
         "centre_disc_share": float(paint[distance < 4].mean()) / surround,
-        "rim_share": float(profile.max()) / surround,
+        "rim_share": float(ring_means(paint, distance, range(0, 30, 2), 2).max()) / surround,
     }
 
 
 def bloom_umber(studio: Studio) -> Measurements:
     """The umber bloom on the standard paper, with the picture against 0.8.0's renderer."""
-    sheet = sheet_of(studio)
-    paint_umber_bloom(studio)
-    measurements: Measurements = {
-        **umber_bloom_shares(sheet),
-        "picture_difference": picture_difference(sheet),
-    }
-    return measurements
-
-
-# The paper's grain under a 2 px ring decides much of what the ring holds: on 0.8.0 the umber bloom's centre ring
-# reads from 0.59 to 0.91 of the wash across paper seeds 3-10, where the 4 px disc reads from 0.69 to 0.76. The
-# bloom is therefore judged by the disc, and by the median over several papers.
-UMBER_BLOOM_SEEDS = (3, 4, 5, 6, 7)
-
-
-def umber_bloom_seeds() -> Measurements:
-    """The umber bloom painted on several papers in one batch; the median centre and rim over the papers."""
-    sheets = paint_batched([paint_umber_bloom] * len(UMBER_BLOOM_SEEDS), UMBER_BLOOM_SEEDS)
-    shares = [umber_bloom_shares(sheet) for sheet in sheets]
-    centres = [share["centre_disc_share"] for share in shares]
-    rims = [share["rim_share"] for share in shares]
-    return {
-        "centre_median": statistics.median(centres),
-        "rim_median": statistics.median(rims),
-        "centre_by_seed": centres,
-        "rim_by_seed": rims,
-    }
+    return umber_bloom(studio) | {"picture_difference": picture_difference(sheet_of(studio))}
 
 
 def drained_lift(studio: Studio) -> Measurements:
@@ -2242,6 +2212,10 @@ STAINING_LIFT_PAINTS = ("quinacridone_rose", "phthalo_green")
 LIFT_PAINTS = (*STAINING_LIFT_PAINTS, "french_ultramarine", "cerulean_blue")
 LIFT_STRENGTHS = (0.25, 1.0, 4.0)
 LIFTS = {(paint, strength): f"lift_{paint}_{strength:g}" for paint in LIFT_PAINTS for strength in LIFT_STRENGTHS}
+# The paper's grain under a 2 px ring decides much of what the ring holds: on 0.8.0 the umber bloom's centre ring
+# reads from 0.59 to 0.91 of the wash across paper seeds 3-10, where the 4 px disc reads from 0.69 to 0.76. The
+# bloom is therefore judged by the disc, and by the median over several papers, each painted in the wet_work batch.
+UMBER_BLOOMS = {SEED: "bloom_umber", **{seed: f"bloom_umber_seed_{seed}" for seed in (4, 5, 6, 7)}}
 
 PAINTINGS: dict[str, Painting] = {
     **{name: Painting("one_layer", edge_stroke(paint, strength)) for (paint, strength), name in EDGES.items()},
@@ -2264,7 +2238,8 @@ PAINTINGS: dict[str, Painting] = {
     **{name: Painting("wet_work", charge_rose(strength)) for strength, name in CHARGE_ROSES.items()},
     "bloom_mop": Painting("wet_work", bloom_mop),
     "bloom_round": Painting("wet_work", bloom_round),
-    "bloom_umber": Painting("wet_work", bloom_umber),
+    UMBER_BLOOMS[SEED]: Painting("wet_work", bloom_umber),
+    **{name: Painting("wet_work", umber_bloom, seed=seed) for seed, name in UMBER_BLOOMS.items() if seed != SEED},
     "drained_lift": Painting("wet_work", drained_lift),
     "wet_in_wet_dab": Painting("wet_work", wet_in_wet_dab),
     "damp_lift": Painting("wet_work", damp_lift),
@@ -2306,7 +2281,6 @@ EXPERIMENTS: dict[str, Experiment] = {
     "gum_bookkeeping": Experiment("invariants", gum_bookkeeping),
     "old_state_loads": Experiment("invariants", old_state_loads),
     "deep_puddle_scrubbed": Experiment("puddle", deep_puddle_scrubbed),
-    "umber_bloom_seeds": Experiment("bloom_seeds", umber_bloom_seeds),
     "rewet_without_moving_paint": Experiment("rewetting", rewet_without_moving_paint),
     "non_staining_unchanged": Experiment("non_staining", non_staining_unchanged),
     "paintings_begun_with_reference": Experiment("compatibility", paintings_begun_with_reference),
@@ -2407,6 +2381,20 @@ def _charges(results: dict[str, Measurements]) -> Measurements:
     }
 
 
+def _umber_bloom_seeds(results: dict[str, Measurements]) -> Measurements:
+    """The umber bloom's centre and rim on each paper, and their medians over the papers."""
+    centres = _series(results, UMBER_BLOOMS.values(), "centre_disc_share")
+    rims = _series(results, UMBER_BLOOMS.values(), "rim_share")
+    if centres is None or rims is None:
+        return {}
+    return {
+        "centre_median": statistics.median(centres),
+        "rim_median": statistics.median(rims),
+        "centre_by_seed": centres,
+        "rim_by_seed": rims,
+    }
+
+
 def _asymmetries(
     results: dict[str, Measurements], on_top: str, beneath: str, measurements: tuple[str, ...]
 ) -> list[list[float]] | None:
@@ -2483,6 +2471,7 @@ DERIVED: dict[str, tuple[tuple[str, ...], Callable[[dict[str, Measurements]], Me
         (*CHARGE_FILMS.values(), "charge_dry_paper", *CHARGE_WAITS.values(), *CHARGE_ROSES.values()),
         _charges,
     ),
+    "umber_bloom_seeds": (tuple(UMBER_BLOOMS.values()), _umber_bloom_seeds),
     "order": (("order_on_top", "order_beneath"), _order),
     "commute": (("commute_on_top", "commute_beneath"), _commute),
     "soundness": (SOUNDNESS_SOURCES, _soundness),

@@ -1,13 +1,13 @@
 {
- "revision": "bd129945b9a4f0f87119680145f8ea7652b569eb",
+ "revision": "b254485d2bb8f081434a50688318215f8eeba061",
  "engine_digest": "40b20f5d6859a3640ccd1ca6f27f3630178da8ad8aa8d09e26a129fe8dbb992b",
  "engine_version": "0.8.0",
  "device": "cuda",
  "torch": "2.15.0+cu132",
- "elapsed_seconds": 60.0,
+ "elapsed_seconds": 59.8,
  "timings": {
   "invariants": 166.7,
-  "wet_work": 58.5,
+  "wet_work": 58.3,
   "one_layer": 133.7,
   "layer_order": 239.5,
   "puddle": 213.7,
@@ -25,8 +25,7 @@
   "layer_flow": 72.3,
   "batching": 315.3,
   "lifting": 140.4,
-  "session": 64.1,
-  "bloom_seeds": 51.6
+  "session": 64.1
  },
  "measurements": {
   "advance_conserves_pigment": {
@@ -95,11 +94,10 @@
    "unsound_cells": 0
   },
   "bloom_umber": {
-   "centre_share": 0.9074497934838974,
+   "centre_disc_share": 0.7410719466992735,
    "rim_share": 1.220799389834202,
    "picture_difference": 0.0,
-   "unsound_cells": 0,
-   "centre_disc_share": 0.7410719466992735
+   "unsound_cells": 0
   },
   "charge_wait_40": {
    "rms_width": 6.819422293439509,
@@ -942,8 +940,27 @@
     1.1856283445800204,
     1.2134796844979285,
     1.212663918432146
-   ],
-   "wall_seconds": 51.6
+   ]
+  },
+  "bloom_umber_seed_4": {
+   "centre_disc_share": 0.7190735859291422,
+   "rim_share": 1.1761301805318507,
+   "unsound_cells": 0
+  },
+  "bloom_umber_seed_7": {
+   "centre_disc_share": 0.7555176263278485,
+   "rim_share": 1.212663918432146,
+   "unsound_cells": 0
+  },
+  "bloom_umber_seed_6": {
+   "centre_disc_share": 0.6966493190252533,
+   "rim_share": 1.2134796844979285,
+   "unsound_cells": 0
+  },
+  "bloom_umber_seed_5": {
+   "centre_disc_share": 0.7294382899693453,
+   "rim_share": 1.1856283445800204,
+   "unsound_cells": 0
   }
  },
  "gates": {
