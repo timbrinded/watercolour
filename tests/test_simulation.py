@@ -7,6 +7,7 @@ import torch
 
 from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
+from watercolor.simulation import Sheet
 from watercolor.studio import Studio
 
 SIZE = 128
@@ -309,6 +310,38 @@ def test_drained_brush_lifts_paint_from_a_wash_that_is_losing_its_shine(studio: 
     studio.dry()
     blue = paint(studio, 1)
     assert float(blue[44:86, 63:66].mean()) < 0.8 * float(blue[44:86, 76:84].mean())
+
+
+def test_scrubbing_paint_that_hardly_stains_lifts_no_more_than_lies_on_the_paper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A brush loosens settled pigment in proportion to how firmly it scrubs over how strongly the paint stains.
+    # A paint that stained less than the brush scrubbed was asked to give up more than lay on the paper: the paper
+    # was left holding less than none, and the clamps that followed made up the difference from nothing.
+    faint = dataclasses.replace(PIGMENTS["french_ultramarine"], name="faint_stain", staining=0.1)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    sheet = Sheet(generate_paper(SIZE, SIZE, 3, device), [faint])
+    studio = Studio({"painting": sheet}, ["faint_stain"])
+    for y in (52, 64, 76):
+        studio.load_brush("flat", 12, {"faint_stain": 2.0}, 1.0)
+        studio.stroke("painting", [[24, y], [104, y]], 120, smooth=False)
+    studio.dry()
+    studio.load_brush("flat", 10, {}, 0.3, hair="badger")
+    least_on_paper = []
+    touch = sheet.apply_brush
+
+    def watched(*arguments):
+        result = touch(*arguments)
+        least_on_paper.append(float(sheet.deposited.min()))
+        return result
+
+    monkeypatch.setattr(sheet, "apply_brush", watched)
+    before = pigment_on_sheet(studio) + pigment_in_brush(studio)
+    for _ in range(3):
+        studio.stroke("painting", [[24, 64, 1.0], [104, 64, 1.0]], 60, smooth=False)
+    studio.wait(5)
+    assert min(least_on_paper) >= 0.0
+    assert pigment_on_sheet(studio) + pigment_in_brush(studio) == pytest.approx(before, rel=1e-4)
 
 
 def test_damp_brush_draws_one_wet_colour_into_the_next(studio: Studio) -> None:
