@@ -1,32 +1,56 @@
 """Measure the style signature of watercolour images: value key, reserved paper, temperature, edge character.
 
-Usage: style_signature.py painting.png [name=path ...]
+Usage: style_signature.py [--white rig|auto|R,G,B] painting.png [name=path ...]
 
-Each image is scaled to 768 pixels on its long side and its paper is taken as its lightest 1%. The columns:
-p05 to p75 (value percentiles), paper% (near-white and unpainted), dark<0.2% (deep darks), warm/chromatic% (warm
-share of the coloured pixels), hard_edge% (pixels on a crisp edge), edge_hardness_p75, and regions/1e5px (separate
-shapes of one value band, a measure of a mosaic of puddles). The targets for a style are in its style file.
+Each image is scaled to 768 pixels on its long side and divided by the colour of its paper. --white sets that colour:
+  rig    the harness's bare paper. The default for a picture of a painting session (a look, or the finished
+         painting.png), which may have little or no bare paper left.
+  auto   the mean colour of the image's lightest 1%. The default for any other image, such as a photograph of a
+         painting. It is wrong for a painting on a toned ground or with almost no paper left: its lightest 1% is
+         paint, and every measure is read lighter than it is.
+  R,G,B  the paper's colour from 0 to 255, for a scan or photograph whose paper is known.
+The columns: p05 to p75 (value percentiles), paper% (near-white and unpainted), dark<0.2% (deep darks),
+warm/chromatic% (warm share of the coloured pixels), hard_edge% (pixels on a crisp edge), edge_hardness_p75, and
+regions/1e5px (separate shapes of one value band, a measure of a mosaic of puddles), then the white used. The
+targets for a style are in its style file.
 """
 
-import sys
+import argparse
 from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from measured_layers import PAPER
 from PIL import Image
 
 LONG_SIDE = 768
 
 
-def load(path: str) -> np.ndarray:
+def is_rig_painting(path: Path) -> bool:
+    """A picture of a painting session: the finished painting.png in the session's directory, or a look in its looks/."""
+    folder = path.resolve().parent
+    if folder.name == "looks":
+        folder = folder.parent
+    return (folder / "session.json").is_file()
+
+
+def paper_colour(rgb: np.ndarray, white: str) -> np.ndarray:
+    """The colour of the image's paper, from 0 to 1, as --white names it."""
+    if white == "rig":
+        return PAPER / 255.0
+    if white == "auto":
+        luminance = rgb @ np.array([0.2126, 0.7152, 0.0722])
+        return rgb[luminance >= np.percentile(luminance, 99.0)].mean(0)
+    return np.array([float(part) for part in white.split(",")]) / 255.0
+
+
+def load(path: str, white: str) -> np.ndarray:
     image = Image.open(path).convert("RGB")
     scale = LONG_SIDE / max(image.size)
     image = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
     rgb = np.asarray(image).astype(np.float64) / 255.0
-    luminance = rgb @ np.array([0.2126, 0.7152, 0.0722])
-    paper = rgb[luminance >= np.percentile(luminance, 99.0)].mean(0)
-    return np.clip(rgb / paper, 0.0, 1.0)
+    return np.clip(rgb / paper_colour(rgb, white), 0.0, 1.0)
 
 
 def gaussian(array: np.ndarray, sigma: float) -> torch.Tensor:
@@ -69,8 +93,8 @@ def region_count(value: np.ndarray, levels: int = 6, minimum_area: int = 40) -> 
     return total
 
 
-def measure(path: str) -> dict[str, float]:
-    rgb = load(path)
+def measure(path: str, white: str) -> dict[str, float]:
+    rgb = load(path, white)
     value = rgb @ np.array([0.2126, 0.7152, 0.0722])
     chroma = rgb.max(2) - rgb.min(2)
     chromatic = chroma > 0.08
@@ -95,15 +119,37 @@ def measure(path: str) -> dict[str, float]:
     }
 
 
+def white_argument(text: str) -> str:
+    if text in ("rig", "auto"):
+        return text
+    parts = text.split(",")
+    try:
+        valid = len(parts) == 3 and all(0.0 < float(part) <= 255.0 for part in parts)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise argparse.ArgumentTypeError("--white must be rig, auto, or R,G,B with each from 0 to 255")
+    return text
+
+
 def main() -> None:
-    results = {}
-    for argument in sys.argv[1:]:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("images", nargs="+", metavar="[name=]path")
+    parser.add_argument(
+        "--white",
+        type=white_argument,
+        help="rig, auto or R,G,B (default: rig for a picture of a painting session, auto otherwise)",
+    )
+    arguments = parser.parse_args()
+    results, whites = {}, {}
+    for argument in arguments.images:
         name, path = argument.split("=", 1) if "=" in argument else (Path(argument).parent.name or argument, argument)
-        results[name] = measure(path)
+        whites[name] = arguments.white or ("rig" if is_rig_painting(Path(path)) else "auto")
+        results[name] = measure(path, whites[name])
     keys = list(next(iter(results.values())).keys())
-    print(f"{'image':<22}" + "".join(f"{key:>17}" for key in keys))
+    print(f"{'image':<22}" + "".join(f" {key:>16}" for key in keys) + "  white")
     for name, row in results.items():
-        print(f"{name:<22}" + "".join(f"{row[key]:>17.3f}" for key in keys))
+        print(f"{name:<22}" + "".join(f"{row[key]:>17.3f}" for key in keys) + f"  {whites[name]}")
 
 
 if __name__ == "__main__":

@@ -17,21 +17,29 @@ import math
 
 from PIL import Image, ImageDraw
 
-# Painted width as a multiple of size, measured on the harness: width = size * (base + slope * pressure).
+# Painted width as a multiple of size, measured on the harness: width = size * (base + slope * pressure). It is the
+# span of the mark, gaps between the hairs included, with the head's usual hair and a flat head laid broad side on.
 WIDTH = {
+    "spotter": (0.9, 1.2),
     "round": (0.54, 1.63),
     "designer": (0.3, 1.8),
-    "spotter": (0.9, 1.2),
     "rigger": (0.9, 1.2),
     "extended_point": (0.9, 1.2),
-    "cats_tongue": (0.9, 1.2),
+    "mop": (1.43, 0.75),
+    "stippler": (1.27, 0.49),
+    "flat": (1.85, 0.31),
+    "bright": (1.87, 0.25),
+    "flat_wash": (1.88, 0.31),
+    "hake": (1.98, 0.21),
+    "comber": (1.33, 0.7),
+    "fan": (1.4, 0.65),
+    "angular": (1.77, 0.37),
     "dagger": (0.5, 1.6),
     "sword": (0.2, 1.9),
-    "mop": (1.43, 0.75),
-    "oval_wash": (1.5, 0.67),
     "filbert": (1.43, 0.75),
+    "cats_tongue": (0.9, 1.2),
+    "oval_wash": (1.5, 0.67),
 }
-FLAT = (2.1, 0.0)
 MASK_COLOUR = (255, 214, 0)
 MASK_LIGHTEST_SHARE = 0.15  # the harness lays a mask line at no pressure this share of its full width
 TINT = {
@@ -44,6 +52,15 @@ TINT = {
     "opaque_white": (255, 255, 255),
     "ivory_black": (20, 20, 20),
 }
+
+
+def painted_width(brush: str, size: float, pressure: float) -> float:
+    """The width a head of this size paints at this pressure. A head with no measured width is refused: a guessed
+    width spaces rows wrongly, leaving seams between them or overlaps."""
+    if brush not in WIDTH:
+        raise SystemExit(f"no painted width is known for the {brush!r} head: measure it and add it to WIDTH")
+    base, slope = WIDTH[brush]
+    return size * (base + slope * pressure)
 
 
 def tint(name: str) -> tuple[int, int, int]:
@@ -162,12 +179,11 @@ def main() -> None:
                     colour = (0, 220, 255)  # clear water
             elif action["action"] == "stroke" and action.get("sheet") != "scrap":
                 count += 1
-                base, slope = WIDTH.get(brush, FLAT)
                 centres = [
                     (
                         (x + origin_x - x0) * zoom,
                         (y + origin_y - y0) * zoom,
-                        size * (base + slope * pressure) / 2 * zoom,
+                        painted_width(brush, size, pressure) / 2 * zoom,
                     )
                     for x, y, pressure in path_points(action, 0.7)
                 ]

@@ -31,5 +31,8 @@ dev = [
 [tool.ruff]
 line-length = 120
 
+[tool.pytest.ini_options]
+pythonpath = [".claude/skills/paint-watercolour/scripts"]
+
 [tool.pyrefly]
-search-path = ["src", "trials"]
+search-path = ["src", "trials", ".claude/skills/paint-watercolour/scripts"]

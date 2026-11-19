@@ -148,14 +148,20 @@ def paint(command: list[str], painting: Path, actions: Path) -> None:
         raise SystemExit(f"{actions} was not painted:\n{result.stdout}{result.stderr}")
 
 
+# The film at which clear water dries as a bloom with a dark rim: from 0.13 the rim softens, and from 0.18 a round
+# leaves only a soft pale spot (measured on 0.8.0).
+BLOOM_FILM = 0.07
+
+
 def blooms(points: list[tuple[float, float]]) -> list[dict]:
-    """Clear water touched into the first wash at each point as its film thins to 0.18, then the dry that ends
-    the first stage."""
+    """Clear water touched into the first wash at each point as its film thins to BLOOM_FILM, then the dry that
+    ends the first stage."""
     actions: list[dict] = []
     if points:
         actions.append({"action": "load", "brush": "round", "size": 7, "pigments": {}, "water": 1.0})
     for index, (x, y) in enumerate(points):
-        actions.append({"action": "wait", "seconds": 120 if index == 0 else 60, "at": [x, y], "film": 0.18})
+        # a mop wash took 101 s to thin to 0.07; the wait ends as soon as the film is there
+        actions.append({"action": "wait", "seconds": 180 if index == 0 else 60, "at": [x, y], "film": BLOOM_FILM})
         actions.append({"action": "stroke", "path": [[x, y, 0.8]], "dwell": 0.6})
     actions.append({"action": "dry"})
     return actions

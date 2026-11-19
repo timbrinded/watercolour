@@ -92,7 +92,7 @@ The picture to aim for: a leaf, petal or fruit whose outline is hard against dry
 3. **Make the patches unequal.** Vary their size, their strength (from half strength, about 1.5, to full, 3 to 4.5) and how full the brush is (0.55 to 0.75: the wetter ones travel further). Leave one or two parts of the first pale wash alone as the lightest passages. Patches of one size and strength give transitions of one width, which looks sprayed.
 4. **Run the local colour along the edge** with a size 5 round a few pixels inside the outline, except where the edge is meant to stay pale. Otherwise the first wash shows as a halo all round the shape.
 5. **Wait for the film to thin to 0.3, then put in a few much stronger touches** (strength 6 to 8, water 0.5, a size 6 round) where the picture needs its darks: the shadowed edge of a lobe, a tip, the deepest red. At this depth they soften but stay put, which gives the picture two kinds of transition and a wider range of value.
-6. **As the film reaches 0.2, touch clear water into one or two places** from a full size 5 round held still for 0.4 seconds. Each pushes the paint around it outward and leaves a pale bloom. This is the one place where the brush should be wetter than the paper, and it is what breaks up an even blend. Leave it out if the passage should stay smooth.
+6. **As the film reaches 0.2, touch clear water into one or two places** from a full size 5 round held still for 0.4 seconds. Each pushes the paint around it outward and leaves a soft pale bloom with no rim. This is the one place where the brush should be wetter than the paper, and it is what breaks up an even blend. Leave it out if the passage should stay smooth. For a bloom with a dark rim, touch the water in at film 0.06 to 0.10 instead (see [Blooms](#blooms)); that is thinner than the veins of step 7 need, so do it after them.
 7. **Wait for the film to thin to 0.12, then lift the veins** with a size 2.5 round drained to 0.2: twice along the main ones, once along the rest, so they differ in strength. Start each vein a little way out from where they meet, or the lifting piles up there into a pale blot. Earlier than this the wash flows back and closes the line; once the film has gone, nothing lifts. A stiff flat brush turned end-on lifts a thinner, whiter line; three passes of one looked scratched, not lifted.
 8. `dry`.
 
@@ -111,6 +111,26 @@ Each of these is on the chart `blending_methods` in the repository's `docs/image
 - **Stirring in deep water.** With a film of 1.0 or more, a brush at 0.6 swirled through two colours drags each round into the other along its path. A few turns marble them; many turns make one flat mixture, which is rarely what a painting wants.
 - **Wetting a dry wash again.** `dry`, lay clear water over the shape with a soft mop in one pass, and charge into that. Earth and granulating paints lift a little as they are wetted, so do not scrub.
 
+## Blooms
+
+Clear water from a full brush, held still in a wash that is losing its shine, pushes the paint outward. It dries as a pale centre inside a darker rim. The depth of the film when the water goes in decides whether there is a rim.
+
+Measured on 0.8.0: one dab at pressure 0.8 into a flat wash of burnt sienna, then dried. Each cell gives the size across the rim, then the darkest stretch of the rim as a multiple of the wash's own strength. The texture of a plain wash reads about 1.15, so 1.2 is no rim.
+
+| Brush, held for | film 0.03 | 0.06 | 0.08 | 0.10 | 0.13 | 0.18 | 0.25 |
+|---|---|---|---|---|---|---|---|
+| round 5, 0.4 s | 22 px, 1.75 | 24, 1.55 | 26, 1.4 | 28, 1.3 | 30, 1.25 | 34, 1.2 | 36, 1.2 |
+| round 6, 0.8 s | 26, 1.7 | 30, 1.7 | 34, 1.5 | 36, 1.4 | 38, 1.3 | 38, 1.25 | 38, 1.2 |
+| round 7, 0.6 s | 26, 1.75 | 32, 1.7 | 34, 1.55 | 36, 1.45 | 38, 1.35 | 42, 1.25 | 44, 1.2 |
+| round 8, 0.8 s | 30, 1.7 | 36, 1.8 | 38, 1.65 | 42, 1.5 | 44, 1.35 | 48, 1.3 | 50, 1.25 |
+| mop 14, 2 s | 76, 1.9 | 64, 2.05 | 68, 2.25 | 72, 2.15 | 78, 1.95 | 82, 1.65 | 82, 1.4 |
+
+- **For a rimmed bloom, put the water in at film 0.06 to 0.10.** A round's rim is darkest at 0.03 to 0.06 and still clear at 0.10; a mop's is darkest at 0.08. Thinner than 0.06 a round's bloom is smaller and a mop's rim weaker, and the film is seconds from gone. From 0.13 the rim softens, and from 0.18 a round leaves only a soft pale spot. A mop held for 2 seconds still rims at 0.18.
+- **The window is short.** On a wash laid with a mop 18, the film at one point went from 0.18 to 0.10 in 13 seconds and to 0.03 in 12 more. Catch it with a `wait` on `film`, not with the clock.
+- **The centre dries to about 0.6 to 0.7 of the wash's strength.**
+- **A small drop barely rims.** From a size 3 round (about 18 px across) the rim is clear only at film 0.03 (1.6); from a size 2 (about 14 px) it is faint at 0.03 (1.4) and gone from 0.06.
+- **The rim is smoothly lobed.** It does not branch or feather into the cauliflower edge of a real back-run.
+
 ## What goes wrong
 
 - **A bloom where you wanted a blend.** The brush was wetter than the paper: the film had thinned under about 0.1, or the brush was full. Read the film first, and drain the brush.
@@ -123,5 +143,5 @@ Each of these is on the chart `blending_methods` in the repository's `docs/image
 - **A straight hard line across a soft passage.** Paint travels through a film to the film's boundary and dries there as a crisp edge, so the accidental side of a bed of clear water shows once colour reaches it. Carry the bed off the sheet or well past the reach of the colour (three stroke widths; at two a faint line still showed), or put its boundary on a contour. The same fact used on purpose makes a shape: water laid in the shape wanted, colour dropped in, and the colour takes the water's outline with a soft inside.
 - **Islands of colour with paper between.** Clear water and a few drops over a large area. Eleven drops into a bed covering a third of a 960 pixel sheet stayed eleven islands. Over a large area the wash itself is the bed: rows of colour, each mixed for its place and laid while the last is wet.
 - **The passage will not go dark.** Paint dropped into clear water dries much lighter than it would on dry paper: at strength 7 between 0.35 and 0.64 depending on how much was dropped, at 2.5 between 0.63 and 0.80. Darks come from paint laid on dry paper, or from a second layer.
-- **The bloom hardly shows.** Clear water touched into a film of about 0.18 from a full size 6 round held for 0.6 seconds left a pale spot 20 to 30 pixels across, soft and faint (measured on 0.5.2). It breaks up an even wash; it does not give the hard-edged back-run of a real sheet.
+- **The bloom has no rim.** The water went into a film of 0.18 or deeper, which leaves a soft pale spot, or the drop was smaller than about 18 px. For a dark rim, use film 0.06 to 0.10 and a round of size 5 or more (see [Blooms](#blooms)).
 - **White slits between the rows of a wash.** Rows spaced at the brush's full painted width leave a hairline of dry paper, and the paint on each side draws it with two hard edges. Space rows at two thirds of that width.
