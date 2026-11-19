@@ -4,8 +4,6 @@ Each bound is the behaviour itself, with the margin a painter would still accept
 beside each, so that a change which moves it a long way is seen in review even when the test still passes.
 """
 
-import math
-
 import torch
 import torch.nn.functional as F
 
@@ -34,8 +32,7 @@ def lay_wash(studio: Studio, pigments: dict[str, float]) -> None:
 def width_across(amount: torch.Tensor) -> float:
     """Root-mean-square spread, in rows, of an amount given for each row."""
     rows = torch.arange(amount.numel(), dtype=torch.float32, device=amount.device)
-    centre = float((amount * rows).sum() / amount.sum())
-    return math.sqrt(float((amount * (rows - centre) ** 2).sum() / amount.sum()))
+    return float(torch.cov(rows, correction=0, aweights=amount).sqrt())
 
 
 def test_a_flat_wash_dries_evenly_in_its_usual_time() -> None:
