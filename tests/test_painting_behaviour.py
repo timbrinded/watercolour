@@ -53,13 +53,16 @@ def test_clear_water_dropped_into_a_wash_losing_its_shine_dries_as_a_bloom() -> 
     sheet = studio.sheets["painting"]
     lay_wash(studio, {"french_ultramarine": 0.6})
     studio.wait_for_film("painting", 64, 64, 0.03, 300)
+    assert sheet.wetness_at(64, 64)["film"] <= 0.03  # the drop must land on a wash that has lost its shine
     studio.load_brush("round", 8, {}, 1.0)
     studio.stroke("painting", [[64, 64]], 100, smooth=False, dwell=0.6)
     studio.dry()
     paint = sheet.deposited[BLUE]
     distance = torch.hypot(sheet._xs - 64, sheet._ys - 64)
     wash = float(paint[(distance > 24) & (distance < 30)].mean())
-    rim = max(float(paint[(distance >= r) & (distance < r + 2)].mean()) for r in range(0, 30, 2))
+    # The rim is looked for between the pale centre and the wash it is compared with: the innermost rings hold a
+    # few cells each, and on a wash with no drop at all they can read far above the wash by the grain alone.
+    rim = max(float(paint[(distance >= r) & (distance < r + 2)].mean()) for r in range(4, 22, 2))
     assert float(paint[distance < 4].mean()) / wash <= 0.8
     assert rim / wash >= 1.1
 
@@ -73,6 +76,8 @@ def test_paint_charged_into_a_shining_wash_spreads_to_twice_its_width_on_dry_pap
         if wet:
             lay_wash(studio, {})
             studio.wait_for_film("painting", 64, 64, 0.5, 400)
+            assert studio.sheets["painting"].wetness_at(64, 64)["film"] <= 0.5
+        studio.loads = 0  # the same load, and so the same variation of paint and hairs, for both strokes
         studio.load_brush("round", 5, {"cadmium_red": 4.0}, 1.0)
         studio.drain(0.6)
         studio.stroke("painting", [[34, 64, 0.8], [94, 64, 0.8]], 110, smooth=False)
