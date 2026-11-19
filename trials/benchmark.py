@@ -107,6 +107,12 @@ def saved_bytes(state: object) -> int:
     return buffer.getbuffer().nbytes
 
 
+def snapshot(sheet: Sheet) -> dict[str, Tensor]:
+    """A copy of the sheet's state to restore before each repeat. Sheet.state() moves each field to the CPU, which
+    for a sheet on the CPU returns the live field itself, so the copy must be made here."""
+    return {name: field.clone() for name, field in sheet.state().items()}
+
+
 def state_bytes(sheet: Sheet, leaving_out: tuple[str, ...] = ()) -> int:
     return saved_bytes({name: field for name, field in sheet.state().items() if name not in leaving_out})
 
@@ -137,7 +143,7 @@ def wet_and_dry_cost(repeats: int) -> Measurements:
     sheet = new_sheet(HEIGHT, WIDTH, PAPER_SEED, palette=SIX)
     resident = torch.cuda.memory_allocated() - allocated if torch.cuda.is_available() else None
     lay_wash(sheet)
-    laid = {name: field.clone() for name, field in sheet.state().items()}
+    laid = snapshot(sheet)
     wash = sheet.water > 0
 
     def to_laid() -> None:
@@ -280,22 +286,23 @@ def strokes(repeats: int) -> Measurements:
     """Wall time per Studio.stroke at 256 px: four round-10 strokes of rose 2.0 and one clear flat-8 lifting stroke."""
     palette = ["quinacridone_rose", "french_ultramarine"]
     sheet = new_sheet(256, 256, PAPER_SEED, palette=tuple(palette))
-    empty = sheet.state()
-    studio = Studio({"painting": sheet}, palette)
+    empty = snapshot(sheet)
 
-    def five_strokes() -> None:
+    def five_strokes(studio: Studio) -> None:
         for y in (90, 110, 130, 150):
             studio.load_brush("round", 10, {"quinacridone_rose": 2.0}, 1.0)
             studio.stroke("painting", [[40, y], [216, y]], 120, smooth=False)
         studio.load_brush("flat", 8, {}, 0.5)
         studio.stroke("painting", [[128, 70], [128, 170]], 80, smooth=False)
 
-    sheet.load_state(empty)
-    five_strokes()
+    # Each repeat, the warm-up among them, paints the empty sheet with a studio of its own, so that each does the
+    # same work from the same start.
+    five_strokes(Studio({"painting": sheet}, palette))
     samples = []
     for _ in range(repeats):
         sheet.load_state(empty)
-        samples.append(timed(five_strokes) / 5)
+        studio = Studio({"painting": sheet}, palette)
+        samples.append(timed(lambda studio=studio: five_strokes(studio)) / 5)
     return summary("stroke_seconds", samples)
 
 
@@ -303,7 +310,7 @@ def cpu_wet_cost(repeats: int) -> Measurements:
     """Wet advance per simulated second of a 128-pixel sheet on the CPU."""
     sheet = new_sheet(128, 128, PAPER_SEED, torch.device("cpu"), THREE)
     lay_wash(sheet)
-    laid = sheet.state()
+    laid = snapshot(sheet)
     sheet.advance(0.5)
     samples = []
     for _ in range(repeats):
@@ -324,7 +331,7 @@ def wash_drying(repeats: int) -> Measurements:
         y += size / 12
     studio.load_brush("round", size / 40, {"cadmium_red": 4.0}, 0.8)
     studio.stroke("painting", [[0.2 * size, 0.5 * size], [0.8 * size, 0.5 * size]], 120, smooth=False)
-    laid = sheet.state()
+    laid = snapshot(sheet)
     samples = []
     for _ in range(repeats):
         sheet.load_state(laid)
@@ -346,7 +353,7 @@ def layered_pass(repeats: int) -> Measurements:
         studio.load_brush("round", 10, {"opaque_white": 4.5}, 1.0)
         studio.stroke("painting", [[x, 12, 0.9], [x, 244, 0.9]], 200, smooth=False)
     studio.dry()
-    prepared = sheet.state()
+    prepared = snapshot(sheet)
     samples = []
     with tempfile.TemporaryDirectory() as work:
         for repeat in range(repeats):
