@@ -4,13 +4,24 @@
 
 ```bash
 watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--seed 0] \
+    [--support cold_press|hot_press|rough] [--ground <image>] \
     [--palette name,name,...] [--stroke-budget 150] [--no-scrap] [--no-pencil]
 ```
 
 - `--size` is the width in pixels (128 to 1024); `--height` makes the sheet other than square.
-- `--palette` limits the paint box for this painting; the default is every paint.
-- `--stroke-budget` caps strokes and blots on the painting itself. A pass that would exceed it is refused whole.
+- `--palette` names the paint box for this painting; the default is the thirteen paints of the first table under [Paints](#paints). The paints of the second table must be named here.
+- `--stroke-budget` caps strokes, blots, pen lines, masking and fixative on the painting itself. A pass that would exceed it is refused whole.
 - `--seed` fixes the paper and the small variation in each brush load, so a painting replays identically.
+- `--support` is what the painting is painted on, fixed for the whole painting and shared by its scrap sheet. The default, `cold_press`, is the sheet every earlier painting was painted on.
+- `--ground <image>` prints an image on the sheet before any paint. White leaves the support as it is and darker values multiply it, as ink does; transparency counts as white. The image is resampled to the sheet and refused when its proportions differ from the sheet's by more than 2%, so give `--size` and `--height` in its proportions. The print lies under all paint and never lifts or moves. The scrap sheet carries the middle of it, at the painting's scale.
+
+| Support | What changes |
+|---|---|
+| `cold_press` | Nothing: the default. |
+| `hot_press` | Smooth. The grain is fine and a fifth as deep, so bare paper and washes show almost no speckle and a pencil line is even. A dry brush leaves a tone mottled by the grain and broken where the hairs part, not fragments. The film stays on top a little longer, but the sheet holds less water, so a wash dries sooner in all. Tide lines and blooms dry harder, and paint lifts more easily. A film counts as shiny from 0.03, not 0.15. |
+| `rough` | A coarse grain of broad tops and deep pits. Water gathers in the pits, so a flat wash mottles as it dries; granulating paint gathers coarsely; a dry brush paints the tops and leaves fewer, larger white pits; bare paper shows its relief. |
+
+The strength bands, film depths and dry-brush recipe in this skill were measured on `cold_press`. On another support, try a load on the scrap sheet first; `supports-and-grounds.md` has the film and drying times on each.
 
 ## A pass
 
@@ -27,8 +38,16 @@ A pass is a JSON file holding a list of actions, carried out in order.
 | `wait` | `seconds`, `at`, `film`, `sheet` | Up to 3600. Paint keeps moving and drying. With `"at": [x, y]` and `"film": depth` the wait ends as soon as the film of water at that point is no deeper than that, or after `seconds` if it never is: `{"action": "wait", "seconds": 300, "at": [240, 180], "film": 0.12}` is how to catch a wash as it loses its shine. |
 | `dry` | | Waits until every sheet is dry. |
 | `tilt` | `x`, `y`, `sheet` | Each within 0.3. Positive `y` pulls paint down the sheet. Stays until changed. |
-| `mask` | `path`, `radius`, `smooth`, `sheet` | Masking fluid (0.8.0 or later). Each point is `[x, y]` or `[x, y, pressure]`; `radius` (0.5 to 40) is the width at full pressure, a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke tapers like a brush. It seals the paper: no water crosses into it, a wash dries against it with a crisp, darker edge, paint already under it is kept, and paint landing on it stands on the rubber. It forms only where no film of water stands. Counts against the stroke budget. |
+| `mask` | `path`, `radius`, `smooth`, `sheet` | Masking fluid (0.8.0 or later). Each point is `[x, y]` or `[x, y, pressure]`; `radius` (0.5 to 40) is the width at full pressure, a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke tapers like a brush. It seals the paper: no water crosses into it, a wash dries against it with a crisp, darker edge, paint already under it is kept, and paint landing on it stands on the rubber. From 0.10.0 any radius and any taper seals an unbroken line at every angle: the finest fluid seals a band one to two pixels wide (one along a row or column on whole-pixel coordinates, about 1.5 at other angles), and the paper it kept stays white beside a dark wash. It forms only where no film of water stands. Counts against the stroke budget. |
 | `unmask` | `path`, `radius`, `sheet` | Rubs masking fluid away: all of it, or along a path (`path` and `radius` together). Paint dried on the rubber comes away with it; paint still wet on it is smeared onto the paper, so `dry` first. |
+| `pen` | `path`, `width`, `ink`, `speed`, `smooth`, `sheet` | A line in ink (0.10.0 or later). Each point is `[x, y]` or `[x, y, pressure]`; `width` (0.25 to 8) is the full width of the line at full pressure, a point with no pressure is drawn at full width, and lifting narrows the line to 0.15 of it. No line is drawn narrower than one pixel: a finer one lays a pixel's worth of ink along its path. `ink` maps paints on the palette to the amount laid on each pixel the line covers, more than 0 and at most 8 in all; the same amount is laid from the start of the line to its end, however long it is. On dry paper the ink lies on the paper with a crisp edge, and the pixels beside the line stay paper; where a film of water stands it goes into the water and spreads with it; on masking fluid it comes away with the rubber. The pen moves at `speed` pixels per second (default 120); a single point is a dot that takes 0.3 seconds. It needs no brush and leaves the brush in hand as it is. Counts against the stroke budget and ends the underdrawing. A one-pixel line along a row or column on whole-pixel coordinates dries to about 0.21, 0.05 and 0.003 in `carbon_ink` at 0.5, 1 and 2, and about 0.43, 0.19 and 0.04 in `soluble_ink`. Between pixel centres the ink is shared between two pixels, so the same line at 2 in `carbon_ink` reads about 0.05 on two pixels; whole-pixel coordinates give the crispest line and dot. |
+| `fix` | `path`, `radius`, `sheet` | Fixative: alum size or acrylic medium (0.10.0 or later). With neither field it covers the whole sheet; otherwise give `path` (points `[x, y]`) and `radius` (1 to 80) together. Paint settled on the paper under it, whether before the fix or after, can no longer be lifted, rolled into the grain or scrubbed: a later wash, pour or stiff brush leaves it exactly as it was. Wet paint on it flows and spreads as on bare paper, but each grain is locked as it settles, so a drained brush or a blot takes up only what is still in the water: from a wash losing its shine a drained brush lifts about half as much as from bare paper. It is laid only where no film of water stands, and not on masking fluid. It cannot be seen and cannot be removed. Takes 5 seconds. Counts against the stroke budget. Does not end the underdrawing. |
+
+Fixative, for example:
+
+- `{"action": "fix"}`: the whole sheet, before the first ink pour, so that the ink is permanent once it has settled.
+- `{"action": "fix", "path": [[40, 60], [200, 60], [200, 140]], "radius": 24}`: alum over passages that have dried.
+- `{"action": "fix", "path": [[128, 128]], "radius": 60, "sheet": "scrap"}`
 
 `"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes do not count against the budget.
 
@@ -92,7 +111,24 @@ A brush that is running dry, moving fast, or carrying thick paint parts into clu
 | `ivory_black` | black | use sparingly, in mixes |
 | `opaque_white` | covering white | for final lights only |
 
-Granulating paints settle into the grain of the paper and look speckled in a wash; in a film of water deeper than about 0.6 (a wash laid twice, a deep sky) they gather into distinct dark specks. Staining paints sink in and will not lift.
+### Paints that must be named in `--palette`
+
+On 0.10.0 or later, for styles that ask for them: `--palette hansa_yellow,quinacridone_rose,phthalo_turquoise,phthalo_blue,dioxazine_violet`. Strengths are for filled rows of a size 8 flat on dry paper.
+
+| Name | Colour | Behaviour |
+|---|---|---|
+| `phthalo_blue` | intense cold blue | Stains like phthalo green; does not granulate. Pale, it leans to cyan; a full blue needs strength 5 or more (value 0.33 at 5). The blue for glazes that must hold. |
+| `phthalo_turquoise` | turquoise | Stains; never granulates. Best at 1 to 4; heavier, it turns green. One part with three of `phthalo_blue` gives cyan. |
+| `dioxazine_violet` | intense violet | Stains; never granulates. Violet at 1 to 2.5; at 5 a near-black violet (value 0.17). |
+| `viridian` | clear cool green | Lifts evenly once dry, unlike phthalo green; granulates a little. |
+| `fluorescent_pink` | opera, neon pink | Neon at 2 to 5; heavier, it turns red. |
+| `fluorescent_yellow` | acid lemon | Neon from 2.5. |
+| `carbon_ink` | neutral black ink | As dark as `ivory_black` at about half the load; does not granulate. Once dry it barely lifts, so washes and scrubbing can go over a line (a clear wash over a dried line moved about 1% of its ink). |
+| `soluble_ink` | cool black dye ink | Does not granulate. Water that reaches a dried line takes most of it back up, and a damp brush drawn across it pulls it out into grey shading (a clear round leaves about half the line it crosses, a flat about a fifth). Every later wash over it dissolves it too. `measured_layers.py` refuses it: every later layer dissolves it. |
+
+The fluorescent paints stain and do not granulate. They do not glow and are never lighter than the paper, so a dull or dark surround is what makes them read as neon; `measured_layers.py` refuses them. Neon orange is `fluorescent_pink` 1.25 with `fluorescent_yellow` 3.75, and lime is `fluorescent_yellow` 3.5 with `phthalo_turquoise` 1.5.
+
+Granulating paints settle into the grain of the paper and look speckled in a wash; in a film of water deeper than about 0.6 (a wash laid twice, a deep sky) they gather into distinct dark specks. Staining paints (phthalo green and blue, phthalo turquoise, quinacridone rose, dioxazine violet) hold under later washes once dry, and a stiff, drained brush takes off only a fifth to two fifths. While still wet they lift and blot like any paint.
 
 ## Looking
 
@@ -106,8 +142,8 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 - `--region` enlarges part of the sheet; `--grid` draws labelled pixel coordinates over it.
 - `--at x,y` (repeatable) reads the wetness at a point as numbers: `film`, the depth of water on the surface, and `paper`, how full the sheet is from 0 to 1. Use it before any stroke whose result depends on wetness.
 
-`status` reports the clock, strokes used against the budget, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
+`status` reports the clock, strokes used against the budget, the `support` and whether a printed `ground` lies on it, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15, or 0.03 on `hot_press`), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
 
 When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
 
-`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0.
+`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0; `pen`, the two inks, masking fluid's unbroken finest line, `fix`, `--support`, `--ground` and the paints that must be named in `--palette` need 0.10.0.

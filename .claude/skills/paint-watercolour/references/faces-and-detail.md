@@ -65,8 +65,10 @@ painter does:
 
    A line of even width reads as a white bar, not an eye.
 2. **Paint the face over it freely, `dry`, and `unmask`:** a clean almond of paper.
-3. **Mask each catchlight with a dot** where the iris will be. Use a radius of 2.5 or more: a dot of 2.2 or less was
-   lost.
+3. **Mask each catchlight with a dot** where the iris will be. Use a radius of 2.5 or more. On 0.10.0, under the
+   iris, lid shadow and pupil, dots of 2.6 stayed at paper (0.95 to 0.96, about 4 pixels across); dots of 2.0 dried
+   at 0.76 to 0.94 and dots of 1.5 at 0.70 to 0.78. Paper that fluid has sealed once, as the eye's own mask sealed
+   this opening, still shares its paint across the edge of a later reserve, so a small catchlight greys there.
 4. **Shade the white.**
    - A lit eye: a cool grey (cobalt blue 0.3, burnt sienna 0.12) along its top under the upper lid, softened downward
      at once with a clean brush drained to 0.45.
@@ -78,7 +80,8 @@ painter does:
      pupil in two coats, and the lash line along the white's upper edge.
 6. **`unmask` the catchlights.**
 
-Measured on a trial at 768 by 576: the white dried at 0.95 and the catchlight at 0.88, against a lash line near 0.1.
+Measured on a trial at 768 by 576 (0.8.0): the white dried at 0.95 and the catchlight at 0.88, against a lash line
+near 0.1.
 
 `scripts/hand_marks.py` writes each step as actions: `eye_white_mask`, `catchlight_masks`, `shade_lit_white`, `shade_shadowed_white`, `visible_iris`, `lid_shadow_over_iris`, `limbal_arcs`, `smoky_lid`, `pupil` and `lower_lid`. Its mixes are the warm palette of the layered-shape style; pass your own where the painting's palette differs.
 

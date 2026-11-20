@@ -7,7 +7,7 @@ from torch import Tensor
 from watercolor.paper import Paper, generate_paper, generate_tooth
 from watercolor.pigments import PIGMENTS
 from watercolor.rendering import render, render_view, sheen, transmitted
-from watercolor.simulation import Sheet
+from watercolor.simulation import MASK_SEALED, Sheet
 from watercolor.studio import Studio
 
 SIZE = 96
@@ -121,3 +121,34 @@ def test_the_colour_picture_shows_the_gathered_light_and_the_value_view_leaves_i
     # The far side faces away from the lamp, so nothing is mirrored there and the two differ only by the lens.
     assert float((shown / measured)[far].mean()) > 1.08
     assert abs(float(measured[far].mean()) - float(measured[near].mean())) < 0.005
+
+
+def studio_with(paint: str) -> Studio:
+    """A 128 px sheet with one paint."""
+    sheet = Sheet(generate_paper(128, 128, 3, DEVICE), [PIGMENTS[paint]])
+    return Studio({"painting": sheet}, [paint])
+
+
+def test_a_pen_line_one_cell_wide_is_dark_and_leaves_its_neighbours_as_paper() -> None:
+    """carbon_ink at 2 along one row. Measured: the line reads 0.003 and its neighbours exactly as bare paper; with
+    every cell's paint shared with its neighbours they read 0.46."""
+    studio = studio_with("carbon_ink")
+    sheet = studio.sheets["painting"]
+    bare = render_view(sheet, "value")[0].clone()
+    studio.pen("painting", [[20, 64], [108, 64]], 1.0, {"carbon_ink": 2.0}, 120, smooth=False)
+    value = render_view(sheet, "value")[0]
+    assert float(value[64, 20:109].max()) < 0.02
+    assert float((value[[63, 65], 20:109] - bare[[63, 65], 20:109]).abs().max()) < 0.01
+
+
+def test_a_reserve_of_the_finest_masking_fluid_stays_white_beside_a_dark_wash() -> None:
+    """Fluid at the smallest radius along one row, dark paint dried against it, then the fluid rubbed away. Measured:
+    the reserve reads 0.943 at its darkest beside a wash of 0.29; with every cell's paint shared with its neighbours it
+    read 0.62."""
+    studio = studio_with("french_ultramarine")
+    sheet = studio.sheets["painting"]
+    studio.mask("painting", [[20, 64], [108, 64]], 0.5)
+    sealed = sheet.mask >= MASK_SEALED
+    sheet.deposited[0][~sealed] = 2.0
+    studio.unmask("painting")
+    assert float(render_view(sheet, "value")[0][sealed].min()) > 0.9

@@ -31,7 +31,7 @@ Run them with the Python the harness uses, because two of them read its pigment 
 |---|---|
 | `reference_grid.py` | The reference scaled to the sheet, with a labelled grid, whole or as an enlarged crop. Read every coordinate off this. |
 | `measure.py` | Mean colour and value at sheet coordinates in any image: the reference, a `look`, a study. |
-| `preview_pass.py` | The strokes of a pass drawn over the reference at the width each will paint, clear water in cyan. |
+| `preview_pass.py` | The strokes, pen lines, pencil and masking fluid of a pass drawn over the reference at the width each will paint, clear water in cyan. |
 | `compare.py` | A `look` beside the same region of the reference at one scale. |
 | `value_difference.py` | The sheet against the reference: a map (red where it is too dark, blue where too light) and the three scores. |
 | `measured_layers.py` | A pass of rows laying, with one brush, what the sheet still lacks. |
@@ -39,8 +39,8 @@ Run them with the Python the harness uses, because two of them read its pigment 
 | `copy_reference.py` | Runs the thirteen measured stages below, one after another. |
 | `crisp_layers.py` | A pass of hard-edged shapes where the sheet still lacks tone, each filled with rounds kept inside it: breaking foam, and any passage of small lights and darks that the measured stages dry soft. See `water.md`. |
 | `trace_troughs.py` | The dark troughs of choppy water, each as one tapered stroke traced from the reference. See `water.md`. |
-| `mask_lights.py` | Masking fluid (0.8.0) over the reference's lights that are broad enough to hold it, for a wash that must cross them. See `water.md`. |
-| `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `rows`, `offset_path`, `translate`, `merge_stages`. |
+| `mask_lights.py` | Masking fluid over the reference's lights, for a wash that must cross them: on 0.10.0 every light, down to one pixel wide (`--least-radius` 1, the default), as one stroke of the finest fluid (radius 1.25) through the pixel centres of each run of light along a row. On 0.8.0 and 0.9, give `--least-radius 2`. See `water.md`. |
+| `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `pen`, `fix`, `rows`, `offset_path`, `translate`, `merge_stages`. |
 
 ## Step 1: grid and sample the reference
 
@@ -61,7 +61,9 @@ A thin layer of paint darkens each channel in proportion to the paint's absorpti
 
 Worked example: a deep background blue sampled at RGB 15, 29, 58 has absorbances in the ratio 1 : 0.76 : 0.50. French ultramarine is 1 : 1.00 : 0.07, so it cannot give that colour and dries violet beside it. Cobalt blue (1 : 0.56 : 0.19) with a fifth of its amount in burnt umber (1 : 2.1 : 2.8) gives 1 : 0.73 : 0.5, and painted it dried at 12, 27, 55.
 
-Solve the four or five colours that cover most of the picture, and start the painting with `--palette` naming only the paints those mixes use, plus `opaque_white`. The measuring scripts solve a mix for every stroke from the paints you give them in `--paints`; the mixes you solve by hand are for the drawing at the end. The solving ignores scattering, so a paint that scatters strongly (cerulean blue, hansa yellow) may come out differently from what is predicted; check it on the swatch chart. Yellow ochre is one: pale salmon sand solved to ochre, rose and cobalt and dried maroon and dark, where burnt sienna, rose and cobalt matched it on every swatch.
+Solve the four or five colours that cover most of the picture, and start the painting with `--palette` naming only the paints those mixes use, plus `opaque_white`. The measuring scripts solve a mix for every stroke from the paints you give them in `--paints`; the mixes you solve by hand are for the drawing at the end. The solving ignores scattering, so a paint that scatters strongly (cerulean blue, hansa yellow) may come out differently from what is predicted; check it on the swatch chart. Yellow ochre is one: pale salmon sand solved to ochre, rose and cobalt and dried maroon and dark, where burnt sienna, rose and cobalt matched it on every swatch. Viridian scatters little: in no channel does its scattering reach a fifth of its absorption, where cerulean blue's reaches 1.6 times its absorption.
+
+Some colours lie outside what the thirteen default paints can mix: a turquoise or cyan sea, an intense violet, a neon. When no mix of them solves a sampled colour's ratio, add the paints that must be named in `--palette` (0.10.0; `actions.md` has their strengths): `phthalo_turquoise`, and `phthalo_blue` with it for cyan (one part turquoise to three of phthalo blue); `dioxazine_violet`; the fluorescent paints. They are in `pigments.py` with the rest and solve the same way. `measured_layers.py` refuses the fluorescent paints and `soluble_ink`, so lay those by hand. Each paint named makes every stroke slower, which counts over thousands of strokes, so name only the paints a solved mix uses.
 
 ## Step 3: two charts
 
@@ -177,7 +179,7 @@ A passage that is a plain gradation with nothing in it is still better laid by h
 ## Rules the failed sheets taught
 
 - **Paint the pale tints.** What reads as white in a reference is often a tint: the warm cream of a lit cheek, the ochre in white fur. Any threshold of 0.10 or more skips them. Laying them (stages 5 and 12) was the largest single gain in value and colour, taking the value gap from 0.037 to 0.031. "Leave the lit side as paper" holds only for what measures as paper.
-- **Never lay a broad wet wash over finished small work.** A corrective mop glaze re-wet the fine layers, blurred every feature and left the sheet sandy. Corrections after the fine layers are small glazes on dry paper, a size 8 round at the largest.
+- **Never lay a broad wet wash over finished small work.** A corrective mop glaze re-wet the fine layers, blurred every feature and left the sheet sandy. Corrections after the fine layers are small glazes on dry paper, a size 8 round at the largest. On 0.10.0 a broad correction can go over them once the sheet is fixed (`{"action": "fix"}` after a `dry`): fixed paint does not move under a wash (`pen-ink-and-fixative.md`).
 - **Keep granulating paint out of the deep washes** (`--out-of-washes`). Burnt umber in a mop wash gathered into dark specks. Burnt sienna greys cobalt blue with a fifteenth of the specks; at the same proportion it dries a little lighter and bluer, so solve the mix again with it.
 - **Use each size twice.** The first use lays what that size may, a little under strength (gain 0.85 to 0.9); the second, at a higher threshold, touches only what is still well short. Gains under 1 on every layer with no second use left a quarter of the tone missing.
 - **Smooth the gap for corrections.** A reference has grain, and the least gap under a footprint is the gap at its lightest speck, so broad even passages read low and stay pale. Smoothing the gap over a full stroke width (`--smoothing 1.0`) on the later, smaller layers found the missing middle tones (0.053 to 0.040 on one sheet). Keep it off small lights and features.
@@ -185,7 +187,7 @@ A passage that is a plain gradation with nothing in it is still better laid by h
 - **Match the blur to the brush** in shape strokes: about as many pixels as the largest size of the pass. With a blur of 3 at size 9, grain broke the broad shapes into hundreds of spots. The blur is a window of an odd width, and an even figure is taken as the next odd one, so 2 and 3 are the same blur, as are 4 and 5, and 6 and 7.
 - **Do not use shape strokes for the masses.** A background that is one connected shape has a centre line like a river system. Rows cover it evenly.
 - **Fence off what must stay as it is** (`--exclude`). Teeth, and any white too small for the footprint rule to protect, are toned to cream by the layers unless their rectangle is excluded from every stage. So is a signature or watermark, which the layers will otherwise copy as a smudge. Exclude the eyes and mouth from any layer laid after they are drawn. A row brush stays half its own width outside the rectangle, so the mop leaves a margin of 19 pixels round it and each smaller brush closes more of it. Keep the rectangle small. One drawn round a whole group of sails kept the row stages out of the sky between them, and the shape strokes then filled that sky as a mosaic of small touches with hairlines of paper between them.
-- **Build each pass from a look taken after `dry`.** A wet sheet is not the colour it will dry to, and from 0.6.0 its picture also carries the light of the lamp on the water, which the scripts would read as paper. A look taken with `--grid` or `--region` is saved under the same name as a plain one, so when running the measuring scripts alone, take a plain `look` last and give them that.
+- **Build each pass from a look taken after `dry`.** A wet sheet is not the colour it will dry to, and from 0.6.0 its picture also carries the light of the lamp on the water, which the scripts would read as paper. A look taken with `--grid` or `--region` is saved under the same name as a plain one, so when running the measuring scripts alone, take a plain `look` last and give them that. On a printed ground (`new --ground`), give them a look even before the first paint: without `--look` they take the sheet to be white paper and paint over the print.
 - **Small strokes cost time.** A sixth to a third of a second of computing each, more with a larger palette: a layer of 2,000 took twelve minutes here. Confine the finest brush with `--region` where only part of the sheet needs it.
 
 ## Step 6: the hand

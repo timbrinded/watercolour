@@ -11,9 +11,8 @@ from collections.abc import Callable, Sequence
 
 import torch
 
-from .paper import generate_paper
 from .pigments import PIGMENTS
-from .simulation import Sheet, SheetBatch
+from .simulation import SUPPORTS, SheetBatch, Support, support_sheet
 from .studio import Studio
 
 
@@ -74,7 +73,11 @@ LARGEST_BATCH = 8
 
 
 def paint_together(
-    scripts: Sequence[Callable[[Studio], None]], size: int, palette: list[str], seeds: Sequence[int]
+    scripts: Sequence[Callable[[Studio], None]],
+    size: int,
+    palette: list[str],
+    seeds: Sequence[int],
+    support: Support = SUPPORTS["cold_press"],
 ) -> list[Studio]:
     """Run each script on its own sheet and return their studios.
 
@@ -86,7 +89,7 @@ def paint_together(
     studios: list[Studio] = []
     for start in range(0, len(scripts), LARGEST_BATCH):
         sheets = [
-            Sheet(generate_paper(size, size, seed, device), pigments) for seed in seeds[start : start + LARGEST_BATCH]
+            support_sheet(support, size, size, seed, device, pigments) for seed in seeds[start : start + LARGEST_BATCH]
         ]
         clock = SharedClock(SheetBatch(sheets))
         batch = [Studio({"painting": sheet}, palette, shared_clock=clock) for sheet in sheets]

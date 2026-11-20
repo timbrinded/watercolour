@@ -12,13 +12,13 @@ is a full wash.
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from .paper import Paper
+from .paper import COLD_PRESS_GRAIN, PAPER_COLOR, Grain, Paper, generate_paper
 from .pigments import Pigment
 
 
@@ -77,7 +77,7 @@ class Contact:
     twist: float  # how far the edge of a flat head is turned from square to its travel, in radians
     target_depth: float  # water depth the brush tries to leave behind
     draw_depth: float  # depth of film below which the brush no longer soaks water up
-    contact_level: float  # below about 1.0 the brush touches only the paper's peaks
+    contact_level: float  # how far below the highest peak the hairs reach; short of the grain's depth, only peaks
     exchange: float  # how strongly the brush mixes with paint already on the sheet
     scrub: float  # how strongly the brush disturbs deposited pigment
     release: float  # water depth a resting brush adds per time step
@@ -142,6 +142,9 @@ BRIDGING_FILM = 0.05
 MASK_SEALED = 0.5
 # Softness of the edge of a line of masking fluid, as a share of its radius: it dries with a crisp edge.
 MASK_EDGE_SOFTNESS = 0.15
+# Narrowest radius of masking fluid, after any taper. The finest line then seals an unbroken band one to two cells wide
+# at every angle; a thinner one sealed only along rows and columns and broke into dashes at other angles.
+MASK_SMALLEST_RADIUS = 1.25
 
 
 def _faces(field: Tensor, axis: int) -> tuple[Tensor, Tensor]:
@@ -376,9 +379,21 @@ class Sheet:
     tools (brush, blot, graphite) work on a single sheet.
     """
 
-    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite", "mask", "mask_water", "mask_pigment")
-    # Fields that a painting begun before masking fluid existed has no record of; they start empty.
-    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment")
+    STATE_FIELDS = (
+        "water",
+        "saturation",
+        "suspended",
+        "deposited",
+        "graphite",
+        "mask",
+        "mask_water",
+        "mask_pigment",
+        "crisp",
+        "fixative",
+    )
+    # Fields that a painting begun before masking fluid, crisp marks or fixative existed has no record of; they
+    # start empty.
+    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment", "crisp", "fixative")
 
     def __init__(
         self,
@@ -394,6 +409,11 @@ class Sheet:
         self.sizing = paper.sizing
         self.pigments = tuple(pigments)
         device = tooth.device
+        self.ground = (
+            torch.tensor(PAPER_COLOR, device=device).reshape(3, 1, 1) if paper.ground is None else paper.ground
+        )
+        self.relief_shading = paper.relief_shading
+        self.peak, self.valley = paper.peak, paper.valley
         span = parameters.capacity_maximum - parameters.capacity_minimum
         # Absorbency varies broadly across the sheet and only slightly with the grain.
         self.capacity = parameters.capacity_minimum + span * (1.0 - 0.8 * cockle - 0.2 * tooth)
@@ -407,6 +427,11 @@ class Sheet:
         self.mask = torch.zeros_like(tooth)
         self.mask_water = torch.zeros_like(tooth)
         self.mask_pigment = torch.zeros(len(pigments), *tooth.shape, device=device)
+        # Cells whose paint ends at a crisp edge: paper sealed by masking fluid, and ink a pen laid on dry paper. The
+        # picture shares no paint between such a cell and one beside it that is not crisp. A cell stays crisp for good.
+        self.crisp = torch.zeros_like(tooth, dtype=torch.bool)
+        # Fixative (0 to 1), alum size or acrylic medium, which locks the paint settled on the paper under it.
+        self.fixative = torch.zeros_like(tooth)
         self.tilt: tuple[float | Tensor, float | Tensor] = (0.0, 0.0)  # downhill pull along x and y
         self._used: set[int] = set()  # pigments that have ever been on this sheet
 
@@ -430,6 +455,11 @@ class Sheet:
     @property
     def width(self) -> int:
         return self.tooth.shape[-1]
+
+    @property
+    def grain_depth(self) -> float:
+        """Height of the grain from valley to peak; 1 on cold press."""
+        return self.peak - self.valley
 
     # ------------------------------------------------------------------ state
 
@@ -456,7 +486,7 @@ class Sheet:
     def stage_fractions(self) -> dict[str, float]:
         """Share of the sheet at each working stage of the paper."""
         p = self.parameters
-        shiny = self.water > SHINE_DEPTH
+        shiny = self.water > SHINE_DEPTH * self.grain_depth
         moist = (self.water > p.wet_threshold) & ~shiny
         damp = ~shiny & ~moist & (self.saturation > p.damp_threshold * self.capacity)
         total = self.water.numel()
@@ -627,17 +657,21 @@ class Sheet:
         granulation = p.granulation_strength * self._granulation[used].reshape(per_pigment)
         water = self.water[..., *region]
         wet = water > p.wet_threshold
+        # Paint settled on fixed paper is locked: only the share that no fixative holds can roll or lift.
+        unfixed = 1.0 - self.fixative[..., *region]
         # Under deep water the grains of a granulating paint that have settled go on rolling
         # into the hollows of the grain, and there they stay: nothing spreads them out again.
         rolling = SETTLED_ROLLING * p.sedimentation * dt * self._granulation[used].reshape(per_pigment) ** 2
-        roll_y = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 0)), 0)
-        roll_x = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 1)), 1)
-        _transport(deposited, *_limit_outflow(roll_y, roll_x, deposited))
+        loose = deposited * unfixed
+        roll_y = _sediment_flux(loose, water, wet, rolling * torch.sub(*_faces(tooth, 0)), 0)
+        roll_x = _sediment_flux(loose, water, wet, rolling * torch.sub(*_faces(tooth, 1)), 1)
+        _transport(deposited, *_limit_outflow(roll_y, roll_x, loose))
         dt = dt * p.settling_rate
+        loose = deposited * unfixed
         down = suspended * (1.0 - tooth * granulation) * density * dt
-        up = deposited * (1.0 + (tooth - 1.0) * granulation) * (density / staining) * (p.resolubility * dt)
+        up = loose * (1.0 + (tooth - 1.0) * granulation) * (density / staining) * (p.resolubility * dt)
         transfer = (down - up) * wet
-        transfer = torch.maximum(torch.minimum(transfer, suspended), -deposited)
+        transfer = torch.maximum(torch.minimum(transfer, suspended), -loose)
         suspended -= transfer
         deposited += transfer
 
@@ -772,7 +806,7 @@ class Sheet:
             return 0.0, torch.zeros_like(concentration), on_tip
         tooth = self.tooth[rows, columns]
         water = self.water[rows, columns]
-        touching = torch.sigmoid((tooth - (1.0 - contact.contact_level)) / 0.06)
+        touching = torch.sigmoid((tooth - (self.peak - contact.contact_level)) / 0.06)
         # A dry or thick load catches only the peaks of dry paper. Where water already stands on
         # the sheet it bridges the grain, and the hairs meet it everywhere they pass.
         touching = torch.maximum(touching, (water / BRIDGING_FILM).clamp(0, 1))
@@ -817,8 +851,10 @@ class Sheet:
 
         # The hairs stir up pigment that has settled. A brush with room in it wipes up much of
         # what it loosens, which is how a drained brush lifts paint; a full one only stirs it.
-        # A paint that stains less readily than the brush scrubs gives up all that lies on the paper, and no more.
-        loosened = torch.minimum(deposited * (contact.scrub * on_paper * (water > 0)) / self._staining, deposited)
+        # A paint that stains less readily than the brush scrubs gives up all that lies loose on the paper, and no
+        # more. Paint settled on fixed paper is locked, and the hairs loosen only the share no fixative holds.
+        loose = deposited * (1.0 - self.fixative[rows, columns])
+        loosened = torch.minimum(loose * (contact.scrub * on_paper * (water > 0)) / self._staining, loose)
         deposited -= loosened
         wiped = contact.uptake * loosened
         suspended += loosened - wiped
@@ -892,10 +928,35 @@ class Sheet:
 
     def apply_mask(self, points: Tensor, radii: Tensor) -> None:
         """Lay masking fluid along a path. It forms its skin only on paper with no film standing on it: put
-        into wet paint, it mixes with the water and seals nothing."""
+        into wet paint, it mixes with the water and seals nothing. Paper it seals keeps a crisp edge in the picture."""
+        radii = radii.clamp(min=MASK_SMALLEST_RADIUS)
         rows, columns, coverage = self._coverage(points, radii, MASK_EDGE_SOFTNESS, irregular=True)
         dry = (self.water[rows, columns] <= self.parameters.wet_threshold).float()
-        self.mask[rows, columns] = torch.maximum(self.mask[rows, columns], coverage * dry)
+        mask = torch.maximum(self.mask[rows, columns], coverage * dry)
+        self.mask[rows, columns] = mask
+        self.crisp[rows, columns] |= mask >= MASK_SEALED
+
+    def apply_pen(self, points: Tensor, radii: Tensor, amounts: Tensor, covered: Tensor) -> None:
+        """Draw a short piece of a pen line, laying the amount of each pigment on every cell the line covers fully.
+
+        A cell is covered as far as its centre lies within the line, with a ramp one cell wide centred on the line's
+        true edge, and no line is taken as narrower than one cell: a finer one lays a cell's worth of ink along its path
+        rather than fading. Covered holds how far this line has already inked each cell, so where its pieces overlap or
+        it crosses itself it lays no more. On dry paper the ink goes onto the paper and keeps a crisp edge; where a film
+        stands it goes into the water and spreads with it; on masking fluid it stays on the rubber.
+        """
+        rows, columns, coverage = self._coverage(points, radii.clamp(min=0.5) + 0.5, 0.0)
+        laid = (coverage - covered[rows, columns]).clamp(min=0)
+        covered[rows, columns] = torch.maximum(covered[rows, columns], coverage)
+        ink = amounts.reshape(-1, 1, 1) * laid
+        masked = self.mask[rows, columns]
+        self.mask_pigment[:, rows, columns] += ink * masked
+        on_paper = ink * (1.0 - masked)
+        wet = self.water[rows, columns] > self.parameters.wet_threshold
+        self.suspended[:, rows, columns] += on_paper * wet
+        self.deposited[:, rows, columns] += on_paper * ~wet
+        self.crisp[rows, columns] |= ~wet & (laid > 0) & (masked < 1.0)
+        self._used.update((amounts > 0).nonzero().flatten().tolist())
 
     def remove_mask(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
         """Rub masking fluid away, all of it or along a path. Paint dried on the rubber comes away with it;
@@ -918,6 +979,20 @@ class Sheet:
         mask -= removed
         mask.clamp_(min=0)
 
+    def apply_fixative(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
+        """Lay fixative, alum size or acrylic medium, over the whole sheet or along a path. It dries clear and
+        cannot be removed. Paint settled on the paper under it, and paint that settles there later, can no longer
+        be lifted, rolled or scrubbed; wet paint on it flows as on bare paper. It takes only on paper with no film
+        standing on it, and not on masking fluid, with which it would come away."""
+        if points is None or radii is None:
+            rows, columns = slice(None), slice(None)
+            coverage = torch.ones_like(self.fixative)
+        else:
+            rows, columns, coverage = self._coverage(points, radii, 0.3)
+        bare = (self.water[rows, columns] <= self.parameters.wet_threshold) & (self.mask[rows, columns] < MASK_SEALED)
+        # Written in place: in a batch the sheet's fixative is a view of the batch's own.
+        self.fixative[rows, columns] = torch.maximum(self.fixative[rows, columns], coverage * bare)
+
     def blot(self, points: Tensor, radii: Tensor) -> None:
         """Press absorbent tissue onto the sheet."""
         rows, columns, coverage = self._coverage(points, radii, 0.3)
@@ -931,7 +1006,7 @@ class Sheet:
 
     def draw_graphite(self, points: Tensor, radii: Tensor, darkness: float) -> None:
         rows, columns, coverage = self._coverage(points, radii, 1.0)
-        mark = coverage * (0.35 + 0.65 * self.tooth[rows, columns]) * darkness
+        mark = coverage * (0.35 + 0.65 * (self.tooth[rows, columns] + (1.0 - self.peak))) * darkness
         self.graphite[rows, columns] = torch.maximum(self.graphite[rows, columns], mark)
 
     def erase_graphite(self, points: Tensor, radii: Tensor) -> None:
@@ -957,12 +1032,13 @@ class SheetBatch:
             ):
                 raise ValueError("sheets in a batch must share their size, pigments and parameters")
         self.sheets = tuple(sheets)
-        paper = Paper(
-            *(torch.stack([getattr(sheet, name) for sheet in sheets]) for name in ("tooth", "cockle", "sizing"))
+        tooth, cockle, sizing = (
+            torch.stack([getattr(sheet, name) for sheet in sheets]) for name in ("tooth", "cockle", "sizing")
         )
+        paper = Paper(tooth, cockle, sizing)
         self._stack = Sheet(paper, first.pigments, first.parameters)
         for index, sheet in enumerate(sheets):
-            for name in ("water", "saturation", "mask", "mask_water"):
+            for name in ("water", "saturation", "mask", "mask_water", "fixative"):
                 held = getattr(self._stack, name)[index]
                 held.copy_(getattr(sheet, name))
                 setattr(sheet, name, held)
@@ -981,3 +1057,66 @@ class SheetBatch:
             torch.tensor([float(sheet.tilt[1]) for sheet in self.sheets], device=device).reshape(-1, 1, 1),
         )
         stack.advance(duration)
+
+
+@dataclass(frozen=True)
+class Support:
+    """What a painting is painted on, chosen once when it is begun and regenerated from the seed on every command.
+
+    SUPPORTS names the presets. An option that changes one aspect of the sheet, such as its colour, replaces
+    that field of the preset it is given with, so every option describes the same sheet and none stands apart.
+    """
+
+    grain: Grain = COLD_PRESS_GRAIN
+    color: tuple[float, float, float] = PAPER_COLOR
+    relief_shading: float = 0.05  # how strongly the relief of the grain shades the bare sheet
+    parameters: SimulationParameters = SimulationParameters()
+
+
+SUPPORTS = {
+    "cold_press": Support(),
+    # Pressed smooth: a fine grain a fifth as deep, and a surface that keeps the film on top longer, lifts more
+    # easily and dries its edges harder.
+    "hot_press": Support(
+        grain=Grain(octaves=((1, 0.5), (2, 0.5)), depth=0.2),
+        parameters=SimulationParameters(
+            absorption_rate=0.01,
+            capacity_maximum=0.42,
+            absorbed_pigment=0.2,
+            sizing_unevenness=0.6,
+            wicking_unevenness=0.8,
+            resolubility=0.6,
+        ),
+    ),
+    # Unpressed: a coarse grain of broad tops and deep pits, which hold water and coarse granulation. The bare
+    # sheet is shaded only by the grain finer than about 5 pixels, so its relief is shaded more strongly.
+    "rough": Support(
+        grain=Grain(octaves=((3, 0.2), (6, 0.35), (12, 0.45)), plateaus=0.6),
+        relief_shading=0.45,
+        parameters=SimulationParameters(tooth_pressure=0.15, granulation_strength=0.55, sedimentation=30.0),
+    ),
+}
+
+
+def support_sheet(
+    support: Support,
+    height: int,
+    width: int,
+    seed: int,
+    device: torch.device,
+    pigments: Sequence[Pigment],
+    printed: Tensor | None = None,
+) -> Sheet:
+    """Return a sheet of the support; the same seed always gives the same sheet.
+
+    A printed ground, RGB in [0, 1] with shape (3, H, W), multiplies the colour of the support as ink does.
+    """
+    ground = torch.tensor(support.color).reshape(3, 1, 1)
+    if printed is not None:
+        ground = ground * printed
+    paper = replace(
+        generate_paper(height, width, seed, device, support.grain),
+        ground=ground.to(device),
+        relief_shading=support.relief_shading,
+    )
+    return Sheet(paper, pigments, support.parameters)

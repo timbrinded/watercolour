@@ -4,6 +4,7 @@ Time passes on every sheet together. A stroke takes time to make, and paint laid
 earlier keeps flowing and drying while later strokes are made.
 """
 
+import math
 import random
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -48,6 +49,8 @@ PENCIL_RADIUS = 0.9
 MASK_SPEED = 60.0  # pixels per second at which masking fluid is drawn on
 MASK_LIGHTEST_SHARE = 0.15  # width of a line of masking fluid laid with no pressure, as a share of its full width
 UNMASK_DURATION = 5.0  # seconds taken to rub masking fluid away
+PEN_LIGHTEST_SHARE = 0.15  # width of a pen line drawn with no pressure, as a share of its full width
+FIX_DURATION = 5.0  # seconds taken to lay fixative
 # A brush never picks up exactly the mix asked for. Spread of pigment and of water from load to load.
 PIGMENT_VARIATION = 0.12
 WATER_VARIATION = 0.06
@@ -216,6 +219,43 @@ class Studio:
         self._pass_time(UNMASK_DURATION)
         self._record()
 
+    def pen(self, sheet_name: str, path: Path, width: float, ink: dict[str, float], speed: float, smooth: bool) -> None:
+        """Draw a line in ink, which the pen lays at the same strength from the start of the line to its end.
+
+        Pressed down the line is as wide as the width; lifted it narrows to 0.15 of it, and a point that gives no
+        pressure is drawn at full width. The pen travels at one speed, and a single point is a dot held for as long as
+        a dab. Time passes on the sheet as the line is drawn. The pen needs no brush and leaves the one in hand as it was.
+        """
+        sheet = self.sheets[sheet_name]
+        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
+        traced = trace_journey(controls, smooth, speed, DAB_DURATION)
+        amounts = self._tensor([float(ink.get(name, 0.0)) for name in self.palette])
+        covered = torch.zeros_like(sheet.water)  # how far this line has already inked each cell
+        dt = self._time_step
+        # The pen keeps on until the last time step has reached the end of the line.
+        for step in range(max(1, math.ceil(float(traced[-1, TIME]) / dt - 1e-6))):
+            piece = journey_between(traced, step * dt, (step + 1) * dt)
+            radii = 0.5 * width * (PEN_LIGHTEST_SHARE + (1.0 - PEN_LIGHTEST_SHARE) * piece[:, PRESSURE])
+            sheet.apply_pen(self._tensor(piece[:, :2]), self._tensor(radii), amounts, covered)
+            self._pass_time(dt)
+            self._since_frame += dt
+            if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
+                self._since_frame = 0.0
+                self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
+
+    def fix(self, sheet_name: str, path: Path | None = None, radius: float | None = None) -> None:
+        """Lay fixative, alum size or acrylic medium: over the whole sheet, or along a path with a brush of the
+        given radius. Paint settled under it, and paint that settles there later, can no longer be lifted."""
+        sheet = self.sheets[sheet_name]
+        if path is None or radius is None:
+            sheet.apply_fixative()
+        else:
+            samples = trace_path(path, smooth=False)
+            radii = torch.full((len(samples),), radius)
+            sheet.apply_fixative(self._tensor(samples[:, :2]), self._tensor(radii))
+        self._pass_time(FIX_DURATION)
+        self._record()
+
     def pencil(self, sheet_name: str, path: Path, darkness: float, smooth: bool = True) -> None:
         samples = trace_path(path, smooth)
         radii = torch.full((len(samples),), PENCIL_RADIUS)
@@ -279,6 +319,25 @@ def validate_brush_request(
         raise ValueError("brush size must be between 0.5 and 80 pixels")
     if not 0.0 <= water <= 1.0:
         raise ValueError("water must be between 0 and 1")
+    _validate_mix(pigments, palette)
+
+
+def validate_pen_request(path: Path, width: float, ink: dict[str, float], speed: float, palette: list[str]) -> None:
+    for point in path:
+        if len(point) not in (2, 3):
+            raise ValueError("a pen point is [x, y] or [x, y, pressure]")
+        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
+            raise ValueError("pen pressure must be between 0 and 1")
+    if not 0.25 <= width <= 8:
+        raise ValueError("pen width must be between 0.25 and 8 pixels")
+    if speed <= 0:
+        raise ValueError("speed must be positive")
+    _validate_mix(ink, palette)
+    if sum(ink.values()) <= 0.0:
+        raise ValueError("the ink must hold some paint")
+
+
+def _validate_mix(pigments: dict[str, float], palette: list[str]) -> None:
     for name, amount in pigments.items():
         if name not in PIGMENTS:
             raise ValueError(f"unknown pigment {name!r}")

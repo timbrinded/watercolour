@@ -1,13 +1,14 @@
 """Draw the strokes of one or more passes over the reference, at the width each brush will paint.
 
-Masking fluid (`mask`) is drawn in yellow at the width it is laid, so a mask can be checked against the shape it must
-keep white before it goes down.
+Pen lines (`pen`) are drawn in their ink at the width the pen draws them, and pencil in grey. Masking fluid (`mask`) is
+drawn in yellow at the width it is laid, so a mask can be checked against the shape it must keep white before it goes
+down. Fixative (`fix`) cannot be seen and is not drawn; nor is what a `blot`, `unmask` or `erase` takes away.
 
 Usage: preview_pass.py <reference> <output> --sheet W,H [--origin x,y] [--region x0,y0,x1,y1]
                        [--zoom 2] [--alpha 120] pass.json [pass.json ...]
 
 --origin is the full-sheet coordinate of the pass's own origin (for a study pass on a cropped sheet).
---alpha is how opaque each stroke is drawn, from 0 to 255.
+--alpha is how opaque each mark is drawn, from 0 to 255.
 The overlay is a planning aid: it shows where paint will land and how wide, not how it will flow.
 """
 
@@ -42,6 +43,10 @@ WIDTH = {
 }
 MASK_COLOUR = (255, 214, 0)
 MASK_LIGHTEST_SHARE = 0.15  # the harness lays a mask line at no pressure this share of its full width
+PEN_LIGHTEST_SHARE = 0.15  # and draws a pen line at no pressure this share of its full width, but never under a pixel
+PENCIL_COLOUR = (90, 90, 90)
+PENCIL_RADIUS = 0.9  # the harness's pencil line is this radius at every pressure
+CLEAR_WATER = (0, 220, 255)
 TINT = {
     "french_ultramarine": (60, 60, 200),
     "cobalt_blue": (40, 110, 200),
@@ -74,6 +79,29 @@ def tint(name: str) -> tuple[int, int, int]:
         except (ImportError, KeyError):
             TINT[name] = (120, 120, 120)
     return TINT[name]
+
+
+def mixed_tint(pigments: dict[str, float]) -> tuple[int, int, int]:
+    """The colour to draw a mix in: its paints' tints weighted by amount, or cyan for clear water."""
+    total = sum(pigments.values())
+    if not total:
+        return CLEAR_WATER
+    red, green, blue = (
+        round(sum(tint(name)[k] * amount for name, amount in pigments.items()) / total) for k in range(3)
+    )
+    return red, green, blue
+
+
+def half_width(action: dict, brush: str, size: float, pressure: float) -> float:
+    """Half the width of the mark an action leaves at this pressure: a stroke's is the brush in hand's."""
+    kind = action["action"]
+    if kind == "stroke":
+        return painted_width(brush, size, pressure) / 2
+    if kind == "pen":
+        return max(0.5, action["width"] * (PEN_LIGHTEST_SHARE + (1 - PEN_LIGHTEST_SHARE) * pressure) / 2)
+    if kind == "mask":
+        return action["radius"] * (MASK_LIGHTEST_SHARE + (1 - MASK_LIGHTEST_SHARE) * pressure)
+    return PENCIL_RADIUS
 
 
 def catmull_rom(points, steps=8):
@@ -166,42 +194,34 @@ def main() -> None:
         with open(path) as handle:
             actions = json.load(handle)
         for action in actions:
-            if action["action"] == "load":
+            kind = action["action"]
+            if kind == "load":
                 brush, size = action["brush"], action["size"]
-                pigments = action.get("pigments") or {}
-                total = sum(pigments.values())
-                if total:
-                    colour = tuple(
-                        round(sum(tint(name)[k] * amount for name, amount in pigments.items()) / total)
-                        for k in range(3)
-                    )
-                else:
-                    colour = (0, 220, 255)  # clear water
-            elif action["action"] == "stroke" and action.get("sheet") != "scrap":
-                count += 1
-                centres = [
-                    (
-                        (x + origin_x - x0) * zoom,
-                        (y + origin_y - y0) * zoom,
-                        painted_width(brush, size, pressure) / 2 * zoom,
-                    )
-                    for x, y, pressure in path_points(action, 0.7)
-                ]
-                view = trail(view, centres, colour + (arguments.alpha,))
-            elif action["action"] == "mask" and action.get("sheet") != "scrap":
-                count += 1
-                centres = [
-                    (
-                        (x + origin_x - x0) * zoom,
-                        (y + origin_y - y0) * zoom,
-                        action["radius"] * (MASK_LIGHTEST_SHARE + (1 - MASK_LIGHTEST_SHARE) * pressure) * zoom,
-                    )
-                    for x, y, pressure in path_points(action, 1.0)
-                ]
-                view = trail(view, centres, MASK_COLOUR + (arguments.alpha,))
+                colour = mixed_tint(action.get("pigments") or {})
+                continue
+            if kind not in ("stroke", "pen", "mask", "pencil") or action.get("sheet") == "scrap":
+                continue
+            count += 1
+            if kind == "stroke":
+                fill = colour
+            elif kind == "pen":
+                fill = mixed_tint(action["ink"])
+            else:
+                fill = MASK_COLOUR if kind == "mask" else PENCIL_COLOUR
+            # a path point with no pressure is laid at 0.7 by a brush and at full pressure by the others
+            default_pressure = 0.7 if kind == "stroke" else 1.0
+            centres = [
+                (
+                    (x + origin_x - x0) * zoom,
+                    (y + origin_y - y0) * zoom,
+                    half_width(action, brush, size, pressure) * zoom,
+                )
+                for x, y, pressure in path_points(action, default_pressure)
+            ]
+            view = trail(view, centres, fill + (arguments.alpha,))
 
     view.convert("RGB").save(arguments.output)
-    print(f"{arguments.output}: {count} strokes and masks drawn over region {x0},{y0},{x1},{y1}")
+    print(f"{arguments.output}: {count} marks drawn over region {x0},{y0},{x1},{y1}")
 
 
 if __name__ == "__main__":

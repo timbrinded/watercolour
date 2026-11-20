@@ -84,3 +84,69 @@ def test_paint_charged_into_a_shining_wash_spreads_to_twice_its_width_on_dry_pap
         studio.dry()
         widths.append(width_across(studio.sheets["painting"].deposited[RED][:, 44:84].sum(dim=1)))
     assert widths[0] >= 2 * widths[1]
+
+
+def dried_band(fixed: bool) -> tuple[Studio, torch.Tensor]:
+    """A sheet with a band of dried ultramarine across its middle, fixed over the whole sheet or not, and the paint
+    on the paper as it was before anything touched the band. Dried paint is settled pigment with no water about it."""
+    studio = new_studio()
+    sheet = studio.sheets["painting"]
+    sheet.deposited[BLUE, 36:93, 20:109] = 1.0
+    sheet._used.add(BLUE)
+    if fixed:
+        studio.fix("painting")
+    return studio, sheet.deposited.clone()
+
+
+def test_dried_paint_on_fixed_paper_does_not_lift_into_a_clear_wash() -> None:
+    """A clear wash laid over dried ultramarine takes some of it back into the water; on paper fixed first it takes
+    none, and leaves the dried paint exactly as it was. Measured: 6.0% of it in the water after 10 s, and none when
+    fixed."""
+
+    def lifted(fixed: bool) -> tuple[float, bool]:
+        studio, dried = dried_band(fixed)
+        sheet = studio.sheets["painting"]
+        lay_wash(studio, {})
+        studio.wait(10)
+        return float(sheet.suspended[BLUE].sum() / dried[BLUE].sum()), torch.equal(sheet.deposited, dried)
+
+    assert lifted(False)[0] >= 0.03
+    assert lifted(True) == (0.0, True)
+
+
+def test_a_stiff_drained_brush_scrubs_nothing_from_fixed_paper() -> None:
+    """Four passes of a bright on golden synthetic, loaded with clear water and drained to 0.2, scrub dried ultramarine
+    off bare paper, and leave it exactly as it was on paper fixed first. Measured: 37.9% of it loosened from under the
+    passes on bare paper."""
+
+    def scrubbed(fixed: bool) -> tuple[float, bool]:
+        studio, dried = dried_band(fixed)
+        sheet = studio.sheets["painting"]
+        studio.load_brush("bright", 6, {}, 1.0, hair="golden_synthetic")
+        studio.drain(0.2)
+        for _ in range(4):
+            studio.stroke("painting", [[40, 64, 0.9], [88, 64, 0.9]], 120, smooth=False)
+        under = (slice(59, 70), slice(44, 85))
+        left = float(sheet.deposited[BLUE][under].sum() / dried[BLUE][under].sum())
+        return 1.0 - left, torch.equal(sheet.deposited, dried)
+
+    assert scrubbed(False)[0] >= 0.2
+    assert scrubbed(True) == (0.0, True)
+
+
+def test_paint_charged_into_a_wash_on_fixed_paper_spreads_as_on_bare_paper() -> None:
+    """Fixative holds paint only once it has settled, so strong paint drawn into a shining wash laid on fixed paper
+    spreads as far as on bare paper. Measured: 8.22 rows against 8.26."""
+    widths = []
+    for fixed in (False, True):
+        studio = new_studio()
+        if fixed:
+            studio.fix("painting")
+        lay_wash(studio, {})
+        studio.wait_for_film("painting", 64, 64, 0.5, 400)
+        studio.load_brush("round", 5, {"cadmium_red": 4.0}, 1.0)
+        studio.drain(0.6)
+        studio.stroke("painting", [[34, 64, 0.8], [94, 64, 0.8]], 110, smooth=False)
+        studio.dry()
+        widths.append(width_across(studio.sheets["painting"].deposited[RED][:, 44:84].sum(dim=1)))
+    assert 0.9 <= widths[1] / widths[0] <= 1.1

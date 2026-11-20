@@ -18,7 +18,7 @@ from itertools import pairwise
 from pathlib import Path
 
 from watercolor.brushes import Journey
-from watercolor.pigments import PIGMENTS
+from watercolor.pigments import DEFAULT_PALETTE
 from watercolor.session import Configuration, Session
 
 WIDTH, HEIGHT = 768, 544
@@ -802,7 +802,7 @@ def main() -> None:
         size=WIDTH,
         height=HEIGHT,
         seed=11,
-        palette=list(PIGMENTS),
+        palette=list(DEFAULT_PALETTE),
         stroke_budget=5000,
         scrap_allowed=False,
         pencil_allowed=True,

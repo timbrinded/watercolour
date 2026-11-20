@@ -28,7 +28,7 @@ Usage:
         [--hair red_sable] [--water 0.9] [--no-dry] [--preview preview.png]
 
 --paints and the Python to run it with are as for measured_layers.py. A look must be one taken after a `dry`.
-Without --look the sheet is taken to be bare paper.
+Without --look the sheet is taken to be bare paper: on a printed ground (`new --ground`), give a look.
 """
 
 import argparse

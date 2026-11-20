@@ -20,8 +20,8 @@ subject and one palette; take the methods as settled and check the numbers on a 
 | The face of a wave | Its own smooth measured passage, laid before the foam | `scripts/crisp_layers.py --smooth-mix` |
 | A mass of breaking foam | Crisp measured layers with the whites kept as paper | `scripts/crisp_layers.py` |
 | Lace: separate strands of foam on water | Negative painting, each stroke sized to its distance from the nearest foam | Below |
-| Broad whites a single wash must cross (0.8.0) | Masking fluid; not needed with the crisp layers | `scripts/mask_lights.py` |
-| Spray and streaks narrower than about 2 pixels in radius | Kept as paper by the layers round them | No method puts them back afterwards |
+| Whites a single wash must cross (0.8.0; fine ones 0.10.0) | Masking fluid; not needed with the crisp layers | `scripts/mask_lights.py` |
+| Spray and streaks narrower than about 2 pixels in radius | Kept as paper by the layers round them, or on 0.10.0 masked first | No method puts them back afterwards |
 | Reflections in wet sand | Not reached | Leave a smooth sheen gradient |
 
 Order on the sheet: sand; sea base wash; troughs; wave face; foam layers; then any glaze over the sand. Lay the
@@ -153,12 +153,28 @@ water between strands one or two pixels tall, and a round of size 1 lays almost 
 
 ## Masking fluid (0.8.0)
 
-Masking fluid keeps a white crisp under any wash laid over it, but only a white broad enough to hold the fluid:
-about 2 pixels in radius and more. `scripts/mask_lights.py` lays fluid over the reference's lights only where they
-are that broad, in rows that keep its edge on the light's edge, and prints how many light pixels are too narrow for
-it. Paint over the fluid freely, `dry`, then `unmask`.
+Masking fluid keeps a white crisp under any wash laid over it. On 0.8.0 and 0.9 it kept only a white about 2 pixels
+in radius and more. On 0.10.0 it keeps a white of any width, measured under one wash of about 0.28 and one of 0.53:
 
-Two trials on the surf crop, against the crisp layers above (edge agreement 0.64):
+- **A line** of any radius up to 1.25 lays the same, finest fluid. It seals an unbroken band 1 pixel wide along a row
+  or column through pixel centres, 2 pixels between them, and 1.3 to 1.8 at other angles. The white stays at paper
+  (0.94 to 0.97) along its whole length. Wider fluid seals about one pixel less than twice its radius (radius 2, about
+  3 pixels). Along a row, fluid of radius 1.5 to 2.5 varies by 2 pixels in width as the grain moves its edge, so lay
+  an even fine white with the finest fluid.
+- **A dot** needs a radius of 1.5 or more: 1.5 kept 4 to 6 pixels, 2 kept 6 to 9 and 2.5 kept 10 to 14, all at paper.
+  A dot of 1.25 or less keeps 1 to 3 pixels. On whole-pixel coordinates it always kept its pixel; of three laid
+  midway between four pixel centres, one kept none.
+- **The edge** of a masked white is a hard step from paper to the wash, with no lighter rim. Mask lights whose edges
+  are crisp, and paint round a light whose edge should melt into the water.
+
+`scripts/mask_lights.py` lays one stroke of the finest fluid along each row of each light, through the pixel centres,
+so the fluid covers exactly the light's pixels. On a test sheet of white lines 1 to 5 pixels wide at three angles and
+dots 2 to 6 pixels across, every light pixel stayed at paper (0.96) under a wash of 0.28, unbroken, with none beside
+them. It masks every light by default, and needs 0.10.0: its finest fluid is laid for the floor and the crisp edge
+that version added. Paint over the fluid freely, `dry`, then `unmask`.
+
+Two trials on the surf crop on 0.8.0, against the crisp layers above (edge agreement 0.64). The script then filled
+each light with rows of rounds, and kept only whites about 2 pixels in radius and more:
 
 | Trial | Result |
 |---|---|
@@ -167,8 +183,9 @@ Two trials on the surf crop, against the crisp layers above (edge agreement 0.64
 
 So leave the fluid out of surf painted with the crisp layers. It earns its place where a broad wash has to cross a
 white that the wash cannot be cut round: a whitecap or a crest of foam inside a sea laid as one wash, a sail against
-a sky. Lay it with `mask_lights.py`, lay the wash, `dry`, `unmask`, and expect anything under about 2 pixels in
-radius to be lost. A wet wash over masked foam does not make the foam: its structure has to be painted on dry paper.
+a sky. Lay it with `mask_lights.py`, lay the wash, `dry`, `unmask`. On 0.8.0 and 0.9 expect anything under about 2
+pixels in radius to be lost. A wet wash over masked foam does not make the foam: its structure has to be painted on
+dry paper.
 
 ## Lights, glints and reflections
 

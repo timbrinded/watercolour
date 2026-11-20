@@ -5,6 +5,11 @@ recalled from the pigment table in Curtis et al. (1997) and have not been checke
 against the paper; those for cobalt blue, burnt sienna, yellow ochre, opaque white
 and ivory black are estimated from the colour of each paint. Density, staining and granulation are estimates of how each
 paint behaves and are expressed for this engine's per-second rates.
+
+The paints after ivory black were fitted through the renderer's own Kubelka-Munk mixing, to published hue angles and
+ratings (MacEvoy's Handprint guide) and to the most chroma the display can show at each hue. The phthalo, dioxazine and
+fluorescent paints absorb strongly in some channels and almost nothing in the rest, an idealisation that makes them
+cleaner than real paint. Their density, staining and granulation follow the existing paints that behave most like them.
 """
 
 from dataclasses import dataclass
@@ -37,5 +42,40 @@ PIGMENTS: dict[str, Pigment] = {
         # Opaque white (gouache): it scatters strongly and absorbs almost nothing, so it covers what lies beneath.
         Pigment("opaque_white", (0.004, 0.004, 0.006), (3.0, 3.0, 3.0), 0.080, 1.0, 0.0),
         Pigment("ivory_black", (1.9, 1.9, 1.8), (0.01, 0.01, 0.01), 0.030, 2.0, 0.30),
+        # Paints a painting has only when its --palette names them; DEFAULT_PALETTE below leaves them out.
+        # Transparent, smooth and staining, with the rates of phthalo green and quinacridone rose.
+        Pigment("phthalo_blue", (2.20, 0.70, 0.08), (0.006, 0.010, 0.030), 0.012, 8.0, 0.05),
+        Pigment("phthalo_turquoise", (2.60, 0.05, 0.25), (0.004, 0.006, 0.010), 0.012, 8.0, 0.0),
+        Pigment("dioxazine_violet", (0.60, 2.50, 0.15), (0.010, 0.006, 0.030), 0.012, 6.0, 0.0),
+        # A clear cool green that, unlike phthalo green, lifts evenly once dry.
+        Pigment("viridian", (1.5, 0.35, 0.45), (0.02, 0.06, 0.05), 0.030, 1.0, 0.30),
+        # Fluorescent paints: absorption near zero in the channels of their colour, so their chroma reaches what the
+        # display can show. They do not glow, and are never lighter than the paper.
+        Pigment("fluorescent_pink", (0.01, 2.60, 0.45), (0.005, 0.005, 0.005), 0.012, 6.0, 0.0),
+        Pigment("fluorescent_yellow", (0.02, 0.005, 2.60), (0.005, 0.005, 0.005), 0.012, 6.0, 0.0),
+        # Carbon (stick, Chinese or India) ink: twice ivory_black's absorption, no granulation, and staining high
+        # enough that dried ink barely lifts. It stands in for ink that is fixed once dry.
+        Pigment("carbon_ink", (3.8, 3.8, 3.7), (0.004, 0.004, 0.006), 0.025, 40.0, 0.0),
+        # Water-soluble dye ink, a cool black: staining so low that water standing on a dried line takes most of it
+        # back up, and a damp brush drawn across the line pulls it out.
+        Pigment("soluble_ink", (2.1, 2.0, 1.7), (0.005, 0.005, 0.005), 0.020, 0.12, 0.0),
     )
 }
+
+# The paint box a painting has when --palette does not name one: the first thirteen paints above, in their order,
+# so that a painting begun without --palette has the same paints, and replays the same, as before the others existed.
+DEFAULT_PALETTE: tuple[str, ...] = (
+    "french_ultramarine",
+    "cerulean_blue",
+    "phthalo_green",
+    "hookers_green",
+    "hansa_yellow",
+    "quinacridone_rose",
+    "cadmium_red",
+    "burnt_umber",
+    "cobalt_blue",
+    "burnt_sienna",
+    "yellow_ochre",
+    "opaque_white",
+    "ivory_black",
+)

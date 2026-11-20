@@ -47,7 +47,7 @@ Know the three proportional tradeoffs below ~45 strokes before choosing that reg
 ## Deepening a broad wash once it has dried
 
 A wash that dried too pale over a large area (a beach, a field, a sky) can take a second wash over it, but only with
-a drained brush. Measured on rows of a size 10 `flat_wash` over a dried row wash of the same kind (`references/water.md`
+a drained brush, or over fixative. Measured on rows of a size 10 `flat_wash` over a dried row wash of the same kind (`references/water.md`
 has the passage):
 
 - **Full water (0.95) stirs it.** The new rows re-wet the dried paint and it dried as coarse speckle: the spread of
@@ -59,6 +59,11 @@ has the passage):
   A glaze mixed from a blur that took in a white passage next to it came out near-clear, and the edge of a
   near-clear stretch dries as a line across the finished wash. Where part of the wash already matches, its mix is
   near-clear too, so cover the whole wash from edge to edge and do not leave the glaze to end inside it.
+- **Or fix the dried wash first (0.10.0), and use a full brush.** On a 160 by 128 sheet, a wash of burnt sienna,
+  yellow ochre and cobalt blue (value 0.661, spread 0.018) laid again at full water over itself speckled to a spread
+  of 0.031 unfixed; fixed, it stayed at 0.019 and darkened by 0.188, where the same load drained to 0.55 darkened it
+  by 0.128. Fix the whole wash, not a patch of it: laid at full water across a fixed band, the same wash dried clean
+  on the band (0.017) and speckled beside it (0.032), so the edge of the fixative showed.
 
 ## Diagnosing common faults
 
@@ -71,7 +76,7 @@ has the passage):
 | A dark outline round a white shape, paper on both sides | The cut along its contour had no water beside it | Lay a band of clear water under the outer half of the cut first |
 | The white shape has no shape | Bare paper inside and outside, nothing on its contour | A cut on every stretch of contour where the background should be darker than paper |
 | A flat dark slab where the background should vary | A strong wash everywhere, strengthened again by charges and a second layer, judged by eye | Sample the reference or decide the values first; lay the middle value and keep the dark to where it belongs |
-| Sandy speckle and blurred detail after a correction | A broad wet wash laid over finished small work re-wet it; a granulating earth in the wash gathered into specks | Correct with small glazes on dry paper; keep burnt umber out of deep washes (burnt sienna greys cobalt blue without the specks) |
-| Coarse speckle all over a broad wash after it was deepened | The second wash was laid with a full brush and stirred the dried first one | Drain the brush to 0.55 and raise the strength instead (see "Deepening a broad wash once it has dried") |
+| Sandy speckle and blurred detail after a correction | A broad wet wash laid over finished small work re-wet it; a granulating earth in the wash gathered into specks | Correct with small glazes on dry paper, or `fix` the finished work before the broad wash (0.10.0); keep burnt umber out of deep washes (burnt sienna greys cobalt blue without the specks) |
+| Coarse speckle all over a broad wash after it was deepened | The second wash was laid with a full brush and stirred the dried first one | Drain the brush to 0.55 and raise the strength instead, or `fix` the first wash before the second (see "Deepening a broad wash once it has dried") |
 | A thin line across a finished wash | The edge of a near-clear glaze, mixed from a blur that took in a light passage or ending inside the wash | Mix from unblurred targets inside the wash only; cover the wash from edge to edge |
 | Unwanted vertical icicle drips | `tilt` above `0.18` on a flooded wash | Keep gentle gravity pooling to `0.05–0.08` for 15–20 seconds, then reset `tilt` to `0` |

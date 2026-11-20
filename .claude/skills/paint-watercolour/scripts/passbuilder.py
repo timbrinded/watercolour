@@ -2,6 +2,10 @@
 
 import json
 
+# The actions that count against the stroke budget when they are on the painting and not the scrap sheet: session.py's
+# TOUCHING_ACTIONS and SURFACE_TREATMENTS, mirrored so that these helpers need only the standard library.
+BUDGETED_ACTIONS = ("stroke", "blot", "pen", "mask", "unmask", "fix")
+
 
 def scaled(mix: dict[str, float], total: float) -> dict[str, float]:
     """Return the mix with its proportions kept and its amounts summing to `total`."""
@@ -22,6 +26,28 @@ def stroke(path, speed=None, smooth=True, sheet=None):
     action = {"action": "stroke", "path": path, "smooth": smooth}
     if speed is not None:
         action["speed"] = speed
+    if sheet:
+        action["sheet"] = sheet
+    return action
+
+
+def pen(path, width, ink, speed=None, smooth=True, sheet=None):
+    """A line in ink: `width` is the full width at full pressure, `ink` maps paints to the amount laid per pixel."""
+    action = {"action": "pen", "path": path, "width": width, "ink": ink, "smooth": smooth}
+    if speed is not None:
+        action["speed"] = speed
+    if sheet:
+        action["sheet"] = sheet
+    return action
+
+
+def fix(path=None, radius=None, sheet=None):
+    """Fixative along a path at a radius, or over the whole sheet when neither is given."""
+    if (path is None) != (radius is None):
+        raise ValueError("fixative takes a path and a radius together, or neither")
+    action: dict[str, object] = {"action": "fix"}
+    if path is not None:
+        action["path"], action["radius"] = path, radius
     if sheet:
         action["sheet"] = sheet
     return action
@@ -54,11 +80,15 @@ def wait(seconds, at=None, film=None):
 DRY = {"action": "dry"}
 
 
+def budgeted(actions) -> int:
+    """How many of the actions count against the painting's stroke budget."""
+    return sum(1 for action in actions if action["action"] in BUDGETED_ACTIONS and action.get("sheet") != "scrap")
+
+
 def write(actions, path):
     with open(path, "w") as handle:
         json.dump(actions, handle, indent=1)
-    strokes = sum(1 for action in actions if action["action"] in ("stroke", "blot") and action.get("sheet") != "scrap")
-    print(f"{path}: {len(actions)} actions, {strokes} strokes")
+    print(f"{path}: {len(actions)} actions, {budgeted(actions)} against the stroke budget")
 
 
 def offset_path(points, distance):
