@@ -16,8 +16,8 @@ Usage:
         [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--exclude x0,y0,x1,y1 ...]
         [--keep-lights 0.08] [--cut-in 8,3.5] [--white r,g,b] [--no-dry]
 
---paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white
-or a fluorescent paint.
+--paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white,
+a fluorescent paint or soluble_ink.
 --origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference,
 and --crop is that sheet's size. --region and --exclude are then in the cropped sheet's own coordinates.
 --white is the colour of the reference's own paper, where it is a scan and not pure white.
@@ -28,7 +28,9 @@ for the smaller brushes to fill, and that margin dries ragged unless it is close
 --cut-in does that: in the same pass, rounds of the sizes given lay what the brush could not reach, largest first,
 so the wash runs up to the edge of each light as one wet wash. Use it with --no-dry on a first wash.
 Without --look the sheet is taken to be bare paper. Give it a look taken after a `dry`: a wet sheet is not yet the
-colour it will dry to.
+colour it will dry to. On a printed ground (`new --ground`) give a look even before the first paint, or the print is
+painted over as if it were not there; a look in the painting's folder is measured against the ground's page
+(sheet_paper).
 
 Run it with the Python that the watercolor tool uses; it reads that tool's pigment table.
 """
@@ -40,6 +42,7 @@ import itertools
 import json
 import math
 import random
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -47,8 +50,10 @@ from PIL import Image, ImageDraw, ImageFilter
 from preview_pass import painted_width
 from torch.nn import functional
 
-# The harness's bare paper as a dry look shows it.
+# The harness's bare paper as a dry look shows it, on every support (a bare rough sheet's mean is the same).
 PAPER = np.array([247.0, 244.0, 237.0])
+LUMA = np.array([0.2126, 0.7152, 0.0722])
+GROUND = "ground.png"  # the image a painting was begun on with `new --ground`: session.py's GROUND_FILE
 # The pressure a row is laid at, and so the width it paints and the rows are spaced by.
 STROKE_PRESSURE = 0.9
 
@@ -74,7 +79,40 @@ def paint_absorption(names: list[str]) -> Absorption:
             f"fluorescent paints are for planned accents, not for matching a reference: leave {', '.join(fluorescent)}"
             " out of --paints"
         )
+    if "soluble_ink" in names:
+        raise SystemExit(
+            "soluble_ink dissolves under every later layer, so measured layers laid over it do not add to it: leave it"
+            " out of --paints"
+        )
     return {name: PIGMENTS[name].absorption for name in names}
+
+
+def painting_folder(path: str | Path) -> Path | None:
+    """The folder of the painting a picture was taken of: a look in its looks/, or the finished painting.png."""
+    folder = Path(path).resolve().parent
+    if folder.name == "looks":
+        folder = folder.parent
+    return folder if (folder / "session.json").is_file() else None
+
+
+def lightest(rgb: np.ndarray) -> np.ndarray:
+    """The mean colour of an image's lightest 1%."""
+    luminance = rgb @ LUMA
+    return rgb[luminance >= np.percentile(luminance, 99.0)].mean(0)
+
+
+def sheet_paper(path: str | Path) -> np.ndarray:
+    """The colour of the bare paper of the painting a picture was taken of, from 0 to 255.
+
+    It is the harness's paper unless the painting was begun on a printed ground. Then it is that paper under the
+    ground's page, the lightest 1% of the print: white for a plate printed on white paper, the tone of a found or
+    toned page. What the print lays darker than its page is measured as paint, already on the sheet. A print with no
+    page left bare, a photograph over the whole sheet, has its lightest 1% read as its page."""
+    folder = painting_folder(path)
+    if folder is None or not (folder / GROUND).is_file():
+        return PAPER
+    printed = np.asarray(Image.open(folder / GROUND).convert("RGB")).astype(float)
+    return PAPER * lightest(printed) / 255.0
 
 
 def absorbance(image: np.ndarray, paper: np.ndarray) -> np.ndarray:
@@ -173,7 +211,7 @@ def target_and_sheet(parser: argparse.ArgumentParser, arguments: argparse.Namesp
     if not arguments.look:
         return target, np.zeros_like(target)
     look = Image.open(arguments.look).convert("RGB").resize(reference.size, Image.Resampling.LANCZOS)
-    return target, absorbance(np.asarray(look).astype(float), PAPER)
+    return target, absorbance(np.asarray(look).astype(float), sheet_paper(arguments.look))
 
 
 def mark_covered(covered: Image.Image, actions: list[dict], stroke_width: float) -> None:

@@ -26,6 +26,9 @@ Usage:
         [--percentile 20] [--least 0.04] [--gain 1.0] [--soft-range 0.10] [--stripe 70] [--variegated]
         [--cap 0.3] [--exclude x0,y0,x1,y1 ...] [--preview preview.png] [--no-dry]
 
+Without --look the sheet is taken to be bare paper, so on a painting begun with a printed ground (`new --ground`) give
+a look even before the first band; a look is measured as in measured_layers.py.
+
 Run it with the Python that the watercolor tool uses, beside measured_layers.py and shape_strokes.py.
 """
 
@@ -43,7 +46,7 @@ from torch.nn import functional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import itertools
 
-from measured_layers import PAPER, absorbance, paint_absorption, solve_mix, to_load
+from measured_layers import PAPER, absorbance, paint_absorption, sheet_paper, solve_mix, to_load
 from shape_strokes import centre_lines, half_width, thin
 
 LUMA = np.array([0.2126, 0.7152, 0.0722])
@@ -261,9 +264,11 @@ def build(arguments) -> tuple[list[dict], np.ndarray]:
     if arguments.look:
         sheet = np.asarray(Image.open(arguments.look).convert("RGB").resize((width, height), Image.Resampling.LANCZOS))
         sheet = sheet.astype(np.float64)
+        paper = sheet_paper(arguments.look)
     else:
         sheet = np.broadcast_to(PAPER, target.shape).copy()
-    gap = np.clip(blurred(absorbance(target, PAPER), 1.5) - blurred(absorbance(sheet, PAPER), 1.5), 0.0, None)
+        paper = PAPER
+    gap = np.clip(blurred(absorbance(target, PAPER), 1.5) - blurred(absorbance(sheet, paper), 1.5), 0.0, None)
     value = blurred((target @ LUMA) / (PAPER @ LUMA), arguments.blur)
     sharp = blurred((target @ LUMA) / (PAPER @ LUMA), 1.0)
     window = torch.from_numpy(sharp.astype(np.float32))[None, None]

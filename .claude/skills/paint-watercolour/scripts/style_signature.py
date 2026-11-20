@@ -3,11 +3,14 @@
 Usage: style_signature.py [--white rig|auto|R,G,B] painting.png [name=path ...]
 
 Each image is scaled to 768 pixels on its long side and divided by the colour of its paper. --white sets that colour:
-  rig    the harness's bare paper. The default for a picture of a painting session (a look, or the finished
-         painting.png), which may have little or no bare paper left.
+  rig    the painting's bare paper: the harness's paper, or on a painting begun with a printed ground, that paper
+         under the ground's page, the lightest 1% of the print (sheet_paper in measured_layers.py). The default for a
+         picture of a painting session (a look, or the finished painting.png), which may have little or no bare
+         paper left.
   auto   the mean colour of the image's lightest 1%. The default for any other image, such as a photograph of a
          painting. It is wrong for a painting on a toned ground or with almost no paper left: its lightest 1% is
-         paint, and every measure is read lighter than it is.
+         paint, and every measure is read lighter than it is. It is wrong on the harness's rough paper too, whose
+         relief lights its lightest 1% to pure white: a rough painting taken out of its folder needs rig.
   R,G,B  the paper's colour from 0 to 255, for a scan or photograph whose paper is known.
 The columns: p05 to p75 (value percentiles), paper% (near-white and unpainted), dark<0.2% (deep darks),
 warm/chromatic% (warm share of the coloured pixels), hard_edge% (pixels on a crisp edge), edge_hardness_p75, and
@@ -21,27 +24,18 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
-from measured_layers import PAPER
+from measured_layers import lightest, painting_folder, sheet_paper
 from PIL import Image
 
 LONG_SIDE = 768
 
 
-def is_rig_painting(path: Path) -> bool:
-    """A picture of a painting session: the finished painting.png in the session's directory, or a look in its looks/."""
-    folder = path.resolve().parent
-    if folder.name == "looks":
-        folder = folder.parent
-    return (folder / "session.json").is_file()
-
-
-def paper_colour(rgb: np.ndarray, white: str) -> np.ndarray:
+def paper_colour(path: str, rgb: np.ndarray, white: str) -> np.ndarray:
     """The colour of the image's paper, from 0 to 1, as --white names it."""
     if white == "rig":
-        return PAPER / 255.0
+        return sheet_paper(path) / 255.0
     if white == "auto":
-        luminance = rgb @ np.array([0.2126, 0.7152, 0.0722])
-        return rgb[luminance >= np.percentile(luminance, 99.0)].mean(0)
+        return lightest(rgb)
     return np.array([float(part) for part in white.split(",")]) / 255.0
 
 
@@ -50,7 +44,7 @@ def load(path: str, white: str) -> np.ndarray:
     scale = LONG_SIDE / max(image.size)
     image = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
     rgb = np.asarray(image).astype(np.float64) / 255.0
-    return np.clip(rgb / paper_colour(rgb, white), 0.0, 1.0)
+    return np.clip(rgb / paper_colour(path, rgb, white), 0.0, 1.0)
 
 
 def gaussian(array: np.ndarray, sigma: float) -> torch.Tensor:
@@ -144,7 +138,7 @@ def main() -> None:
     results, whites = {}, {}
     for argument in arguments.images:
         name, path = argument.split("=", 1) if "=" in argument else (Path(argument).parent.name or argument, argument)
-        whites[name] = arguments.white or ("rig" if is_rig_painting(Path(path)) else "auto")
+        whites[name] = arguments.white or ("rig" if painting_folder(path) is not None else "auto")
         results[name] = measure(path, whites[name])
     keys = list(next(iter(results.values())).keys())
     print(f"{'image':<22}" + "".join(f" {key:>16}" for key in keys) + "  white")

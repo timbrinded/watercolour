@@ -137,7 +137,9 @@ def eye_white_mask(upper, lower, inset=1.5, step=4.0):
 
 def catchlight_masks(points, radius=2.6):
     """Masking fluid dots for the catchlights, laid on the clean white after the eye masks are rubbed away and before
-    the iris. A dot of radius 2.2 or less was lost. Keep each one inside the opening, clear of the upper lid."""
+    the iris. Keep each one inside the opening, clear of the upper lid. On 0.10.0, under the iris, lid and pupil, dots
+    of 2.6 stayed at paper (0.95 to 0.96) and dots of 2.0 and 1.5 greyed to 0.70 to 0.94: the eye mask sealed this
+    paper once already, and the picture still shares paint across the edge of a later reserve there."""
     return [{"action": "mask", "path": [[x, y]], "radius": radius} for x, y in points]
 
 
