@@ -8,7 +8,7 @@ watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--see
 ```
 
 - `--size` is the width in pixels (128 to 1024); `--height` makes the sheet other than square.
-- `--palette` limits the paint box for this painting; the default is every paint.
+- `--palette` names the paint box for this painting; the default is the thirteen paints of the first table under [Paints](#paints). The paints of the second table must be named here.
 - `--stroke-budget` caps strokes and blots on the painting itself. A pass that would exceed it is refused whole.
 - `--seed` fixes the paper and the small variation in each brush load, so a painting replays identically.
 
@@ -92,7 +92,22 @@ A brush that is running dry, moving fast, or carrying thick paint parts into clu
 | `ivory_black` | black | use sparingly, in mixes |
 | `opaque_white` | covering white | for final lights only |
 
-Granulating paints settle into the grain of the paper and look speckled in a wash; in a film of water deeper than about 0.6 (a wash laid twice, a deep sky) they gather into distinct dark specks. Staining paints sink in and will not lift.
+### Paints that must be named in `--palette`
+
+For styles that ask for them: `--palette hansa_yellow,quinacridone_rose,phthalo_turquoise,phthalo_blue,dioxazine_violet`. Strengths are for filled rows of a size 8 flat on dry paper.
+
+| Name | Colour | Behaviour |
+|---|---|---|
+| `phthalo_blue` | intense cold blue | Stains like phthalo green; does not granulate. Pale, it leans to cyan; a full blue needs strength 5 or more (value 0.33 at 5). The blue for glazes that must hold. |
+| `phthalo_turquoise` | turquoise | Stains; never granulates. Best at 1 to 4; heavier, it turns green. One part with three of `phthalo_blue` gives cyan. |
+| `dioxazine_violet` | intense violet | Stains; never granulates. Violet at 1 to 2.5; at 5 a near-black violet (value 0.17). |
+| `viridian` | clear cool green | Lifts evenly once dry, unlike phthalo green; granulates a little. |
+| `fluorescent_pink` | opera, neon pink | Neon at 2 to 5; heavier, it turns red. |
+| `fluorescent_yellow` | acid lemon | Neon from 2.5. |
+
+The fluorescent paints stain and do not granulate. They do not glow and are never lighter than the paper, so a dull or dark surround is what makes them read as neon; `measured_layers.py` refuses them. Neon orange is `fluorescent_pink` 1.25 with `fluorescent_yellow` 3.75, and lime is `fluorescent_yellow` 3.5 with `phthalo_turquoise` 1.5.
+
+Granulating paints settle into the grain of the paper and look speckled in a wash; in a film of water deeper than about 0.6 (a wash laid twice, a deep sky) they gather into distinct dark specks. Staining paints (phthalo green and blue, phthalo turquoise, quinacridone rose, dioxazine violet) hold under later washes once dry, and a stiff, drained brush takes off only a fifth to two fifths. While still wet they lift and blot like any paint.
 
 ## Looking
 

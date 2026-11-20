@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import IO
 
 from . import ENGINE_VERSION
-from .pigments import PIGMENTS
+from .pigments import DEFAULT_PALETTE
 from .session import Configuration, RuleViolation, Session
 
 
@@ -47,7 +47,7 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--size", type=int, default=512, choices=range(128, 1025), metavar="128..1024")
     new.add_argument("--height", type=int, choices=range(128, 1025), metavar="128..1024", help="if not square")
     new.add_argument("--seed", type=int, default=0)
-    new.add_argument("--palette", default=",".join(PIGMENTS), help="comma-separated pigment names")
+    new.add_argument("--palette", default=",".join(DEFAULT_PALETTE), help="comma-separated pigment names")
     new.add_argument("--stroke-budget", type=int, default=150)
     new.add_argument("--no-scrap", action="store_true")
     new.add_argument("--no-pencil", action="store_true")

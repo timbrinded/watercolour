@@ -16,7 +16,8 @@ Usage:
         [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--exclude x0,y0,x1,y1 ...]
         [--keep-lights 0.08] [--cut-in 8,3.5] [--white r,g,b] [--no-dry]
 
---paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white.
+--paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white
+or a fluorescent paint.
 --origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference,
 and --crop is that sheet's size. --region and --exclude are then in the cropped sheet's own coordinates.
 --white is the colour of the reference's own paper, where it is a scan and not pure white.
@@ -67,6 +68,12 @@ def paint_absorption(names: list[str]) -> Absorption:
         raise SystemExit(f"not in the paint box: {', '.join(unknown)}")
     if "opaque_white" in names:
         raise SystemExit("opaque_white covers, it does not darken: leave it out of --paints")
+    fluorescent = [name for name in names if name.startswith("fluorescent_")]
+    if fluorescent:
+        raise SystemExit(
+            f"fluorescent paints are for planned accents, not for matching a reference: leave {', '.join(fluorescent)}"
+            " out of --paints"
+        )
     return {name: PIGMENTS[name].absorption for name in names}
 
 

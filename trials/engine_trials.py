@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw
 
 from watercolor.brushes import BRUSH_TYPES, HAIRS
 from watercolor.paper import generate_paper
-from watercolor.pigments import PIGMENTS
+from watercolor.pigments import DEFAULT_PALETTE, PIGMENTS
 from watercolor.rendering import render, render_view, to_image, transmitted
 from watercolor.simulation import Sheet
 from watercolor.studio import Studio
@@ -25,7 +25,7 @@ from watercolor.together import paint_together
 
 SIZE = 384
 OUTPUT = Path(__file__).parent / "output"
-PALETTE = list(PIGMENTS)
+PALETTE = list(DEFAULT_PALETTE)
 
 
 def new_studio(size: int = SIZE) -> Studio:

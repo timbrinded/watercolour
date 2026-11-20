@@ -46,6 +46,8 @@ A painting lives in a directory. It is started once, painted in passes, looked a
 watercolor new paintings/first --prompt "A tree on a hill at dusk" --size 512 --height 360
 ```
 
+Without `--palette` a painting has thirteen paints. Six more are on a painting only when `--palette` names them: `phthalo_blue`, `phthalo_turquoise` and `dioxazine_violet` (transparent and staining), `viridian` (a green that lifts), and `fluorescent_pink` and `fluorescent_yellow` (neon colour).
+
 ```bash
 watercolor paint paintings/first actions.json
 ```
@@ -176,6 +178,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 ## Known limits
 
 - Pigment optical values for most paints are recalled from the Curtis paper and have not been checked against it; the rest are estimated from the colour of the paint.
+- The fluorescent paints are clean, bright colour and nothing more: they do not glow, answer to ultraviolet light or fade, and they are never lighter than the paper.
 - Flow strengths, drying times, brush drag and granulation are set by eye, not calibrated against filmed painting. Depths of film and the fullness of the brush are in the engine's own units.
 - Only the law of the surface flow comes from physics, and it shows only at the scale of a pool on dry paper, where a ripple levels and a band runs down a tilted sheet at the rates the cube of the depth gives. Over a few pixels the damped surface tension sets how fast a ripple levels, nearer the square of the depth; on damp paper the paper's own wicking and pull decide it; and a film lying within the grain is not modelled by its depth at all. Depths are not tied to micrometres, so the rates themselves are still set by eye.
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
