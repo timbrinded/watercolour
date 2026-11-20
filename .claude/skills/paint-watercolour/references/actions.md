@@ -135,7 +135,7 @@ On 0.10.0 or later, for styles that ask for them: `--palette hansa_yellow,quinac
 | `soluble_ink` | cool black dye ink | Does not granulate. Water that reaches a dried line takes most of it back up, and a damp brush drawn across it pulls it out into grey shading (a clear round leaves about half the line it crosses, a flat about a fifth). Every later wash over it dissolves it too. `measured_layers.py` refuses it: every later layer dissolves it. |
 | `azurite` | deep mineral blue | Covering (0.11.0): a round 6 at 4 in two coats took a dark of 0.16 to 0.30, its own colour on white paper being 0.32. Smooth thick fills dry flat. `body-colour.md`. |
 | `malachite` | mineral green | Covering (0.11.0): one coat at 4 over a dark of 0.16 reads 0.37, two 0.44 (0.51 on white paper). `body-colour.md`. |
-| `shell_white` | chalky warm white (gofun) | Covering (0.11.0), but less than `opaque_white`: at 4 over a dark of 0.16, one coat 0.50, two 0.65, four 0.77. `body-colour.md`. |
+| `shell_white` | chalky warm white (gofun) | Covering (0.11.0), but less than `opaque_white`: at 4 over a dark of 0.16, one coat 0.49, two 0.64, four 0.77. `body-colour.md`. |
 
 The fluorescent paints stain and do not granulate. They do not glow and are never lighter than the paper, so a dull or dark surround is what makes them read as neon; `measured_layers.py` refuses them. Neon orange is `fluorescent_pink` 1.25 with `fluorescent_yellow` 3.75, and lime is `fluorescent_yellow` 3.5 with `phthalo_turquoise` 1.5.
 

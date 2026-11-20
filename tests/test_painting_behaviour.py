@@ -94,6 +94,7 @@ def dried_band(fixed: bool) -> tuple[Studio, torch.Tensor]:
     sheet = studio.sheets["painting"]
     sheet.deposited[BLUE, 36:93, 20:109] = 1.0
     sheet._used.add(BLUE)
+    sheet.mark_dried_paint()
     if fixed:
         studio.fix("painting")
     return studio, sheet.deposited.clone()
@@ -101,7 +102,7 @@ def dried_band(fixed: bool) -> tuple[Studio, torch.Tensor]:
 
 def test_dried_paint_on_fixed_paper_does_not_lift_into_a_clear_wash() -> None:
     """A clear wash laid over dried ultramarine takes some of it back into the water; on paper fixed first it takes
-    none, and leaves the dried paint exactly as it was. Measured: 6.2% of it in the water after 10 s, and none when
+    none, and leaves the dried paint exactly as it was. Measured: 6.3% of it in the water after 10 s, and none when
     fixed."""
 
     def lifted(fixed: bool) -> tuple[float, bool]:

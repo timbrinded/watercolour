@@ -38,8 +38,8 @@ def edge_blend(layers: Tensor, crisp: Tensor) -> Tensor:
     return layers - F.pad(passed, (0, 1)) + F.pad(passed, (1, 0))
 
 
-def over(pigment: Tensor, absorption: Tensor, scattering: Tensor, background: Tensor, crisp: Tensor) -> Tensor:
-    """Colour of a layer of paint, shape (P, H, W), over a background, by Kubelka and Munk."""
+def layer(pigment: Tensor, absorption: Tensor, scattering: Tensor, crisp: Tensor) -> tuple[Tensor, Tensor]:
+    """Reflectance and transmittance of a layer of paint, shape (P, H, W), by Kubelka and Munk, each (3, H, W)."""
     # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
     # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
     # The edge of a crisp mark, a pen line or paper kept white by masking fluid, is not shared.
@@ -50,6 +50,24 @@ def over(pigment: Tensor, absorption: Tensor, scattering: Tensor, background: Te
     b = (a * a - 1.0).sqrt()
     thickness = (b * s).clamp(max=20.0)
     denominator = a * thickness.sinh() + b * thickness.cosh()
-    reflectance = thickness.sinh() / denominator
-    transmittance = b / denominator
+    return thickness.sinh() / denominator, b / denominator
+
+
+def lay_over(reflectance: Tensor, transmittance: Tensor, background: Tensor) -> Tensor:
+    """Colour of a layer of the reflectance and transmittance given over a background."""
+    # The relief of a coarse grain can shade the bare sheet brighter than white; under paint it is taken as white, for
+    # light reflected back and forth between a layer and a background brighter than white grows without bound.
+    background = background.clamp(max=1.0)
     return reflectance + transmittance**2 * background / (1.0 - reflectance * background)
+
+
+def under(reflectance: Tensor, transmittance: Tensor, colour: Tensor) -> Tensor:
+    """The background under a layer of the reflectance and transmittance given that shows the colour given: the
+    inverse of lay_over."""
+    excess = colour - reflectance
+    return excess / (transmittance**2 + reflectance * excess)
+
+
+def over(pigment: Tensor, absorption: Tensor, scattering: Tensor, background: Tensor, crisp: Tensor) -> Tensor:
+    """Colour of a layer of paint, shape (P, H, W), over a background, by Kubelka and Munk."""
+    return lay_over(*layer(pigment, absorption, scattering, crisp), background)

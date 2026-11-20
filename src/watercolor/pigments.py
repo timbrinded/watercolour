@@ -32,7 +32,7 @@ PIGMENTS: dict[str, Pigment] = {
         Pigment("cerulean_blue", (1.52, 0.32, 0.25), (0.06, 0.26, 0.40), 0.040, 0.8, 0.90),
         Pigment("phthalo_green", (1.55, 0.47, 0.63), (0.01, 0.05, 0.035), 0.012, 8.0, 0.05),
         Pigment("hookers_green", (1.62, 0.61, 1.64), (0.01, 0.012, 0.003), 0.020, 3.0, 0.20),
-        # Transparent: laid over a dried colour it glazes it, where its old green scattering of 0.88 veiled it.
+        # Transparent: laid over a dried colour it glazes it.
         Pigment("hansa_yellow", (0.06, 0.21, 1.78), (0.02, 0.03, 0.009), 0.015, 3.0, 0.10),
         Pigment("quinacridone_rose", (0.22, 1.47, 0.57), (0.05, 0.003, 0.03), 0.012, 6.0, 0.05),
         Pigment("cadmium_red", (0.14, 1.08, 1.68), (0.77, 0.015, 0.018), 0.030, 2.5, 0.30),

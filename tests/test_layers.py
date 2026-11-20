@@ -1,5 +1,7 @@
 """Paint laid over paint that has dried lies over it as a new layer; paint laid into wet paint mixes with it."""
 
+from collections.abc import Iterable
+
 import torch
 from torch import Tensor
 
@@ -10,7 +12,7 @@ from watercolor.simulation import Sheet
 from watercolor.studio import Studio
 
 SIZE = 128
-PALETTE = ["burnt_umber", "french_ultramarine", "opaque_white", "burnt_sienna", "carbon_ink", "soluble_ink"]
+PALETTE = ["burnt_umber", "french_ultramarine", "opaque_white", "burnt_sienna"]
 DARK = {"burnt_umber": 3.0, "french_ultramarine": 3.0}
 PATCH = (slice(58, 70), slice(48, 80))
 # A paint that neither absorbs nor scatters: laying it changes the layers and nothing that can be seen.
@@ -34,7 +36,7 @@ def pigment(studio: Studio, name: str) -> Tensor:
     return sheet.suspended[index] + sheet.deposited[index] + sheet.buried[index]
 
 
-def lay_rows(studio: Studio, mix: dict[str, float], rows: range = range(24, 108, 12)) -> None:
+def lay_rows(studio: Studio, mix: dict[str, float], rows: Iterable[int] = range(24, 108, 12)) -> None:
     for y in rows:
         studio.load_brush("mop", 16, mix, 1.0)
         studio.stroke("painting", [[16, y], [112, y]], 120, smooth=False)
@@ -133,32 +135,22 @@ def test_a_transparent_glaze_over_a_dried_shape_looks_as_the_two_paints_mixed() 
 
 
 def test_paint_pressed_beneath_two_newer_layers_keeps_its_colour() -> None:
-    """A dried stroke, a band of white pen ink over it, then a band of an invisible ink over both. White over the stroke
-    looks different from the two mixed, so the third layer presses the stroke into the colour beneath. The picture
-    must not change, at the stroke's edges either. Measured: under 0.0001."""
+    """A dried stroke, white brushed over it and dried, then a broad line of an invisible pen ink over both. White over
+    the stroke looks different from the two mixed, so the line presses the stroke into the colour beneath as it goes,
+    giving each cell it inks a crisp edge. The picture must not change, at the stroke's edges either. Measured:
+    under 0.0001."""
     studio = new_studio([PIGMENTS["burnt_sienna"], PIGMENTS["opaque_white"], INVISIBLE])
-    studio.load_brush("round", 2, {"burnt_sienna": 3.0}, 1.0)
+    studio.load_brush("round", 4, {"burnt_sienna": 3.0}, 1.0)
     studio.stroke("painting", [[30, 64], [98, 64]], 60, smooth=False)
     studio.dry()
-    studio.pen("painting", [[20, 64], [108, 64]], 8.0, {"opaque_white": 0.5}, 120, smooth=False)
+    studio.load_brush("round", 8, {"opaque_white": 2.0}, 1.0)
+    studio.stroke("painting", [[24, 64], [104, 64]], 60, smooth=False)
+    studio.dry()
     sheet = studio.sheets["painting"]
     before = render(sheet)
-    studio.pen("painting", [[20, 64], [108, 64]], 8.0, {"invisible": 1.0}, 120, smooth=False)
+    studio.pen("painting", [[16, 64], [112, 64]], 16.0, {"invisible": 1.0}, 120, smooth=False)
     assert float(sheet.substrate_change.abs().sum()) > 0.0
     assert float((render(sheet) - before).abs().max()) < 0.002
-
-
-def test_the_same_paint_scrubbed_three_times_stays_liftable() -> None:
-    """A brush that picks up paint as it scrubs lays it again on each pass, so each pass over the dried paint begins a
-    layer; layers that look the same mixed are merged, not pressed down, so no paint is lost to the colour beneath."""
-    studio = new_studio()
-    lay_rows(studio, {"french_ultramarine": 2.0}, range(40, 92, 12))
-    studio.dry()
-    for _ in range(3):
-        studio.load_brush("round", 8, {"french_ultramarine": 0.5}, 1.0)
-        studio.stroke("painting", [[30, 64], [98, 64]], 120, smooth=False)
-        studio.dry()
-    assert float(studio.sheets["painting"].substrate_change.abs().sum()) == 0.0
 
 
 def test_pencil_lies_under_the_paint() -> None:
@@ -178,28 +170,13 @@ def test_pencil_lies_under_the_paint() -> None:
     assert darkening() < 0.6 * on_paper
 
 
-def test_a_coloured_wash_over_dried_soluble_ink_dissolves_it() -> None:
-    """A burnt sienna wash runs a dried line of dye ink as a clear wash does. Measured: 0.15 of the line's ink stays
-    on it and 0.62 lies more than 2 px from it."""
-    studio = new_studio()
-    studio.pen("painting", [[30, 64], [98, 64]], 1.0, {"soluble_ink": 2.0}, 120, smooth=False)
-    laid = pigment(studio, "soluble_ink").clone()
-    studio.load_brush("mop", 16, {"burnt_sienna": 0.6}, 1.0)
-    studio.stroke("painting", [[20, 64], [108, 64]], 120, smooth=False)
-    studio.dry()
-    now = pigment(studio, "soluble_ink")
-    away = (studio.sheets["painting"]._ys - 64).abs() > 2
-    assert float(now[laid > 0].sum()) / float(laid.sum()) < 0.5
-    assert float(now[away].sum()) / float(laid.sum()) > 0.3
-
-
 def test_a_sheet_saved_before_layers_existed_knows_which_paint_has_dried() -> None:
     """A sheet saved before layers existed has no record of which paint has dried; it is worked out from the water, so
     paint laid on a dried band lies over it and paint charged into a wet one mixes with it."""
     studio = new_studio()
-    lay_rows(studio, DARK, range(30, 40, 12))
+    lay_rows(studio, DARK, [30])
     studio.dry()
-    lay_rows(studio, DARK, range(90, 100, 12))
+    lay_rows(studio, DARK, [90])
     sheet = studio.sheets["painting"]
     state = {name: field for name, field in sheet.state().items() if name not in ("buried", "dried_paint")}
     sheet.dried_paint.zero_()

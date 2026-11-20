@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from .optics import GRAPHITE_SHADE, over
+from .optics import GRAPHITE_SHADE, lay_over, layer, under
 from .paper import COLD_PRESS_GRAIN, PAPER_COLOR, Grain, Paper, generate_paper
 from .pigments import Pigment
 
@@ -153,9 +153,7 @@ MASK_EDGE_SOFTNESS = 0.15
 # at every angle; a thinner one sealed only along rows and columns and broke into dashes at other angles.
 MASK_SMALLEST_RADIUS = 1.25
 
-# Paint arriving on paint that has dried lays a new layer over it when it is at least this strong; clearer water lays
-# none, and only wets the paint beneath. A brush or pen counts as arriving where it covers more than this share of a cell.
-LAYER_STRENGTH = 0.05
+# A brush or pen reaches a cell where it covers more than this share of it.
 LAYER_FOOTPRINT = 0.02
 # A cell holds paint when it has more than this much pigment.
 LAYER_PIGMENT = 1e-3
@@ -163,6 +161,9 @@ LAYER_PIGMENT = 1e-3
 # this in any channel, as it does not for transparent glazes or the same paint twice; elsewhere, as under covering
 # paint, the oldest is pressed into the colour beneath.
 LAYER_MERGE_ERROR = 0.005
+# Below this share of the light reaching through both layers of paint, the colour beneath them cannot be told from
+# the picture, and is left as it was when paint moves between the layers.
+LAYER_THROUGH = 1e-3
 
 
 def _faces(field: Tensor, axis: int) -> tuple[Tensor, Tensor]:
@@ -389,16 +390,6 @@ def _sediment_flux(suspended: Tensor, water: Tensor, wet: Tensor, downhill: Tens
     return torch.where(downhill > 0, downhill * lower, downhill * upper) * freedom * freedom
 
 
-@dataclass
-class Layering:
-    """What one stroke or pen line keeps while it lays paint over paint that has dried: the buried layer as it was when
-    the line began, and the cells the line has reached. A cell takes a new layer only where the line first reaches it,
-    and paint pressed down out of the buried layer keeps the colour it had before the line began, edges and all."""
-
-    buried: Tensor  # the buried layer when the line began, with shape (P, H, W)
-    reached: Tensor  # cells the line has reached, with shape (H, W)
-
-
 class Sheet:
     """A sheet of paper and everything on it.
 
@@ -407,21 +398,6 @@ class Sheet:
     tools (brush, blot, graphite) work on a single sheet.
     """
 
-    STATE_FIELDS = (
-        "water",
-        "saturation",
-        "suspended",
-        "deposited",
-        "graphite",
-        "mask",
-        "mask_water",
-        "mask_pigment",
-        "crisp",
-        "fixative",
-        "buried",
-        "substrate_change",
-        "dried_paint",
-    )
     # Fields that a painting begun before masking fluid, crisp marks, fixative or layers of paint existed has no record
     # of; they start empty, except that which paint has dried is worked out from the water (load_state).
     OPTIONAL_STATE_FIELDS = (
@@ -434,6 +410,7 @@ class Sheet:
         "substrate_change",
         "dried_paint",
     )
+    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite", *OPTIONAL_STATE_FIELDS)
 
     def __init__(
         self,
@@ -519,88 +496,113 @@ class Sheet:
         relief = self.tooth - F.avg_pool2d(self.tooth[None, None], 5, stride=1, padding=2)[0, 0]
         return self.ground * (1.0 + self.relief_shading * relief)
 
-    def drawn_paper(self, rows: slice = slice(None), columns: slice = slice(None)) -> Tensor:
-        """Reflectance of the bare sheet with its pencil marks, which lie under all paint, with shape (3, H, W) or
-        that of the rows and columns given."""
-        return self.paper_reflectance[:, rows, columns] * (1.0 - GRAPHITE_SHADE * self.graphite[rows, columns])
-
     def beneath_paint(self, rows: slice = slice(None), columns: slice = slice(None)) -> Tensor:
-        """Reflectance of what lies under the top layer of paint: the sheet, its pencil marks and the paint that
-        later layers cover, with shape (3, H, W) or that of the rows and columns given."""
-        return self.drawn_paper(rows, columns) + self.substrate_change[:, rows, columns]
+        """Reflectance of what lies under the paint still kept as pigment: the sheet, its pencil marks, which lie under
+        all paint, and the paint pressed down, with shape (3, H, W) or that of the rows and columns given."""
+        paper = self.paper_reflectance[:, rows, columns] * (1.0 - GRAPHITE_SHADE * self.graphite[rows, columns])
+        return paper + self.substrate_change[:, rows, columns]
 
     # ----------------------------------------------------------------- layers
 
-    def begin_layering(self) -> Layering:
-        """What a stroke or pen line keeps from its start to its end so that it can lay a new layer."""
-        return Layering(self.buried.clone(), torch.zeros_like(self.tooth, dtype=torch.bool))
-
-    def _open_layer(self, rows: slice, columns: slice, reached: Tensor, laying: bool, layering: Layering) -> None:
-        """Begin a new layer in the cells a line first reaches with paint, where the top layer holds dried paint.
-
-        A line opens the layer as it lands, before any of its water settles, so the paint it covers keeps the colour it
-        had when the line began. Where the top layer holds paint that has not dried, or the line carries clear water,
-        nothing changes here: paint mixes into wet paint, and water standing on dried paint opens its layer as time
-        passes (_open_under_water).
-        """
-        first = reached & ~layering.reached[rows, columns]
-        layering.reached[rows, columns] |= reached
-        if not laying:
-            return
-        # A cell with no paint at all opens too, so that it takes its share of its neighbours' buried paint with them
-        # when that is pressed down. Where only the top layer is empty, the new paint lies straight on the buried one.
-        holding = (self.deposited[:, rows, columns] + self.suspended[:, rows, columns]).sum(0) > LAYER_PIGMENT
-        bare = ~holding & (self.buried[:, rows, columns].sum(0) <= LAYER_PIGMENT)
-        opening = first & (self.dried_paint[rows, columns] | bare)
+    def _open_layer(self, rows: slice, columns: slice, reaching: Tensor, reached: Tensor) -> None:
+        """Begin a new layer in the cells a tool first reaches with water or paint, where the top layer holds dried
+        paint. Reached records, over the whole sheet, the cells the tool's line has reached so far; a line opens a cell
+        once. Where the top layer holds paint that has not dried, the new paint mixes into it."""
+        opening = reaching & ~reached[rows, columns] & self.dried_paint[rows, columns]
+        reached[rows, columns] |= reaching
         if bool(opening.any()):
-            self._begin_layer(rows, columns, opening, layering.buried)
+            self._begin_layer(rows, columns, opening)
 
-    def _open_under_water(self, rows: slice, columns: slice) -> None:
+    def _open_under_water(self, region: Region) -> None:
         """Begin a new layer wherever water stands on dried paint, clear or carrying paint: the dried paint lies beneath
-        whatever settles out of that water, and the water lifts from it as from the top layer."""
-        opening = self.dried_paint[rows, columns] & (self.water[rows, columns] > self.parameters.wet_threshold)
-        if bool(opening.any()):
-            self._begin_layer(rows, columns, opening, self.buried)
+        whatever settles out of that water, and the water lifts from it as from the top layer. A batch's stack opens the
+        layers of each sheet it holds, as that sheet would alone."""
+        rows, columns = region
+        opening = self.dried_paint[..., rows, columns] & (
+            self.water[..., rows, columns] > self.parameters.wet_threshold
+        )
+        if not bool(opening.any()):
+            return
+        for sheet, own in zip(self._painted_sheets, opening.reshape(-1, *opening.shape[-2:])):
+            cells = own.nonzero()
+            if cells.numel() == 0:
+                continue
+            (top, left), (bottom, right) = cells.amin(0).tolist(), (cells.amax(0) + 1).tolist()
+            sheet._begin_layer(
+                slice(rows.start + top, rows.start + bottom),
+                slice(columns.start + left, columns.start + right),
+                own[top:bottom, left:right],
+            )
 
-    def _begin_layer(self, rows: slice, columns: slice, opening: Tensor, buried_before: Tensor) -> None:
-        """Move the top layer of the opening cells, within the rows and columns, onto the buried one.
+    def _begin_layer(self, rows: slice, columns: slice, opening: Tensor) -> None:
+        """Move the top layer's settled paint in the opening cells, within the rows and columns, onto the buried layer,
+        without changing the picture.
 
-        Where the two would look the same mixed as layered, they are merged and stay liftable; elsewhere the buried layer
-        is pressed into the colour beneath, where it keeps the colour it showed but nothing can lift or move it any more,
-        and the top layer takes its place. Buried before is the buried layer as the picture last showed it, which a line
-        keeps from its start because its own earlier steps change the buried layer of the cells beside the ones it opens.
+        Where the two look the same mixed as layered, they are merged and stay liftable; elsewhere the buried layer is
+        pressed into the colour beneath, where nothing can lift or move it any more, and the top layer's paint takes its
+        place. Every cell shares a little of its neighbours' paint, so moving paint changes the colour of the cells
+        beside it as well; each of them, like each cell opened, keeps the colour it showed, the colour beneath taking up
+        the difference.
         """
-        # The colours of the buried and top layers, worked out with one more cell on every side, so that each cell
-        # takes its share of its neighbours' paint as it did before.
+        # The cells whose colour can change are those in the rows and columns and one more on every side. Their colours
+        # depend on one cell further out.
         (top, bottom, _), (left, right, _) = rows.indices(self.height), columns.indices(self.width)
-        around = (
+        changing = (
             slice(max(top - 1, 0), min(bottom + 1, self.height)),
             slice(max(left - 1, 0), min(right + 1, self.width)),
         )
-        inner = (
-            slice(top - around[0].start, bottom - around[0].start),
-            slice(left - around[1].start, right - around[1].start),
+        around = (
+            slice(max(top - 2, 0), min(bottom + 2, self.height)),
+            slice(max(left - 2, 0), min(right + 2, self.width)),
         )
-        pressed = torch.zeros_like(opening)
-        buried_before = buried_before[:, *around]
-        if bool(buried_before.any()):
-            absorption, scattering, crisp = self.pigment_absorption, self.pigment_scattering, self.crisp[around]
-            beneath = self.beneath_paint(*around)
-            shown = over(buried_before, absorption, scattering, beneath, crisp)
+        within = tuple(slice(c.start - a.start, c.stop - a.start) for c, a in zip(changing, around))
+        opened = tuple(
+            slice(o - a.start, e - a.start) for o, e, a in ((top, bottom, around[0]), (left, right, around[1]))
+        )
+        absorption, scattering, crisp = self.pigment_absorption, self.pigment_scattering, self.crisp[around]
+
+        def colours() -> tuple[tuple[Tensor, Tensor], tuple[Tensor, Tensor]]:
             top_layer = self.deposited[:, *around] + self.suspended[:, *around]
-            layered = over(top_layer, absorption, scattering, shown, crisp)
-            merged = over(top_layer + buried_before, absorption, scattering, beneath, crisp)
-            # A cell is pressed down where it, or a neighbour it shares paint with, would change colour if merged, so
-            # that no cell pressed down sits beside a merged one whose paint it already holds as colour.
-            changed = ((layered - merged).abs().amax(0) > LAYER_MERGE_ERROR).float()
-            near = F.max_pool2d(changed[None, None], 3, stride=1, padding=1)[0, 0] > 0
-            pressed = opening & near[inner]
-            change = self.substrate_change[:, rows, columns]
-            change.copy_(torch.where(pressed, shown[:, *inner] - self.drawn_paper(rows, columns), change))
+            return layer(top_layer, absorption, scattering, crisp), layer(
+                self.buried[:, *around], absorption, scattering, crisp
+            )
+
+        beneath = self.beneath_paint(*around)
+        (top_reflectance, top_transmittance), (buried_reflectance, buried_transmittance) = colours()
+        shown = lay_over(buried_reflectance, buried_transmittance, beneath)
+        seen = lay_over(top_reflectance, top_transmittance, shown)
+
+        # Merging changes a cell's colour where the top layer's settled paint over the buried layer differs from the two
+        # mixed; there the buried layer is pressed down.
+        settled = layer(self.deposited[:, *around], absorption, scattering, crisp)
+        mixed = layer(self.deposited[:, *around] + self.buried[:, *around], absorption, scattering, crisp)
+        changed = (lay_over(*settled, shown) - lay_over(*mixed, beneath)).abs().amax(0) > LAYER_MERGE_ERROR
+        pressed = opening & changed[opened]
         buried, deposited = self.buried[:, rows, columns], self.deposited[:, rows, columns]
         buried.copy_(torch.where(pressed, deposited, buried + deposited * opening))
         deposited *= ~opening
         self.dried_paint[rows, columns] &= ~opening
+
+        # The colour beneath that gives each changing cell the colour it showed, where any light reaches it. Where none
+        # does, a cell pressed down takes the colour of its pressed paint and any other keeps what lay beneath.
+        (top_reflectance, top_transmittance), (buried_reflectance, buried_transmittance) = colours()
+        solved = under(buried_reflectance, buried_transmittance, under(top_reflectance, top_transmittance, seen))
+        reaching = top_transmittance * buried_transmittance > LAYER_THROUGH
+        hidden = beneath.clone()
+        hidden[:, *opened] = torch.where(pressed, shown[:, *opened], beneath[:, *opened])
+        background = torch.where(reaching, solved.clamp(0.0, 1.0), hidden)
+        self.substrate_change[:, *changing] += (background - beneath)[:, *within]
+
+    def _dried(self, water: Tensor, saturation: Tensor, capacity: Tensor, deposited: Tensor) -> Tensor:
+        """Cells whose settled paint has dried: no film stands on it and the paper is no fuller than damp."""
+        p = self.parameters
+        dry = (water <= p.wet_threshold) & (saturation <= p.damp_threshold * capacity)
+        return dry & (deposited.sum(0) > LAYER_PIGMENT)
+
+    def mark_dried_paint(self) -> None:
+        """Record the settled paint wherever the sheet is dry as dried paint, as drying would have: for a sheet saved
+        before the record existed, or whose paint was set directly."""
+        self.dried_paint |= self._dried(self.water, self.saturation, self.capacity, self.deposited)
 
     # ------------------------------------------------------------------ state
 
@@ -616,9 +618,7 @@ class Sheet:
             else:
                 raise KeyError(name)
         if "dried_paint" not in state:
-            p = self.parameters
-            dry = (self.water <= p.wet_threshold) & (self.saturation <= p.damp_threshold * self.capacity)
-            self.dried_paint.copy_(dry & (self.deposited.sum(0) > LAYER_PIGMENT))
+            self.mark_dried_paint()
         present = (self.suspended + self.deposited + self.buried).flatten(1).any(dim=1)
         self._used = set(present.nonzero().flatten().tolist())
 
@@ -675,28 +675,25 @@ class Sheet:
             region = self._active_region()
             if region is None:
                 return
-            water_on_dried_paint = self.dried_paint[..., *region] & (self.water[..., *region] > p.wet_threshold)
-            if bool(water_on_dried_paint.any()):
-                for sheet in self._painted_sheets:
-                    sheet._open_under_water(*region)
+            self._open_under_water(region)
             # Work on copies of the pigments actually in use, within the active region only.
             used = sorted(self._used)
-            suspended = self.suspended[used][..., *region]
-            deposited = self.deposited[used][..., *region]
-            buried = self.buried[used][..., *region]
+            suspended_region, deposited_region = self.suspended[..., *region], self.deposited[..., *region]
+            suspended, deposited = suspended_region[used], deposited_region[used]
             if bool((self.water[..., *region] > 0).any()):
+                buried_region = self.buried[..., *region]
+                buried = buried_region[used]
                 self._flow(region, p.time_step, suspended, used)
                 self._settle(region, p.time_step, suspended, deposited, buried, used)
                 self._dry(region, p.time_step, suspended, deposited)
+                buried_region[used] = buried
                 remaining -= p.time_step
             else:
                 dt = min(p.coarse_time_step, remaining)
                 self._dry(region, dt, suspended, deposited)
                 remaining -= dt
-            for position, index in enumerate(used):
-                self.suspended[index][..., *region] = suspended[position]
-                self.deposited[index][..., *region] = deposited[position]
-                self.buried[index][..., *region] = buried[position]
+            suspended_region[used] = suspended
+            deposited_region[used] = deposited
 
     def _active_region(self) -> Region | None:
         """Bounding box of everything wet or damp, with room for the edge filter."""
@@ -867,8 +864,7 @@ class Sheet:
         suspended *= ~stranded
         # Paint has dried once no film stands on it and the paper is no fuller than damp. Paint laid on it later is a
         # new layer, even if clear water wets it again first.
-        dry = (water <= p.wet_threshold) & (saturation <= p.damp_threshold * self.capacity[..., *region])
-        self.dried_paint[..., *region] |= dry & (deposited.sum(0) > LAYER_PIGMENT)
+        self.dried_paint[..., *region] |= self._dried(water, saturation, self.capacity[..., *region], deposited)
 
         # Beads of paint on masking fluid dry where they stand: the rubber takes up nothing, so they only
         # evaporate, and as fast as the edge of a wash. Their paint dries on the rubber.
@@ -945,7 +941,7 @@ class Sheet:
         available_water: float,
         hairs: Tensor,
         on_tip: Tensor,
-        layering: Layering,
+        reached: Tensor,
     ) -> tuple[float, Tensor, Tensor]:
         """Work the brush along a short piece of a stroke.
 
@@ -953,8 +949,8 @@ class Sheet:
         at each position hold together. The other argument is the amount of each pigment riding on the tip
         of the brush, taken up from wet paint earlier in the stroke. Returns the net water and
         the net amount of each pigment that left the body of the brush, and what the tip now
-        carries. The first two can be negative: a brush takes up wet paint as well as laying it down. Layering is the
-        stroke's own, from begin_layering: where a loaded brush first reaches paint that has dried, it lays a new layer.
+        carries. The first two can be negative: a brush takes up wet paint as well as laying it down. Reached records
+        the cells the stroke has reached: where the brush first reaches paint that has dried, it begins a new layer.
         """
         travel = points[-1] - points[0]
         distance = float(travel.norm())
@@ -993,8 +989,8 @@ class Sheet:
         # The share of each cell that is open paper; the rest is masking fluid, which the brush meets instead.
         masked = self.mask[rows, columns]
         on_paper = footprint * (1.0 - masked)
-        laying = available_water > 0 and float(concentration.sum()) >= LAYER_STRENGTH
-        self._open_layer(rows, columns, on_paper > LAYER_FOOTPRINT, laying, layering)
+        if available_water > 0:
+            self._open_layer(rows, columns, on_paper > LAYER_FOOTPRINT, reached)
         suspended = self.suspended[:, rows, columns]
         deposited = self.deposited[:, rows, columns]
         paint = concentration.reshape(-1, 1, 1) * (1.0 + contact.streaking * (2.0 * hair - 1.0))
@@ -1026,10 +1022,10 @@ class Sheet:
         unfixed = 1.0 - self.fixative[rows, columns]
         scrubbing = contact.scrub * on_paper * (water > 0) / self._staining
         loosened = torch.zeros_like(suspended)
-        for layer in (deposited, self.buried[:, rows, columns]):
-            loose = layer * unfixed
+        for settled in (deposited, self.buried[:, rows, columns]):
+            loose = settled * unfixed
             taken = torch.minimum(loose * scrubbing, loose)
-            layer -= taken
+            settled -= taken
             loosened += taken
         wiped = contact.uptake * loosened
         suspended += loosened - wiped
@@ -1111,20 +1107,22 @@ class Sheet:
         self.mask[rows, columns] = mask
         self.crisp[rows, columns] |= mask >= MASK_SEALED
 
-    def apply_pen(self, points: Tensor, radii: Tensor, amounts: Tensor, covered: Tensor, layering: Layering) -> None:
+    def apply_pen(
+        self, points: Tensor, radii: Tensor, amounts: Tensor, covered: Tensor, reached: Tensor, inked: Tensor
+    ) -> None:
         """Draw a short piece of a pen line, laying the amount of each pigment on every cell the line covers fully.
 
         A cell is covered as far as its centre lies within the line, with a ramp one cell wide centred on the line's
         true edge, and no line is taken as narrower than one cell: a finer one lays a cell's worth of ink along its path
         rather than fading. Covered holds how far this line has already inked each cell, so where its pieces overlap or
-        it crosses itself it lays no more. On dry paper the ink goes onto the paper and keeps a crisp edge; where a film
+        it crosses itself it lays no more; reached holds the cells it has reached, and inked those it has inked on dry
+        paper, which keep a crisp edge once the line ends (end_pen_line). On dry paper the ink goes onto the paper and keeps a crisp edge; where a film
         stands it goes into the water and spreads with it; on masking fluid it stays on the rubber. On paint that has
-        dried it lays a new layer, as a loaded brush does.
+        dried it begins a new layer, as a brush does.
         """
         rows, columns, coverage = self._coverage(points, radii.clamp(min=0.5) + 0.5, 0.0)
         masked = self.mask[rows, columns]
-        laying = float(amounts.sum()) >= LAYER_STRENGTH
-        self._open_layer(rows, columns, coverage * (1.0 - masked) > LAYER_FOOTPRINT, laying, layering)
+        self._open_layer(rows, columns, coverage * (1.0 - masked) > LAYER_FOOTPRINT, reached)
         laid = (coverage - covered[rows, columns]).clamp(min=0)
         covered[rows, columns] = torch.maximum(covered[rows, columns], coverage)
         ink = amounts.reshape(-1, 1, 1) * laid
@@ -1134,13 +1132,19 @@ class Sheet:
         self.suspended[:, rows, columns] += on_paper * wet
         self.deposited[:, rows, columns] += on_paper * ~wet
         # Ink on dry paper is dry as it lands, so paint laid over it later lies over it.
-        self.dried_paint[rows, columns] |= ~wet & (laid > 0) & (masked < 1.0)
-        self.crisp[rows, columns] |= ~wet & (laid > 0) & (masked < 1.0)
+        dry_ink = ~wet & (laid > 0) & (masked < 1.0)
+        self.dried_paint[rows, columns] |= dry_ink
+        inked[rows, columns] |= dry_ink
         self._used.update((amounts > 0).nonzero().flatten().tolist())
+
+    def end_pen_line(self, inked: Tensor) -> None:
+        """Give the cells a pen line inked on dry paper their crisp edge. It is given once the line has ended, so that
+        layers the line begins as it goes are worked out with the edges the picture had, and keep their colour."""
+        self.crisp |= inked
 
     def remove_mask(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
         """Rub masking fluid away, all of it or along a path. Paint dried on the rubber comes away with it;
-        paint still wet on it is smeared onto the paper as it is rubbed, and over paint that has dried there it lays
+        paint still wet on it is smeared onto the paper as it is rubbed, and over paint that has dried there it begins
         a new layer."""
         if points is None or radii is None:
             rows, columns = slice(None), slice(None)
@@ -1153,8 +1157,8 @@ class Sheet:
         beads = self.mask_water[rows, columns]
         on_rubber = self.mask_pigment[:, rows, columns]
         wet = beads > 0
-        smeared = (share > 0) & wet & (on_rubber.sum(0) >= LAYER_STRENGTH * beads)
-        self._open_layer(rows, columns, smeared, True, self.begin_layering())
+        smeared = (share > 0) & wet
+        self._open_layer(rows, columns, smeared, torch.zeros_like(self.dried_paint))
         self.water[rows, columns] += beads * share
         self.suspended[:, rows, columns] += on_rubber * share * wet
         beads *= 1.0 - share

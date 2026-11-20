@@ -984,7 +984,8 @@ def main() -> None:
             for x, y, note in CHART_NOTES.get(name, ()):
                 ImageDraw.Draw(pictures[name]).text((x, y), note, fill="black")
             pictures[name].save(OUTPUT / f"{name}.png")
-            print(f"{name:24s} simulated {studio.clock:7.1f} s, pigment on paper {float(sheet.deposited.sum()):9.1f}")
+            pigment = float((sheet.deposited + sheet.buried).sum())
+            print(f"{name:24s} simulated {studio.clock:7.1f} s, pigment on paper {pigment:9.1f}")
             if name == "wet_in_wet":
                 to_image(render_view(sheet, "value")).save(OUTPUT / f"{name}_value.png")
     columns = min(len(names), 4)
