@@ -376,9 +376,19 @@ class Sheet:
     tools (brush, blot, graphite) work on a single sheet.
     """
 
-    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite", "mask", "mask_water", "mask_pigment")
-    # Fields that a painting begun before masking fluid existed has no record of; they start empty.
-    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment")
+    STATE_FIELDS = (
+        "water",
+        "saturation",
+        "suspended",
+        "deposited",
+        "graphite",
+        "mask",
+        "mask_water",
+        "mask_pigment",
+        "fixative",
+    )
+    # Fields that a painting begun before masking fluid or fixative existed has no record of; they start empty.
+    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment", "fixative")
 
     def __init__(
         self,
@@ -407,6 +417,8 @@ class Sheet:
         self.mask = torch.zeros_like(tooth)
         self.mask_water = torch.zeros_like(tooth)
         self.mask_pigment = torch.zeros(len(pigments), *tooth.shape, device=device)
+        # Fixative (0 to 1), alum size or acrylic medium, which locks the paint settled on the paper under it.
+        self.fixative = torch.zeros_like(tooth)
         self.tilt: tuple[float | Tensor, float | Tensor] = (0.0, 0.0)  # downhill pull along x and y
         self._used: set[int] = set()  # pigments that have ever been on this sheet
 
@@ -627,17 +639,21 @@ class Sheet:
         granulation = p.granulation_strength * self._granulation[used].reshape(per_pigment)
         water = self.water[..., *region]
         wet = water > p.wet_threshold
+        # Paint settled on fixed paper is locked: only the share that no fixative holds can roll or lift.
+        unfixed = 1.0 - self.fixative[..., *region]
         # Under deep water the grains of a granulating paint that have settled go on rolling
         # into the hollows of the grain, and there they stay: nothing spreads them out again.
         rolling = SETTLED_ROLLING * p.sedimentation * dt * self._granulation[used].reshape(per_pigment) ** 2
-        roll_y = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 0)), 0)
-        roll_x = _sediment_flux(deposited, water, wet, rolling * torch.sub(*_faces(tooth, 1)), 1)
-        _transport(deposited, *_limit_outflow(roll_y, roll_x, deposited))
+        loose = deposited * unfixed
+        roll_y = _sediment_flux(loose, water, wet, rolling * torch.sub(*_faces(tooth, 0)), 0)
+        roll_x = _sediment_flux(loose, water, wet, rolling * torch.sub(*_faces(tooth, 1)), 1)
+        _transport(deposited, *_limit_outflow(roll_y, roll_x, loose))
         dt = dt * p.settling_rate
+        loose = deposited * unfixed
         down = suspended * (1.0 - tooth * granulation) * density * dt
-        up = deposited * (1.0 + (tooth - 1.0) * granulation) * (density / staining) * (p.resolubility * dt)
+        up = loose * (1.0 + (tooth - 1.0) * granulation) * (density / staining) * (p.resolubility * dt)
         transfer = (down - up) * wet
-        transfer = torch.maximum(torch.minimum(transfer, suspended), -deposited)
+        transfer = torch.maximum(torch.minimum(transfer, suspended), -loose)
         suspended -= transfer
         deposited += transfer
 
@@ -817,8 +833,10 @@ class Sheet:
 
         # The hairs stir up pigment that has settled. A brush with room in it wipes up much of
         # what it loosens, which is how a drained brush lifts paint; a full one only stirs it.
-        # A paint that stains less readily than the brush scrubs gives up all that lies on the paper, and no more.
-        loosened = torch.minimum(deposited * (contact.scrub * on_paper * (water > 0)) / self._staining, deposited)
+        # A paint that stains less readily than the brush scrubs gives up all that lies loose on the paper, and no
+        # more. Paint settled on fixed paper is locked, and the hairs loosen only the share no fixative holds.
+        loose = deposited * (1.0 - self.fixative[rows, columns])
+        loosened = torch.minimum(loose * (contact.scrub * on_paper * (water > 0)) / self._staining, loose)
         deposited -= loosened
         wiped = contact.uptake * loosened
         suspended += loosened - wiped
@@ -918,6 +936,20 @@ class Sheet:
         mask -= removed
         mask.clamp_(min=0)
 
+    def apply_fixative(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
+        """Lay fixative, alum size or acrylic medium, over the whole sheet or along a path. It dries clear and
+        cannot be removed. Paint settled on the paper under it, and paint that settles there later, can no longer
+        be lifted, rolled or scrubbed; wet paint on it flows as on bare paper. It takes only on paper with no film
+        standing on it, and not on masking fluid, with which it would come away."""
+        if points is None or radii is None:
+            rows, columns = slice(None), slice(None)
+            coverage = torch.ones_like(self.fixative)
+        else:
+            rows, columns, coverage = self._coverage(points, radii, 0.3)
+        bare = (self.water[rows, columns] <= self.parameters.wet_threshold) & (self.mask[rows, columns] < MASK_SEALED)
+        # Written in place: in a batch the sheet's fixative is a view of the batch's own.
+        self.fixative[rows, columns] = torch.maximum(self.fixative[rows, columns], coverage * bare)
+
     def blot(self, points: Tensor, radii: Tensor) -> None:
         """Press absorbent tissue onto the sheet."""
         rows, columns, coverage = self._coverage(points, radii, 0.3)
@@ -962,7 +994,7 @@ class SheetBatch:
         )
         self._stack = Sheet(paper, first.pigments, first.parameters)
         for index, sheet in enumerate(sheets):
-            for name in ("water", "saturation", "mask", "mask_water"):
+            for name in ("water", "saturation", "mask", "mask_water", "fixative"):
                 held = getattr(self._stack, name)[index]
                 held.copy_(getattr(sheet, name))
                 setattr(sheet, name, held)

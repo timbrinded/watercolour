@@ -446,6 +446,25 @@ def test_a_sheet_saved_before_masking_fluid_existed_still_loads(studio: Studio) 
     assert float(sheet.mask.sum()) == 0.0
 
 
+def test_fixative_takes_neither_under_a_film_of_water_nor_on_masking_fluid(studio: Studio) -> None:
+    mask_disc(studio)
+    lay_wet_patch(studio)
+    studio.fix("painting")
+    fixative = studio.sheets["painting"].fixative
+    assert float(fixative[60:69, 60:69].max()) == 0.0  # sealed by the fluid
+    assert float(fixative[40, 40]) == 0.0  # under the wet patch
+    assert float(fixative[5, 5]) == 1.0
+
+
+def test_a_sheet_saved_before_fixative_existed_still_loads(studio: Studio) -> None:
+    sheet = studio.sheets["painting"]
+    lay_wet_patch(studio)
+    state = {name: value for name, value in sheet.state().items() if name != "fixative"}
+    sheet.fixative.fill_(1.0)
+    sheet.load_state(state)
+    assert float(sheet.fixative.sum()) == 0.0
+
+
 def test_masking_fluid_laid_with_falling_pressure_tapers(studio: Studio) -> None:
     studio.mask("painting", [[20, 64, 1.0], [108, 64, 0.0]], 10.0)
     sealed = studio.sheets["painting"].mask >= 0.5

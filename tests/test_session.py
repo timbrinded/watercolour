@@ -272,3 +272,32 @@ def test_masking_fluid_with_an_impossible_pressure_is_refused(tmp_path: Path) ->
     session = new_session(tmp_path)
     with pytest.raises(ValueError):
         session.paint([{"action": "mask", "path": [[40, 40, 1.5], [60, 40, 0.5]], "radius": 6}])
+
+
+def test_fixative_counts_against_the_budget_but_does_not_end_the_underdrawing(tmp_path: Path) -> None:
+    session = new_session(tmp_path, stroke_budget=2)
+    session.paint([{"action": "fix", "path": [[40, 40]], "radius": 6}])
+    assert session.strokes_used == 1 and not session.paint_applied
+    session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]}])
+    reopened = Session(session.directory)
+    assert float(reopened.studio.sheets["painting"].fixative[40, 40]) == 1.0
+    with pytest.raises(RuleViolation):
+        reopened.paint([{"action": "fix"}, {"action": "fix"}])
+
+
+def test_fixative_takes_a_path_and_a_radius_together_or_neither(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    for action, problem in (
+        ({"path": [[40, 40]]}, "together, or neither"),
+        ({"radius": 6}, "together, or neither"),
+        ({"path": [], "radius": 6}, "path is empty"),
+        ({"path": [[40, 40]], "radius": 0.5}, "between 1 and 80"),
+        ({"path": [[40, 40]], "radius": 81}, "between 1 and 80"),
+        ({"path": [[40, 40, 0.5]], "radius": 6}, r"\[x, y\]"),
+        ({"sheet": "margin"}, "unknown sheet"),
+    ):
+        with pytest.raises(ValueError, match=problem):
+            session.paint([{"action": "fix"} | action])
+    with pytest.raises(RuleViolation, match="no scrap sheet"):
+        session.paint([{"action": "fix", "sheet": "scrap"}])
+    assert session.strokes_used == 0

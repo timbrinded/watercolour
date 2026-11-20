@@ -48,6 +48,7 @@ PENCIL_RADIUS = 0.9
 MASK_SPEED = 60.0  # pixels per second at which masking fluid is drawn on
 MASK_LIGHTEST_SHARE = 0.15  # width of a line of masking fluid laid with no pressure, as a share of its full width
 UNMASK_DURATION = 5.0  # seconds taken to rub masking fluid away
+FIX_DURATION = 5.0  # seconds taken to lay fixative
 # A brush never picks up exactly the mix asked for. Spread of pigment and of water from load to load.
 PIGMENT_VARIATION = 0.12
 WATER_VARIATION = 0.06
@@ -214,6 +215,19 @@ class Studio:
             radii = torch.full((len(samples),), radius)
             sheet.remove_mask(self._tensor(samples[:, :2]), self._tensor(radii))
         self._pass_time(UNMASK_DURATION)
+        self._record()
+
+    def fix(self, sheet_name: str, path: Path | None = None, radius: float | None = None) -> None:
+        """Lay fixative, alum size or acrylic medium: over the whole sheet, or along a path with a brush of the
+        given radius. Paint settled under it, and paint that settles there later, can no longer be lifted."""
+        sheet = self.sheets[sheet_name]
+        if path is None or radius is None:
+            sheet.apply_fixative()
+        else:
+            samples = trace_path(path, smooth=False)
+            radii = torch.full((len(samples),), radius)
+            sheet.apply_fixative(self._tensor(samples[:, :2]), self._tensor(radii))
+        self._pass_time(FIX_DURATION)
         self._record()
 
     def pencil(self, sheet_name: str, path: Path, darkness: float, smooth: bool = True) -> None:

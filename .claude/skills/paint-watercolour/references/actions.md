@@ -29,6 +29,13 @@ A pass is a JSON file holding a list of actions, carried out in order.
 | `tilt` | `x`, `y`, `sheet` | Each within 0.3. Positive `y` pulls paint down the sheet. Stays until changed. |
 | `mask` | `path`, `radius`, `smooth`, `sheet` | Masking fluid (0.8.0 or later). Each point is `[x, y]` or `[x, y, pressure]`; `radius` (0.5 to 40) is the width at full pressure, a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke tapers like a brush. It seals the paper: no water crosses into it, a wash dries against it with a crisp, darker edge, paint already under it is kept, and paint landing on it stands on the rubber. It forms only where no film of water stands. Counts against the stroke budget. |
 | `unmask` | `path`, `radius`, `sheet` | Rubs masking fluid away: all of it, or along a path (`path` and `radius` together). Paint dried on the rubber comes away with it; paint still wet on it is smeared onto the paper, so `dry` first. |
+| `fix` | `path`, `radius`, `sheet` | Fixative: alum size or acrylic medium (0.10.0 or later). With neither field it covers the whole sheet; otherwise give `path` (points `[x, y]`) and `radius` (1 to 80) together. Paint settled on the paper under it, whether before the fix or after, can no longer be lifted, rolled into the grain or scrubbed: a later wash, pour or stiff brush leaves it exactly as it was. Wet paint on it flows and spreads as on bare paper, but each grain is locked as it settles, so a drained brush or a blot takes up only what is still in the water: from a wash losing its shine a drained brush lifts about half as much as from bare paper. It is laid only where no film of water stands, and not on masking fluid. It cannot be seen and cannot be removed. Takes 5 seconds. Counts against the stroke budget. Does not end the underdrawing. |
+
+Fixative, for example:
+
+- `{"action": "fix"}`: the whole sheet, before the first ink pour, so that the ink is permanent once it has settled.
+- `{"action": "fix", "path": [[40, 60], [200, 60], [200, 140]], "radius": 24}`: alum over passages that have dried.
+- `{"action": "fix", "path": [[128, 128]], "radius": 60, "sheet": "scrap"}`
 
 `"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes do not count against the budget.
 
