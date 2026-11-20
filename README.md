@@ -113,7 +113,7 @@ The painting is saved as each action ends and every few seconds through a long w
 
 ## The engine
 
-The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface water carrying suspended pigment, pigment deposited on the paper, and water held within the paper. Surface flow is a thin-film equation.
+The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface water carrying suspended pigment, pigment deposited on the paper, and water held within the paper. Surface flow is a thin-film equation whose mobility is the cube of the depth, as lubrication theory gives for a film on paper it does not slip on: a deep pool runs freely while a thin film barely moves.
 
 - **Water and pigment are separate.** Pigment is carried by the water, diffuses through it, settles and can be lifted again.
 - **Wet edges** hold on dry paper until the water behind them is deep enough, and advance unevenly because the paper's sizing is uneven.
@@ -177,6 +177,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 
 - Pigment optical values for most paints are recalled from the Curtis paper and have not been checked against it; the rest are estimated from the colour of the paint.
 - Flow strengths, drying times, brush drag and granulation are set by eye, not calibrated against filmed painting. Depths of film and the fullness of the brush are in the engine's own units.
+- Only the law of the surface flow comes from physics, and it shows only at the scale of a pool on dry paper, where a ripple levels and a band runs down a tilted sheet at the rates the cube of the depth gives. Over a few pixels the damped surface tension sets how fast a ripple levels, nearer the square of the depth; on damp paper the paper's own wicking and pull decide it; and a film lying within the grain is not modelled by its depth at all. Depths are not tied to micrometres, so the rates themselves are still set by eye.
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
 - Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. The smallest shape it reliably keeps white is about 2 pixels in radius, because each cell of paint is shared a little with its neighbours when the sheet is pictured.

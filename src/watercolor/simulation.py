@@ -40,6 +40,8 @@ class SimulationParameters:
     stream_minimum_depth: float = 0.35  # film depth below which there is no surface stream
     dry_advance_depth: float = 1.2  # depth at which a puddle creeps onto dry paper
     damp_advance_depth: float = 0.03  # depth at which it creeps onto damp paper
+    # Deepest film whose depth adds to the surface stream. Its square is the fastest the film may flow, which the
+    # explicit substep must contain.
     mobility_depth_limit: float = 1.3
     sizing_unevenness: float = 1.2  # how much harder, in powers of e, the most heavily sized dry paper is to wet
     wicking_unevenness: float = 1.6  # spread, in powers of e, of how readily damp paper carries water along its surface
@@ -265,7 +267,14 @@ def _water_flux(film: _Film, p: "SimulationParameters", rate: float, axis: int, 
     depth = (0.5 * (depth_lower + depth_upper)).clamp(max=p.mobility_depth_limit)
     thick_lower, thick_upper = _faces(film.thickness, axis)
     slowed = rate / (1.0 + p.viscosity * 0.5 * (thick_lower + thick_upper))
-    mobility = slowed * depth**2
+    # A film flowing over paper it does not slip on carries h^3/(3 viscosity) per unit of pressure
+    # gradient (lubrication theory). The roughness of the paper moves the no-slip plane into the
+    # grain and holds a film that lies within it, so it slows thin films rather than letting them
+    # slip: the mobility is the cube of the depth, with no square term. It is taken relative to a
+    # full wash, at which the flow rates were set, so a full wash flows as before. The cube is held
+    # at the square of the depth limit, the fastest flow the explicit substep was built to contain,
+    # so every film deeper than about 1.19 moves at that one rate.
+    mobility = slowed * (depth**3).clamp(max=p.mobility_depth_limit**2)
     # Damp paper also carries a little water along its own surface, however thin the film. That
     # water answers to depth and to the pull of the paper, not to the shape of a free surface:
     # given surface tension to act on, it pumps a thin broken film into deep drops.
@@ -312,6 +321,8 @@ def _surface_stream(film: _Film, p: "SimulationParameters", rate: float, axis: i
     # settle into a checkerboard, so the stream is held to the fastest rate that stays smooth.
     spreading = rate * depth * torch.maximum(thick_lower, thick_upper)
     held = STABLE_SPREADING / spreading.clamp(min=STABLE_SPREADING)
+    # A stream driven by a stress on the surface, not by a pressure, carries h^2/(2 viscosity):
+    # it stays a square of the depth where the pressure-driven film flow is a cube.
     return rate * held * free * depth**2 * (thick_lower - thick_upper) * (wet_lower & wet_upper)
 
 
@@ -523,11 +534,12 @@ class Sheet:
     def _flow(self, region: Region, dt: float, suspended: Tensor, used: list[int]) -> None:
         """Move the water film and the pigment in it.
 
-        The film obeys a thin-film equation: flux is mobility times the gradient of a
-        pressure made of depth, the relief of the paper, surface tension (the
-        curvature of the water surface) and the pull of wetted paper on a thin film. Paint lowers surface tension, so water is
-        also drawn from paint-rich areas toward clear water. Pigment is a separate
-        quantity carried by that flux and diffusing through the film.
+        The film obeys a thin-film equation: flux is mobility, the cube of the depth, times
+        the gradient of a pressure made of depth, the relief of the paper, surface tension
+        (the curvature of the water surface) and the pull of wetted paper on a thin film.
+        Paint lowers surface tension, so water is also drawn from paint-rich areas toward
+        clear water. Pigment is a separate quantity carried by that flux and diffusing
+        through the film.
         """
         p = self.parameters
         water = self.water[..., *region]
