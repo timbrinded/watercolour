@@ -51,6 +51,14 @@ Fixative, for example:
 
 `"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes do not count against the budget.
 
+### Layers (0.11.0 or later)
+
+- Paint dries once no film stands on it and the paper is no fuller than 0.6, as `look --at` reads it. Paint laid on paint that has dried lies over it as a new layer, and so does paint the water carries onto it. Water standing on dried paint again, clear or not, does not make it wet paint: colour charged into that water, or spreading through it, settles over it. Covering paint then hides what is beneath in proportion to its thickness (`body-colour.md` has the coats and values); transparent paint glazes as before.
+- Paint laid into paint that is still wet from being laid mixes with it, so white dropped into a wet wash spreads as a milky tint.
+- The water of a new layer lifts from the dried layer under it as clear water does, whatever paint it carries; what it lifts mixes into the new layer.
+- When a third layer begins, the two older ones are merged where they look the same mixed (transparent glazes, the same paint again), and stay liftable. Under covering paint, where merging would change the colour, the oldest is kept only as its colour: nothing lifts or moves it any more.
+- Pencil lies under all paint, so covering paint hides it.
+
 Each load picks up slightly more or less pigment and water than asked for, as a real brush does.
 
 ## Brushes
@@ -102,14 +110,14 @@ A brush that is running dry, moving fast, or carrying thick paint parts into clu
 | `cobalt_blue` | middle blue | smooth; the usual sky blue |
 | `phthalo_green` | cold strong green | stains; hard to lift |
 | `hookers_green` | deep green | stains moderately |
-| `hansa_yellow` | clean lemon yellow | stains |
+| `hansa_yellow` | clean lemon yellow | stains; transparent from 0.11.0, so over a dried colour it glazes it |
 | `yellow_ochre` | dull earth yellow | fairly opaque |
 | `quinacridone_rose` | cool rose | stains strongly |
 | `cadmium_red` | warm opaque red | |
 | `burnt_sienna` | orange-brown earth | the usual partner for a blue in a grey |
 | `burnt_umber` | dark brown earth | granulates |
 | `ivory_black` | black | use sparingly, in mixes |
-| `opaque_white` | covering white | for final lights only |
+| `opaque_white` | covering white | over dried paint it lies on top and covers (0.11.0): `body-colour.md` |
 
 ### Paints that must be named in `--palette`
 
@@ -125,6 +133,9 @@ On 0.10.0 or later, for styles that ask for them: `--palette hansa_yellow,quinac
 | `fluorescent_yellow` | acid lemon | Neon from 2.5. |
 | `carbon_ink` | neutral black ink | As dark as `ivory_black` at about half the load; does not granulate. Once dry it barely lifts, so washes and scrubbing can go over a line (a clear wash over a dried line moved about 1% of its ink). |
 | `soluble_ink` | cool black dye ink | Does not granulate. Water that reaches a dried line takes most of it back up, and a damp brush drawn across it pulls it out into grey shading (a clear round leaves about half the line it crosses, a flat about a fifth). Every later wash over it dissolves it too. `measured_layers.py` refuses it: every later layer dissolves it. |
+| `azurite` | deep mineral blue | Covering (0.11.0): a round 6 at 4 in two coats took a dark of 0.16 to 0.30, its own colour on white paper being 0.32. Smooth thick fills dry flat. `body-colour.md`. |
+| `malachite` | mineral green | Covering (0.11.0): one coat at 4 over a dark of 0.16 reads 0.37, two 0.44 (0.51 on white paper). `body-colour.md`. |
+| `shell_white` | chalky warm white (gofun) | Covering (0.11.0), but less than `opaque_white`: at 4 over a dark of 0.16, one coat 0.50, two 0.65, four 0.77. `body-colour.md`. |
 
 The fluorescent paints stain and do not granulate. They do not glow and are never lighter than the paper, so a dull or dark surround is what makes them read as neon; `measured_layers.py` refuses them. Neon orange is `fluorescent_pink` 1.25 with `fluorescent_yellow` 3.75, and lime is `fluorescent_yellow` 3.5 with `phthalo_turquoise` 1.5.
 
@@ -146,4 +157,4 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 
 When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
 
-`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0; `pen`, the two inks, masking fluid's unbroken finest line, `fix`, `--support`, `--ground` and the paints that must be named in `--palette` need 0.10.0.
+`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0; `pen`, the two inks, masking fluid's unbroken finest line, `fix`, `--support`, `--ground` and the paints that must be named in `--palette` need 0.10.0; layers, the covering paints and a transparent `hansa_yellow` need 0.11.0.

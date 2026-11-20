@@ -113,3 +113,38 @@ def test_the_fluorescent_paints_reach_neon_chroma_alone_and_mixed(
     found_lightness, chroma = cielab_lightness_and_chroma(dried_colour(mix))
     assert lightness[0] <= found_lightness <= lightness[1]
     assert chroma >= least_chroma
+
+
+def hidden_share(name: str, amount: float) -> float:
+    """Share of the difference between the paper and black that a dried layer of the paint hides."""
+    tooth = torch.full((16, 16), 0.5)
+    weights = torch.tensor([0.2126, 0.7152, 0.0722])
+
+    def value(ground: tuple[float, float, float], laid: float) -> float:
+        paper = Paper(
+            tooth, torch.zeros_like(tooth), torch.full_like(tooth, 0.5), ground=torch.tensor(ground)[:, None, None]
+        )
+        sheet = Sheet(paper, [PIGMENTS[name]])
+        sheet.deposited[0] = laid
+        return float((render(sheet)[:, 4:-4, 4:-4].mean((1, 2)) * weights).sum())
+
+    white, black = (0.97, 0.96, 0.93), (0.0, 0.0, 0.0)
+    return 1.0 - (value(white, amount) - value(black, amount)) / value(white, 0.0)
+
+
+@pytest.mark.parametrize(
+    ("name", "least", "most"),
+    [
+        ("azurite", 0.95, 1.0),  # measured 0.976
+        ("malachite", 0.9, 1.0),  # 0.928
+        ("opaque_white", 0.75, 0.85),  # 0.789
+        ("shell_white", 0.55, 0.75),  # 0.652: less than opaque white, so it builds over more coats
+        ("hansa_yellow", 0.0, 0.4),  # 0.368, all of it the yellow's own absorption; 0.686 before 0.11.0
+    ],
+)
+def test_two_coats_of_a_covering_paint_hide_what_is_beneath_and_hansa_yellow_does_not(
+    name: str, least: float, most: float
+) -> None:
+    """Two coats' worth of paint (2.6) over paper and over black. A covering paint hides most of the difference; a
+    transparent one keeps it, so laid over a dried colour it glazes it."""
+    assert least <= hidden_share(name, 2.6) <= most

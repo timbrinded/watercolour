@@ -16,8 +16,8 @@ Usage:
         [--longest 140] [--tolerance 0.3] [--region x0,y0,x1,y1] [--exclude x0,y0,x1,y1 ...]
         [--keep-lights 0.08] [--cut-in 8,3.5] [--white r,g,b] [--no-dry]
 
---paints names the paints a mix may use: the transparent paints of the painting's palette, never opaque_white,
-a fluorescent paint or soluble_ink.
+--paints names the paints a mix may use: the transparent paints of the painting's palette, never a covering paint
+(opaque_white, azurite, malachite, shell_white), a fluorescent paint or soluble_ink.
 --origin is the full-sheet coordinate of the sheet's top-left corner when the sheet is a crop of the reference,
 and --crop is that sheet's size. --region and --exclude are then in the cropped sheet's own coordinates.
 --white is the colour of the reference's own paper, where it is a scan and not pure white.
@@ -56,6 +56,8 @@ LUMA = np.array([0.2126, 0.7152, 0.0722])
 GROUND = "ground.png"  # the image a painting was begun on with `new --ground`: session.py's GROUND_FILE
 # The pressure a row is laid at, and so the width it paints and the rows are spaced by.
 STROKE_PRESSURE = 0.9
+# Paints that cover what lies beneath (0.11.0), which an absorbance solve cannot lay.
+COVERING_PAINTS = ("opaque_white", "azurite", "malachite", "shell_white")
 
 Absorption = dict[str, tuple[float, float, float]]
 
@@ -71,8 +73,12 @@ def paint_absorption(names: list[str]) -> Absorption:
     unknown = [name for name in names if name not in PIGMENTS]
     if unknown:
         raise SystemExit(f"not in the paint box: {', '.join(unknown)}")
-    if "opaque_white" in names:
-        raise SystemExit("opaque_white covers, it does not darken: leave it out of --paints")
+    covering = [name for name in names if name in COVERING_PAINTS]
+    if covering:
+        raise SystemExit(
+            f"{', '.join(covering)} covers what is beneath, it does not darken it: leave it out of --paints and lay it"
+            " by hand (references/body-colour.md)"
+        )
     fluorescent = [name for name in names if name.startswith("fluorescent_")]
     if fluorescent:
         raise SystemExit(

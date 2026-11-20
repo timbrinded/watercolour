@@ -101,8 +101,8 @@ and 0.20.
 ### 4. Mask the whites of the eyes, before any paint
 
 The bands tone the white of an eye like the skin round it, because in a photograph the white sits in the socket's
-shadow. Opaque white laid back afterwards dries grey. So mask each eye's whole opening first, iris and all, as
-`faces-and-detail.md` describes under "The white of the eye":
+shadow. Opaque white laid back afterwards reads as a light, not as paper (on older versions it dried grey). So mask each
+eye's whole opening first, iris and all, as `faces-and-detail.md` describes under "The white of the eye":
 
 - Grid the photograph round each eye (`reference_grid.py` on the sheet photograph, zoom 4) and read the upper and
   lower lid edges, corner to corner.

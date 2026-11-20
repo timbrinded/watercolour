@@ -25,7 +25,7 @@ def studio() -> Studio:
 
 def pigment_on_sheet(studio: Studio) -> float:
     sheet = studio.sheets["painting"]
-    return float((sheet.suspended + sheet.deposited).sum())
+    return float((sheet.suspended + sheet.deposited + sheet.buried).sum())
 
 
 def pigment_in_brush(studio: Studio) -> float:
@@ -532,7 +532,7 @@ def test_carbon_ink_stays_put_under_a_wash_and_soluble_ink_runs_into_it() -> Non
     studio.load_brush("mop", 16, {}, 1.0)
     studio.stroke("painting", [[20, 64], [108, 64]], 120, smooth=False)
     studio.dry()
-    ink = sheet.deposited + sheet.suspended
+    ink = sheet.deposited + sheet.suspended + sheet.buried
 
     def shares(name: str) -> tuple[float, float]:
         """Share of the ink laid that is still on the line, and the share more than 2 px from it."""

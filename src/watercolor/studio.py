@@ -164,6 +164,7 @@ class Studio:
         concentration = self._tensor(brush.concentration)
         hairs = self._tensor(brush.hairs)
         on_tip = torch.zeros_like(concentration)  # wet paint riding on the tip of the brush
+        layering = sheet.begin_layering()
         dt = self._time_step
         for step in range(max(1, round(float(traced[-1, TIME]) / dt))):
             piece = journey_between(traced, step * dt, (step + 1) * dt)
@@ -172,7 +173,14 @@ class Studio:
             radii = brush.radius(piece[:, PRESSURE], angle)
             contact = brush.contact(pressure, travelled / dt, angle, twist)
             used, pigment_out, on_tip = sheet.apply_brush(
-                self._tensor(piece[:, :2]), self._tensor(radii), contact, concentration, brush.reservoir, hairs, on_tip
+                self._tensor(piece[:, :2]),
+                self._tensor(radii),
+                contact,
+                concentration,
+                brush.reservoir,
+                hairs,
+                on_tip,
+                layering,
             )
             pigment_held = (concentration * brush.reservoir - pigment_out).clamp(min=0)
             brush.reservoir = min(max(brush.reservoir - used, 0.0), brush.capacity)
@@ -231,12 +239,13 @@ class Studio:
         traced = trace_journey(controls, smooth, speed, DAB_DURATION)
         amounts = self._tensor([float(ink.get(name, 0.0)) for name in self.palette])
         covered = torch.zeros_like(sheet.water)  # how far this line has already inked each cell
+        layering = sheet.begin_layering()
         dt = self._time_step
         # The pen keeps on until the last time step has reached the end of the line.
         for step in range(max(1, math.ceil(float(traced[-1, TIME]) / dt - 1e-6))):
             piece = journey_between(traced, step * dt, (step + 1) * dt)
             radii = 0.5 * width * (PEN_LIGHTEST_SHARE + (1.0 - PEN_LIGHTEST_SHARE) * piece[:, PRESSURE])
-            sheet.apply_pen(self._tensor(piece[:, :2]), self._tensor(radii), amounts, covered)
+            sheet.apply_pen(self._tensor(piece[:, :2]), self._tensor(radii), amounts, covered, layering)
             self._pass_time(dt)
             self._since_frame += dt
             if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
