@@ -166,7 +166,7 @@ Use `hand_marks.py`. In this order:
    alone dry it neutral grey. Skip it if the background is dark.
 2. **The whites.**
    - `{"action": "unmask"}` rubs the eye masks away: a clean almond of paper in each eye.
-   - `catchlight_masks([(x, y), ...])` masks each catchlight, radius 2.6, inside the opening and clear of the lid.
+   - `catchlight_masks([(x, y), ...])` masks each catchlight, radius 2.6 (a smaller dot greys), inside the opening and clear of the lid.
    - Shade each white:
      - **A lit eye:** `shade_lit_white(shadow_path, soften_path)`, a cool grey under the upper lid, softened downward.
      - **An eye in shadow** (the look's value round it under about 0.3): `shade_shadowed_white(path)`, the whole

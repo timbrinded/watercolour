@@ -21,7 +21,7 @@ watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--see
 | `hot_press` | Smooth. The grain is fine and a fifth as deep, so bare paper and washes show almost no speckle and a pencil line is even. A dry brush leaves a tone mottled by the grain and broken where the hairs part, not fragments. The film stays on top a little longer, but the sheet holds less water, so a wash dries sooner in all. Tide lines and blooms dry harder, and paint lifts more easily. A film counts as shiny from 0.03, not 0.15. |
 | `rough` | A coarse grain of broad tops and deep pits. Water gathers in the pits, so a flat wash mottles as it dries; granulating paint gathers coarsely; a dry brush paints the tops and leaves fewer, larger white pits; bare paper shows its relief. |
 
-The strength bands, film depths and dry-brush recipe in this skill were measured on `cold_press`. On another support, try a load on the scrap sheet first.
+The strength bands, film depths and dry-brush recipe in this skill were measured on `cold_press`. On another support, try a load on the scrap sheet first; `supports-and-grounds.md` has the film and drying times on each.
 
 ## A pass
 
@@ -124,7 +124,7 @@ On 0.10.0 or later, for styles that ask for them: `--palette hansa_yellow,quinac
 | `fluorescent_pink` | opera, neon pink | Neon at 2 to 5; heavier, it turns red. |
 | `fluorescent_yellow` | acid lemon | Neon from 2.5. |
 | `carbon_ink` | neutral black ink | As dark as `ivory_black` at about half the load; does not granulate. Once dry it barely lifts, so washes and scrubbing can go over a line (a clear wash over a dried line moved about 1% of its ink). |
-| `soluble_ink` | cool black dye ink | Does not granulate. Water that reaches a dried line takes most of it back up, and a damp brush drawn across it pulls it out into grey shading (a clear round leaves about half the line it crosses, a flat about a fifth). Every later wash over it dissolves it too. |
+| `soluble_ink` | cool black dye ink | Does not granulate. Water that reaches a dried line takes most of it back up, and a damp brush drawn across it pulls it out into grey shading (a clear round leaves about half the line it crosses, a flat about a fifth). Every later wash over it dissolves it too. `measured_layers.py` refuses it: every later layer dissolves it. |
 
 The fluorescent paints stain and do not granulate. They do not glow and are never lighter than the paper, so a dull or dark surround is what makes them read as neon; `measured_layers.py` refuses them. Neon orange is `fluorescent_pink` 1.25 with `fluorescent_yellow` 3.75, and lime is `fluorescent_yellow` 3.5 with `phthalo_turquoise` 1.5.
 
