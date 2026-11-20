@@ -85,6 +85,7 @@ A pass is a JSON list of actions carried out in order:
 | `mask` | `path` of `[x, y]` or `[x, y, pressure]` points, `radius` (0.5 to 40, the width at full pressure; a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke can taper like a brush), `smooth`: lay masking fluid. It seals the paper (no water crosses into it, so a wash meets it as a wall and dries with a crisp, darker edge), it protects any paint already under it, and paint landing on it stands on the rubber. It forms only where no film of water stands; laid into wet paint it seals nothing |
 | `unmask` | optional `path` and `radius` together: rub the masking fluid away, all of it or along a path. Paint dried on it comes away with it; paint still wet on it is smeared onto the paper |
 | `pen` | `path` of `[x, y]` or `[x, y, pressure]` points, `width` (0.25 to 8, the full width at full pressure; lifting narrows the line to 0.15 of it), `ink` (palette paints to the amount laid on each pixel, at most 8 in all), `speed`, `smooth`: draw a line in ink. It lays the same ink from the start of the line to its end, and never draws narrower than one pixel. On dry paper the line keeps a crisp edge and the pixels beside it stay paper; on wet paper it spreads into the water. It needs no brush. The paints `carbon_ink`, which barely lifts once dry, and `soluble_ink`, which water takes back up, are chosen with `--palette` |
+| `fix` | optional `path` and `radius` (1 to 80) together: lay fixative, alum size or acrylic medium, over the whole sheet or along a path. Paint settled on the paper under it, before the fix or after, can no longer be lifted, rolled or scrubbed; wet paint on it flows as on bare paper. It is laid only where no film of water stands and not on masking fluid, cannot be seen and cannot be removed |
 
 `look` saves a picture of the sheet as it is now: in colour, as values only, or as a wetness map. Looking changes nothing.
 
@@ -118,7 +119,7 @@ The painting is saved as each action ends and every few seconds through a long w
 
 The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface water carrying suspended pigment, pigment deposited on the paper, and water held within the paper. Surface flow is a thin-film equation whose mobility is the cube of the depth, as lubrication theory gives for a film on paper it does not slip on: a deep pool runs freely while a thin film barely moves.
 
-- **Water and pigment are separate.** Pigment is carried by the water, diffuses through it, settles and can be lifted again.
+- **Water and pigment are separate.** Pigment is carried by the water, diffuses through it, settles and can be lifted again, unless the paper under it has been fixed.
 - **Wet edges** hold on dry paper until the water behind them is deep enough, and advance unevenly because the paper's sizing is uneven.
 - **Drying** carries pigment to the edge of a wash, which dries darker than its middle; water dropped into a damp wash leaves a bloom.
 - **Paper** has grain, broad undulation, uneven sizing and limited absorbency.
@@ -185,6 +186,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
 - Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. Its finest line seals a band one to two pixels wide, about 1.5 at most angles, so no white line is finer than that.
+- Fixative locks paint the moment it settles, even under a wash that is still wet, so lifting and pulling wet paint on fixed paper is weaker than on real alum-sized paper. It never wears off, and it does not lower the paper's absorbency as alum does.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
 - The package and command are spelled `watercolor`; the repository is `watercolour`.
 
