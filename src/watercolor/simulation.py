@@ -805,7 +805,8 @@ class Sheet:
 
         # The hairs stir up pigment that has settled. A brush with room in it wipes up much of
         # what it loosens, which is how a drained brush lifts paint; a full one only stirs it.
-        loosened = deposited * (contact.scrub * on_paper * (water > 0)) / self._staining
+        # A paint that stains less readily than the brush scrubs gives up all that lies on the paper, and no more.
+        loosened = torch.minimum(deposited * (contact.scrub * on_paper * (water > 0)) / self._staining, deposited)
         deposited -= loosened
         wiped = contact.uptake * loosened
         suspended += loosened - wiped
