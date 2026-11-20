@@ -2,7 +2,7 @@
 name: paint-watercolour
 description: Paint a watercolour with the `watercolor` harness (github.com/timbrinded/watercolour) - a simulated sheet, brushes and paint driven stroke by stroke with no undo. Use this whenever asked to paint, sketch, illustrate or make a picture, landscape, study or copy with the watercolour rig, to continue or finish a painting session, or to judge why a painting made with it looks stiff, flat or muddy, even if the request never says "watercolor" or names the command.
 metadata:
-  version: "0.8.0"
+  version: "0.10.0"
 ---
 
 # Painting with the watercolour harness
@@ -27,7 +27,7 @@ The harness is the repository https://github.com/timbrinded/watercolour. Before 
 2. Otherwise, if `watercolor --help` works, the command is installed; use it as written below, from any directory.
 3. Otherwise it is not available. Tell the user, and offer to install it with `uv tool install git+https://github.com/timbrinded/watercolour`. It needs Python 3.13 or newer and `ffmpeg`, and the first install downloads PyTorch, which is several gigabytes, so do not start it without saying so.
 
-Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters. Water showing as light in the picture needs 0.6.0 or later: on an older version a wet wash and a dry one look almost alike. The lit rim of a pool that stands proud needs 0.7.0. Masking fluid (`mask`, `unmask`) needs 0.8.0.
+Check the version with `watercolor --version`. Reading wetness as numbers (`look --at`), waiting on the film, and the `drain` action need 0.5.0 or later; if the flag is refused or the version is older, say so and offer `uv tool upgrade watercolor`. Carrying on after a command is cut short needs 0.5.2 or later: on an older version a `paint` killed part-way leaves the painting refusing every later command, so upgrade before painting anything that matters. Water showing as light in the picture needs 0.6.0 or later: on an older version a wet wash and a dry one look almost alike. The lit rim of a pool that stands proud needs 0.7.0. Masking fluid (`mask`, `unmask`) needs 0.8.0. The pen and its inks, fixative (`fix`), hot-press and rough paper (`--support`), a printed ground and the paints that must be named in `--palette` need 0.10.0.
 
 A painting is just a directory, so it can live anywhere; `paintings/` in the current directory is the usual place. The brush guide with a chart of every mark is `docs/brushes.md` in the repository.
 

@@ -13,18 +13,20 @@ same pass given again carries on from where it stopped.
 import hashlib
 import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
+import numpy as np
 import torch
+from PIL import Image
+from torch import Tensor
 
 from . import ENGINE_VERSION
 from .brushes import Brush, validate_journey
-from .paper import generate_paper
 from .pigments import PIGMENTS
 from .recording import FrameRecorder, encode_video
 from .rendering import VIEWS, inspection_image, render, to_image
-from .simulation import Sheet
+from .simulation import SUPPORTS, Sheet, support_sheet
 from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_request, validate_pen_request
 
 SCRAP_SIZE = 256
@@ -32,6 +34,8 @@ TOUCHING_ACTIONS = ("stroke", "blot", "pen")  # these put paint on the sheet or 
 SURFACE_TREATMENTS = ("mask", "unmask", "fix")  # these count against the stroke budget too, but lay no paint
 SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask", "pen", "fix")
 SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
+GROUND_FILE = "ground.png"  # the image printed on the sheet, as resampled to it
+GROUND_PROPORTION_TOLERANCE = 0.02  # share by which a ground image's proportions may differ from the sheet's
 
 
 class RuleViolation(Exception):
@@ -59,6 +63,8 @@ class Configuration:
     pencil_allowed: bool
     engine_version: str = ENGINE_VERSION
     height: int | None = None  # the sheet is square unless a height is given; size is then its width
+    support: str = "cold_press"  # one of SUPPORTS; a painting begun before there was a choice is on cold press
+    ground_digest: str | None = None  # sha256 of ground.png, when an image is printed on the sheet
 
 
 def _digest(data: bytes) -> str:
@@ -69,23 +75,57 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
+def _printed_ground(path: Path, height: int, width: int) -> Image.Image:
+    """Return the image to print on the sheet, flattened onto white and resampled to the sheet by area."""
+    try:
+        image = Image.open(path).convert("RGBA")
+    except OSError as problem:
+        raise ValueError(f"the ground image cannot be read: {problem}") from None
+    if abs(image.width * height / (image.height * width) - 1.0) > GROUND_PROPORTION_TOLERANCE:
+        raise ValueError(
+            f"the ground image is {image.width}x{image.height} and the sheet {width}x{height};"
+            " give --size and --height in its proportions"
+        )
+    flat = Image.new("RGB", image.size, "white")
+    flat.paste(image, mask=image.getchannel("A"))
+    return flat.resize((width, height), Image.Resampling.BOX)
+
+
+def _centre(image: Image.Image, size: int) -> Image.Image:
+    """Return the middle of a print at its own scale, on white where the print is smaller than the square."""
+    square = Image.new("RGB", (size, size), "white")
+    square.paste(image, ((size - image.width) // 2, (size - image.height) // 2))
+    return square
+
+
+def _ink(image: Image.Image) -> Tensor:
+    """Return a print as RGB in [0, 1] with shape (3, H, W)."""
+    return torch.from_numpy(np.asarray(image, dtype=np.float32) / 255.0).permute(2, 0, 1)
+
+
 class Session:
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self.configuration = Configuration(**json.loads((directory / "session.json").read_text()))
         self.entries = [json.loads(line) for line in (directory / "log.jsonl").read_text().splitlines()]
         self._verify_log()
+        self._verify_configuration()
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config = self.configuration
         pigments = [PIGMENTS[name] for name in config.palette]
+        support = SUPPORTS[config.support]
+        printed = Image.open(directory / GROUND_FILE).convert("RGB") if config.ground_digest else None
 
-        def sheet(height: int, width: int, seed: int) -> Sheet:
-            return Sheet(generate_paper(height, width, seed, device), pigments)
+        def sheet(height: int, width: int, seed: int, print_layer: Image.Image | None) -> Sheet:
+            ink = None if print_layer is None else _ink(print_layer)
+            return support_sheet(support, height, width, seed, device, pigments, ink)
 
-        sheets = {"painting": sheet(config.height or config.size, config.size, config.seed)}
+        sheets = {"painting": sheet(config.height or config.size, config.size, config.seed, printed)}
         if config.scrap_allowed:
-            sheets["scrap"] = sheet(SCRAP_SIZE, SCRAP_SIZE, config.seed + 1)
+            # The scrap is cut from the middle of the same printed sheet.
+            scrap_print = None if printed is None else _centre(printed, SCRAP_SIZE)
+            sheets["scrap"] = sheet(SCRAP_SIZE, SCRAP_SIZE, config.seed + 1, scrap_print)
         self._recorder = FrameRecorder(directory / "frames")
         self.studio = Studio(sheets, config.palette, self._recorder, seed=config.seed)
         self.studio.while_waiting = self._save_if_due
@@ -98,13 +138,23 @@ class Session:
     # --------------------------------------------------------------- creation
 
     @classmethod
-    def create(cls, directory: Path, configuration: Configuration) -> "Session":
+    def create(cls, directory: Path, configuration: Configuration, ground: Path | None = None) -> "Session":
+        """Begin a painting; a ground is an image printed on the sheet before any paint."""
         if directory.exists():
             raise FileExistsError(f"{directory} already exists; a painting is never started over")
         for name in configuration.palette:
             if name not in PIGMENTS:
                 raise ValueError(f"unknown pigment {name!r}; available: {', '.join(PIGMENTS)}")
+        if configuration.support not in SUPPORTS:
+            raise ValueError(f"unknown support {configuration.support!r}; available: {', '.join(SUPPORTS)}")
+        size = configuration.size
+        printed = None if ground is None else _printed_ground(ground, configuration.height or size, size)
         directory.mkdir(parents=True)
+        digest = None
+        if printed is not None:
+            printed.save(directory / GROUND_FILE)
+            digest = _digest((directory / GROUND_FILE).read_bytes())
+        configuration = replace(configuration, ground_digest=digest)
         (directory / "session.json").write_text(json.dumps(asdict(configuration), indent=2))
         (directory / "log.jsonl").write_text("")
         session = cls(directory)
@@ -162,6 +212,21 @@ class Session:
             if entry["previous"] != previous or entry["hash"] != _digest(_canonical(body)):
                 raise RuleViolation(f"log entry {entry['index']} does not follow from the entry before it")
             previous = entry["hash"]
+
+    def _verify_configuration(self) -> None:
+        """Refuse a session.json or a ground.png that differs from what the painting was begun with.
+
+        Either would silently change the sheet under paint already laid on it. The first entry of the log
+        records the configuration; a painting being created has no entries yet.
+        """
+        config = self.configuration
+        if self.entries and Configuration(**self.entries[0]["configuration"]) != config:
+            raise RuleViolation("session.json does not match the configuration this painting was begun with")
+        ground = self.directory / GROUND_FILE
+        if config.ground_digest is not None and (
+            not ground.is_file() or _digest(ground.read_bytes()) != config.ground_digest
+        ):
+            raise RuleViolation(f"{GROUND_FILE} does not match the image this painting was begun on")
 
     def _restore(self) -> None:
         if not self.entries:
@@ -453,6 +518,8 @@ class Session:
             "clock_seconds": round(studio.clock, 1),
             "strokes_used": self.strokes_used,
             "stroke_budget": self.configuration.stroke_budget,
+            "support": self.configuration.support,
+            "ground": self.configuration.ground_digest is not None,
             "brush": None
             if brush is None
             else {

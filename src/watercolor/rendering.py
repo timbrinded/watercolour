@@ -9,9 +9,9 @@ import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from torch import Tensor
 
+from .paper import PAPER_COLOR  # noqa: F401 - kept importable from here, where it was defined before supports
 from .simulation import SHINE_DEPTH, Sheet
 
-PAPER_COLOR = (0.97, 0.96, 0.93)
 # Masking fluid is tinted so that it can be seen on white paper: a pale yellow skin that lets what is under it show.
 MASK_TINT = (0.98, 0.94, 0.72)
 VIEWS = ("color", "value", "wetness")
@@ -96,9 +96,11 @@ def sheen(sheet: Sheet) -> Tensor:
     lamp into the camera.
     """
     water, tooth = sheet.water, sheet.tooth
-    # Water lies level in the valleys of the grain and reaches higher up it as the film deepens.
-    level = (water / SHINE_DEPTH).sqrt()
-    covered = ((level - tooth) / 0.1 + 0.5).clamp(0, 1) * (water > 0)
+    # Water lies level in the valleys of the grain and reaches higher up it as the film deepens. Both are
+    # measured in heights of the grain, so a thin film covers a shallow grain whole.
+    depth = sheet.grain_depth
+    level = (water / (SHINE_DEPTH * depth)).sqrt()
+    covered = ((level - (tooth - sheet.valley) / depth) / 0.1 + 0.5).clamp(0, 1) * (water > 0)
     # The surface slopes with the shape of the pool and the buckling of the sheet and, while the
     # film is thin, with the grain beneath it.
     down, across = torch.gradient(_film_height(sheet) + COCKLE_HEIGHT * sheet.cockle)
@@ -161,7 +163,7 @@ def _paint(sheet: Sheet) -> Tensor:
     absorption = torch.tensor([p.absorption for p in sheet.pigments], device=device)
     scattering = torch.tensor([p.scattering for p in sheet.pigments], device=device)
     relief = sheet.tooth - F.avg_pool2d(sheet.tooth[None, None], 5, stride=1, padding=2)[0, 0]
-    paper = torch.tensor(PAPER_COLOR, device=device).reshape(3, 1, 1) * (1.0 + 0.05 * relief)
+    paper = sheet.ground * (1.0 + sheet.relief_shading * relief)
     color = _over(sheet.deposited + sheet.suspended, absorption, scattering, paper, sheet.crisp)
 
     # Masking fluid is a translucent tinted skin over whatever is under it, and paint that landed on it

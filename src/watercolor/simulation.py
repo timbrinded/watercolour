@@ -12,13 +12,13 @@ is a full wash.
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from .paper import Paper
+from .paper import COLD_PRESS_GRAIN, PAPER_COLOR, Grain, Paper, generate_paper
 from .pigments import Pigment
 
 
@@ -77,7 +77,7 @@ class Contact:
     twist: float  # how far the edge of a flat head is turned from square to its travel, in radians
     target_depth: float  # water depth the brush tries to leave behind
     draw_depth: float  # depth of film below which the brush no longer soaks water up
-    contact_level: float  # below about 1.0 the brush touches only the paper's peaks
+    contact_level: float  # how far below the highest peak the hairs reach; short of the grain's depth, only peaks
     exchange: float  # how strongly the brush mixes with paint already on the sheet
     scrub: float  # how strongly the brush disturbs deposited pigment
     release: float  # water depth a resting brush adds per time step
@@ -409,6 +409,11 @@ class Sheet:
         self.sizing = paper.sizing
         self.pigments = tuple(pigments)
         device = tooth.device
+        self.ground = (
+            torch.tensor(PAPER_COLOR, device=device).reshape(3, 1, 1) if paper.ground is None else paper.ground
+        )
+        self.relief_shading = paper.relief_shading
+        self.peak, self.valley = paper.peak, paper.valley
         span = parameters.capacity_maximum - parameters.capacity_minimum
         # Absorbency varies broadly across the sheet and only slightly with the grain.
         self.capacity = parameters.capacity_minimum + span * (1.0 - 0.8 * cockle - 0.2 * tooth)
@@ -451,6 +456,11 @@ class Sheet:
     def width(self) -> int:
         return self.tooth.shape[-1]
 
+    @property
+    def grain_depth(self) -> float:
+        """Height of the grain from valley to peak; 1 on cold press."""
+        return self.peak - self.valley
+
     # ------------------------------------------------------------------ state
 
     def state(self) -> dict[str, Tensor]:
@@ -476,7 +486,7 @@ class Sheet:
     def stage_fractions(self) -> dict[str, float]:
         """Share of the sheet at each working stage of the paper."""
         p = self.parameters
-        shiny = self.water > SHINE_DEPTH
+        shiny = self.water > SHINE_DEPTH * self.grain_depth
         moist = (self.water > p.wet_threshold) & ~shiny
         damp = ~shiny & ~moist & (self.saturation > p.damp_threshold * self.capacity)
         total = self.water.numel()
@@ -796,7 +806,7 @@ class Sheet:
             return 0.0, torch.zeros_like(concentration), on_tip
         tooth = self.tooth[rows, columns]
         water = self.water[rows, columns]
-        touching = torch.sigmoid((tooth - (1.0 - contact.contact_level)) / 0.06)
+        touching = torch.sigmoid((tooth - (self.peak - contact.contact_level)) / 0.06)
         # A dry or thick load catches only the peaks of dry paper. Where water already stands on
         # the sheet it bridges the grain, and the hairs meet it everywhere they pass.
         touching = torch.maximum(touching, (water / BRIDGING_FILM).clamp(0, 1))
@@ -996,7 +1006,7 @@ class Sheet:
 
     def draw_graphite(self, points: Tensor, radii: Tensor, darkness: float) -> None:
         rows, columns, coverage = self._coverage(points, radii, 1.0)
-        mark = coverage * (0.35 + 0.65 * self.tooth[rows, columns]) * darkness
+        mark = coverage * (0.35 + 0.65 * (self.tooth[rows, columns] + (1.0 - self.peak))) * darkness
         self.graphite[rows, columns] = torch.maximum(self.graphite[rows, columns], mark)
 
     def erase_graphite(self, points: Tensor, radii: Tensor) -> None:
@@ -1022,9 +1032,10 @@ class SheetBatch:
             ):
                 raise ValueError("sheets in a batch must share their size, pigments and parameters")
         self.sheets = tuple(sheets)
-        paper = Paper(
-            *(torch.stack([getattr(sheet, name) for sheet in sheets]) for name in ("tooth", "cockle", "sizing"))
+        tooth, cockle, sizing = (
+            torch.stack([getattr(sheet, name) for sheet in sheets]) for name in ("tooth", "cockle", "sizing")
         )
+        paper = Paper(tooth, cockle, sizing)
         self._stack = Sheet(paper, first.pigments, first.parameters)
         for index, sheet in enumerate(sheets):
             for name in ("water", "saturation", "mask", "mask_water", "fixative"):
@@ -1046,3 +1057,66 @@ class SheetBatch:
             torch.tensor([float(sheet.tilt[1]) for sheet in self.sheets], device=device).reshape(-1, 1, 1),
         )
         stack.advance(duration)
+
+
+@dataclass(frozen=True)
+class Support:
+    """What a painting is painted on, chosen once when it is begun and regenerated from the seed on every command.
+
+    SUPPORTS names the presets. An option that changes one aspect of the sheet, such as its colour, replaces
+    that field of the preset it is given with, so every option describes the same sheet and none stands apart.
+    """
+
+    grain: Grain = COLD_PRESS_GRAIN
+    color: tuple[float, float, float] = PAPER_COLOR
+    relief_shading: float = 0.05  # how strongly the relief of the grain shades the bare sheet
+    parameters: SimulationParameters = SimulationParameters()
+
+
+SUPPORTS = {
+    "cold_press": Support(),
+    # Pressed smooth: a fine grain a fifth as deep, and a surface that keeps the film on top longer, lifts more
+    # easily and dries its edges harder.
+    "hot_press": Support(
+        grain=Grain(octaves=((1, 0.5), (2, 0.5)), depth=0.2),
+        parameters=SimulationParameters(
+            absorption_rate=0.01,
+            capacity_maximum=0.42,
+            absorbed_pigment=0.2,
+            sizing_unevenness=0.6,
+            wicking_unevenness=0.8,
+            resolubility=0.6,
+        ),
+    ),
+    # Unpressed: a coarse grain of broad tops and deep pits, which hold water and coarse granulation. The bare
+    # sheet is shaded only by the grain finer than about 5 pixels, so its relief is shaded more strongly.
+    "rough": Support(
+        grain=Grain(octaves=((3, 0.2), (6, 0.35), (12, 0.45)), plateaus=0.6),
+        relief_shading=0.45,
+        parameters=SimulationParameters(tooth_pressure=0.15, granulation_strength=0.55, sedimentation=30.0),
+    ),
+}
+
+
+def support_sheet(
+    support: Support,
+    height: int,
+    width: int,
+    seed: int,
+    device: torch.device,
+    pigments: Sequence[Pigment],
+    printed: Tensor | None = None,
+) -> Sheet:
+    """Return a sheet of the support; the same seed always gives the same sheet.
+
+    A printed ground, RGB in [0, 1] with shape (3, H, W), multiplies the colour of the support as ink does.
+    """
+    ground = torch.tensor(support.color).reshape(3, 1, 1)
+    if printed is not None:
+        ground = ground * printed
+    paper = replace(
+        generate_paper(height, width, seed, device, support.grain),
+        ground=ground.to(device),
+        relief_shading=support.relief_shading,
+    )
+    return Sheet(paper, pigments, support.parameters)

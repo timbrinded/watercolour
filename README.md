@@ -46,7 +46,9 @@ A painting lives in a directory. It is started once, painted in passes, looked a
 watercolor new paintings/first --prompt "A tree on a hill at dusk" --size 512 --height 360
 ```
 
-Without `--palette` a painting has thirteen paints. Six more are on a painting only when `--palette` names them: `phthalo_blue`, `phthalo_turquoise` and `dioxazine_violet` (transparent and staining), `viridian` (a green that lifts), and `fluorescent_pink` and `fluorescent_yellow` (neon colour).
+Without `--palette` a painting has thirteen paints. Eight more are on a painting only when `--palette` names them: `phthalo_blue`, `phthalo_turquoise` and `dioxazine_violet` (transparent and staining), `viridian` (a green that lifts), `fluorescent_pink` and `fluorescent_yellow` (neon colour), and the pen's inks `carbon_ink` and `soluble_ink`.
+
+The sheet is cold-press paper unless `--support hot_press` or `--support rough` is given, and `--ground <image>` prints an image on it before any paint. The skill's [actions reference](.claude/skills/paint-watercolour/references/actions.md) lists every option of `new`.
 
 ```bash
 watercolor paint paintings/first actions.json
@@ -122,7 +124,7 @@ The model follows Curtis et al., "Computer-Generated Watercolor" (1997): surface
 - **Water and pigment are separate.** Pigment is carried by the water, diffuses through it, settles and can be lifted again, unless the paper under it has been fixed.
 - **Wet edges** hold on dry paper until the water behind them is deep enough, and advance unevenly because the paper's sizing is uneven.
 - **Drying** carries pigment to the edge of a wash, which dries darker than its middle; water dropped into a damp wash leaves a bloom.
-- **Paper** has grain, broad undulation, uneven sizing and limited absorbency.
+- **Paper** has grain, broad undulation, uneven sizing and limited absorbency. It is cold press unless the painting is begun on hot press, whose fine, shallow grain shows almost no speckle and which dries blooms and tide lines harder, or on rough, whose broad tops and deep pits hold water and coarse granulation. An image can be printed on the sheet before any paint; it lies under every layer.
 - **Brushes** hold a finite load of paint, run dry, part into streaks, push wet paint the way they travel, and take paint back up. Each load differs slightly from the last.
 - **How full the brush is decides what it does to wet paint.** A full brush floods; a damp one carries wet paint on its tip and gives it back further along, so it draws one colour into the next, pulls out an edge and stirs colours together in standing water; a drained one draws up what it loosens and lifts paint from a wash.
 - **Granulating paints gather in the hollows of the grain under deep water**, in suspension and after they have settled, so a granulating colour charged into a deep wash dries as fine specks that thin out toward its front. In the film of an ordinary wash they stay where they settle.
@@ -185,6 +187,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 - Only the law of the surface flow comes from physics, and it shows only at the scale of a pool on dry paper, where a ripple levels and a band runs down a tilted sheet at the rates the cube of the depth gives. Over a few pixels the damped surface tension sets how fast a ripple levels, nearer the square of the depth; on damp paper the paper's own wicking and pull decide it; and a film lying within the grain is not modelled by its depth at all. Depths are not tied to micrometres, so the rates themselves are still set by eye.
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
+- Hot press and rough are set by eye from painters' descriptions of the papers, not measured against them, and the skill's strength bands and timings were measured on cold press.
 - Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. Its finest line seals a band one to two pixels wide, about 1.5 at most angles, so no white line is finer than that.
 - Fixative locks paint the moment it settles, even under a wash that is still wet, so lifting and pulling wet paint on fixed paper is weaker than on real alum-sized paper. It never wears off, and it does not lower the paper's absorbency as alum does.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
