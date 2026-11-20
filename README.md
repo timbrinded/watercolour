@@ -16,6 +16,8 @@ You need Linux or macOS, Python 3.13 or newer, [uv](https://docs.astral.sh/uv/),
 uv tool install git+https://github.com/timbrinded/watercolour
 ```
 
+That installs the newest commit on `main`. To install a release, name its tag, for example `git+https://github.com/timbrinded/watercolour@v0.10.0`. Each [release](https://github.com/timbrinded/watercolour/releases) lists what changed since the one before and carries a wheel and a source archive.
+
 To try it once without installing anything:
 
 ```bash
@@ -163,11 +165,15 @@ paints each technique on its own sheet and writes the pictures to `trials/output
 uv run pytest
 ```
 
-runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development), the session rules, and the behaviours a painter relies on (a flat wash drying evenly in its usual time, a bloom drying pale inside a darker rim, paint charged into a wet wash spreading to twice its width on dry paper). They take about twelve minutes on an RTX 3080.
+runs the physical invariants (conservation of pigment and water, stable drying, and each fault found during development), the session rules, and the behaviours a painter relies on (a flat wash drying evenly in its usual time, a bloom drying pale inside a darker rim, paint charged into a wet wash spreading to twice its width on dry paper). They take about fourteen minutes on an RTX 3080.
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run pyrefly check
 ```
+
+## Releases
+
+Every version that reaches `main` is released. The [Release workflow](.github/workflows/release.yml) runs when `pyproject.toml` changes on `main`. If the version in it has no tag yet, the workflow tags the commit `v<version>`, builds the wheel and source archive, and publishes a GitHub release listing the commits since the previous one ([`write_release_notes.sh`](.github/scripts/write_release_notes.sh)). To release, raise the version in `pyproject.toml` and `ENGINE_VERSION` in `src/watercolor/__init__.py` together, since the workflow refuses a mismatch, and run `uv lock`.
 
 ## Lighthouse study
 
