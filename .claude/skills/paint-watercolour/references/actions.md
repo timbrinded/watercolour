@@ -4,6 +4,7 @@
 
 ```bash
 watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--seed 0] \
+    [--support cold_press|hot_press|rough] [--ground <image>] \
     [--palette name,name,...] [--stroke-budget 150] [--no-scrap] [--no-pencil]
 ```
 
@@ -11,6 +12,16 @@ watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--see
 - `--palette` limits the paint box for this painting; the default is every paint.
 - `--stroke-budget` caps strokes and blots on the painting itself. A pass that would exceed it is refused whole.
 - `--seed` fixes the paper and the small variation in each brush load, so a painting replays identically.
+- `--support` is what the painting is painted on, fixed for the whole painting and shared by its scrap sheet. The default, `cold_press`, is the sheet every earlier painting was painted on.
+- `--ground <image>` prints an image on the sheet before any paint. White leaves the support as it is and darker values multiply it, as ink does; transparency counts as white. The image is resampled to the sheet and refused when its proportions differ from the sheet's by more than 2%, so give `--size` and `--height` in its proportions. The print lies under all paint and never lifts or moves. The scrap sheet carries the middle of it, at the painting's scale.
+
+| Support | What changes |
+|---|---|
+| `cold_press` | Nothing: the default. |
+| `hot_press` | Smooth. The grain is fine and a fifth as deep, so bare paper and washes show almost no speckle and a pencil line is even. A dry brush leaves a tone mottled by the grain and broken where the hairs part, not fragments. The film stays on top a little longer, but the sheet holds less water, so a wash dries sooner in all. Tide lines and blooms dry harder, and paint lifts more easily. A film counts as shiny from 0.03, not 0.15. |
+| `rough` | A coarse grain of broad tops and deep pits. Water gathers in the pits, so a flat wash mottles as it dries; granulating paint gathers coarsely; a dry brush paints the tops and leaves fewer, larger white pits; bare paper shows its relief. |
+
+The strength bands, film depths and dry-brush recipe in this skill were measured on `cold_press`. On another support, try a load on the scrap sheet first.
 
 ## A pass
 
@@ -106,7 +117,7 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 - `--region` enlarges part of the sheet; `--grid` draws labelled pixel coordinates over it.
 - `--at x,y` (repeatable) reads the wetness at a point as numbers: `film`, the depth of water on the surface, and `paper`, how full the sheet is from 0 to 1. Use it before any stroke whose result depends on wetness.
 
-`status` reports the clock, strokes used against the budget, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
+`status` reports the clock, strokes used against the budget, the `support` and whether a printed `ground` lies on it, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15, or 0.03 on `hot_press`), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
 
 When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
 
