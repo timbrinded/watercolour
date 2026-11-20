@@ -65,7 +65,7 @@ Parallel one-pixel lines of `carbon_ink` at 1. The mean value is the tone the ha
 
 `fix` locks paint that has settled under it, whether it settled before the fix or after: no later wash, scrub, blot or pour moves it. Paint still in the water flows as on bare paper (a charge into a wash on fixed paper spread 8.22 rows against 8.26 on bare), but locks as it settles, so a lift from a wash on fixed paper takes less. It is laid only where no film stands, so `dry` first. It takes 5 seconds, counts against the stroke budget and does not end the underdrawing, so it can be laid before the first paint.
 
-Measured on a dried wash of burnt sienna, yellow ochre and a little cobalt blue (value 0.661, spread of values 0.018):
+Measured on 0.10.0, on a dried wash of burnt sienna, yellow ochre and a little cobalt blue (value 0.661, spread of values 0.018). From 0.11.0 a second wash lies over the first as a layer of its own and leaves only slight speckle unfixed (spread 0.027 against 0.023 fixed, `glazing-and-economy.md`); the lifts are unchanged:
 
 | Then | Not fixed | Fixed |
 |---|---|---|
@@ -76,7 +76,7 @@ Measured on a dried wash of burnt sienna, yellow ochre and a little cobalt blue 
 
 When to fix:
 
-- **Before a broad wash goes over finished work.** A correcting glaze, a second wash to deepen a passage, or a wet wash over drawn detail. Fixed, a full brush darkens the passage cleanly and by more than a drained one does from the same load (0.188 against 0.128 above).
+- **Before a broad wash goes over finished work.** A correcting glaze, a second wash to deepen a passage, or a wet wash over drawn detail. The new wash's water lifts from unfixed paint beneath it, clear or coloured, and carries what it lifts; fixed, nothing beneath moves. Fixed, a full brush darkens the passage cleanly and by more than a drained one does from the same load (0.188 against 0.128 above).
 - **Over soluble ink, or any paint, that must stay exactly as it is** while washes go over it.
 - **After the lifting, not before.** Lift lights, soften edges and blot while the paper is unfixed. A wash laid on fixed paper still charges and blends, but gives up less to a lift (0.17 of the colour against 0.29), and once settled nothing comes off it.
 - **Fix the whole passage that a full-water wash will cross.** The same wash at full water laid across a fixed band 40 pixels deep dried clean on the band (spread 0.017) and speckled on either side of it (0.032), so the edge of the fixative showed as a change of texture; the value differed by about 0.01 more than on a sheet fixed all over or not at all. Drained to 0.55, the wash dried alike on both sides (0.017 and 0.018).

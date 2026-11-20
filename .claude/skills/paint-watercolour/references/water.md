@@ -189,8 +189,9 @@ dry paper.
 
 ## Lights, glints and reflections
 
-- **Keep the lights as paper, or mask them.** Opaque white over the foam's middle values dried only about four
-  levels lighter, the same failure `SKILL.md` describes for white lines.
+- **Keep the lights as paper, or mask them.** On 0.10.0 opaque white over the foam's middle values dried only about
+  four levels lighter. From 0.11.0 it lies over them (over a middle value of 0.67 one coat reads 0.79, two 0.85:
+  `body-colour.md`), which serves for spray and late flecks, but the brightest foam still needs paper or a mask.
 - **Lifting did not register on water or wet sand.** Four attempts across two studies left nothing visible. One
   was a size 3 round drained to 0.15, drawn twice along each reflection on a flat-wash sand at a film of 0.28. The
   others were blots and dry glazes. Vertical reflection streaks glazed on dry paper read as a barcode. Leave calm
@@ -204,8 +205,9 @@ dry paper.
 The sand came out 0.04 lighter than the photograph after everything else was on. A glaze over it works only one
 way; the general rule is in `glazing-and-economy.md`.
 
-- With the brush at full water (0.95) the glaze stirred the dried wash into coarse speckle: the spread of values
-  went from 0.042 to 0.072, and the sand darkened by only 0.012.
+- On 0.10.0, with the brush at full water (0.95), the glaze stirred the dried wash into coarse speckle: the spread of
+  values went from 0.042 to 0.072, and the sand darkened by only 0.012. From 0.11.0 the dried wash lies beneath the
+  glaze and a full brush leaves only slight speckle (`glazing-and-economy.md`); that passage has not been repainted.
 - With the brush at 0.55 there was no speckle. It laid about a quarter of the calibrated estimate, and the
   darkening grew as about the 1.45 power of the gain: 0.009 at gain 1, 0.066 at gain 4. Gain 2.8 on the full sheet
   brought the wet sand to 0.590 against 0.594.

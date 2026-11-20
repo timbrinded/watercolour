@@ -53,8 +53,8 @@ Heavy dark washes across a face kill bare-paper luminosity without fixing a weak
 
 Painted round, the white of an eye is too small and too narrow at its corners to keep. Washes cut round it break up, and
 measured washes tone it like the skin beside it, because in a photograph the white sits in the socket's shadow and is
-darker than lit skin. Opaque white laid back over a wash dries pale grey (0.65 under a dark wash of 0.27). Mask it, as a
-painter does:
+darker than lit skin. Opaque white laid back over a wash reads as a light, not as paper (two coats over a dark of 0.16
+dried at 0.78 on 0.11.0; before that it mixed in and dried pale grey). Mask it, as a painter does:
 
 1. **Before any paint, mask the whole opening of each eye, iris and all, as one tapered stroke.**
    - Read the upper and lower lid edges off a grid, corner to corner.
@@ -120,7 +120,7 @@ The sizes below are for a face about 300 pixels across. "Dark" is burnt umber 3 
 | **Nostril and the dark under the nose** | `round` 2.2, dark at 4.5; `round` 4.5, warm brown at 5 | Two short ticks pressed at their far ends; one wedge beneath, turning up into the far nostril. |
 | **Mouth corners** | `round` 4 to 5, dark at 5.5 to 6 | A wedge from each corner inward, heaviest two thirds along. These carry the smile. |
 | **Upper lip over teeth** | `round` Kolinsky 1.8, warm brown at 4.5 | One thin line along the top of the teeth. A pale grey band there dried as a smear across them. |
-| **Teeth** | none | Paper. Keep every wash off their band, and hang the gaps from the upper lip as ticks of a size 1.4 round, 5 to 9 pixels long. Opaque white laid over a drawn mouth to recover them dried grey. |
+| **Teeth** | none | Paper. Keep every wash off their band, and hang the gaps from the upper lip as ticks of a size 1.4 round, 5 to 9 pixels long. Opaque white laid over a drawn mouth to recover them reads as a light, not paper: two coats took a drawn band from 0.76 to 0.88 on 0.11.0, and dried grey before. |
 | **Lower lip** | `round` 5, redder flesh at 3.5 | One stroke, 0.2, 0.9, 1.0, 0.8, 0.2, so that both ends come to points. |
 | **Glints** | `round` 1.5, `opaque_white` at 4.5 | Dabs of 0.2 seconds, after a `dry`, last of all. |
 | **Strand of hair** | `round` Kolinsky 2.4, the hair's dark at 3.2, `speed` 200 | Three or four points, 0.2, 0.8, 0.9, 0.2. A fresh load for each, and vary their lengths. |

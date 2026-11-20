@@ -25,7 +25,7 @@ def studio() -> Studio:
 
 def pigment_on_sheet(studio: Studio) -> float:
     sheet = studio.sheets["painting"]
-    return float((sheet.suspended + sheet.deposited).sum())
+    return float((sheet.suspended + sheet.deposited + sheet.buried).sum())
 
 
 def pigment_in_brush(studio: Studio) -> float:
@@ -504,8 +504,9 @@ INKS = ["carbon_ink", "soluble_ink"]
 
 def ink_studio() -> Studio:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    sheet = Sheet(generate_paper(SIZE, SIZE, 3, device), [PIGMENTS[name] for name in INKS])
-    return Studio({"painting": sheet}, INKS)
+    palette = [*INKS, "burnt_sienna"]
+    sheet = Sheet(generate_paper(SIZE, SIZE, 3, device), [PIGMENTS[name] for name in palette])
+    return Studio({"painting": sheet}, palette)
 
 
 def test_a_pen_line_lays_the_same_ink_from_its_start_to_its_end() -> None:
@@ -520,19 +521,22 @@ def test_a_pen_line_lays_the_same_ink_from_its_start_to_its_end() -> None:
         assert float(ink[64].sum()) == pytest.approx(float(ink.sum()))
 
 
-def test_carbon_ink_stays_put_under_a_wash_and_soluble_ink_runs_into_it() -> None:
-    """A line of each ink, one clear wash laid over both, then dried. Measured: carbon_ink keeps 0.992 of its ink on
-    its line and 0.005 lies more than 2 px from it; soluble_ink keeps 0.14 on its line and 0.63 has run beyond 2 px."""
+@pytest.mark.parametrize("wash", [{}, {"burnt_sienna": 0.6}])
+def test_carbon_ink_stays_put_under_a_wash_and_soluble_ink_runs_into_it(wash: dict[str, float]) -> None:
+    """A line of each ink, one wash laid over both, clear or coloured, then dried. Under the clear wash, measured:
+    carbon_ink keeps 0.992 of its ink on its line and 0.005 lies more than 2 px from it; soluble_ink keeps 0.14 on its
+    line and 0.63 has run beyond 2 px. Under a burnt sienna wash: 0.993 and 0.004 for carbon_ink, 0.17 and 0.57 for soluble_ink, which a coloured wash
+    dissolves as a clear one does."""
     studio = ink_studio()
     sheet = studio.sheets["painting"]
     lines = {"carbon_ink": 56, "soluble_ink": 72}
     for name, row in lines.items():
         studio.pen("painting", [[30, row], [98, row]], 1.0, {name: 2.0}, 120, smooth=False)
     laid = sheet.deposited.clone()
-    studio.load_brush("mop", 16, {}, 1.0)
+    studio.load_brush("mop", 16, wash, 1.0)
     studio.stroke("painting", [[20, 64], [108, 64]], 120, smooth=False)
     studio.dry()
-    ink = sheet.deposited + sheet.suspended
+    ink = sheet.deposited + sheet.suspended + sheet.buried
 
     def shares(name: str) -> tuple[float, float]:
         """Share of the ink laid that is still on the line, and the share more than 2 px from it."""

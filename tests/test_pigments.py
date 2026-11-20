@@ -65,10 +65,11 @@ def cielab_lightness_and_chroma(rgb: Tensor) -> tuple[float, float]:
     return float(116 * f[1] - 16), math.hypot(500 * (f[0] - f[1]), 200 * (f[1] - f[2]))
 
 
-def dried_colour(mix: dict[str, float]) -> Tensor:
-    """Colour of the mix lying evenly on dry paper with no grain, as sRGB."""
+def dried_colour(mix: dict[str, float], ground: Tensor | None = None) -> Tensor:
+    """Colour of the mix lying evenly on dry paper with no grain, as sRGB; on a sheet of the ground colour if given."""
     tooth = torch.full((16, 16), 0.5)
-    sheet = Sheet(Paper(tooth, torch.zeros_like(tooth), torch.full_like(tooth, 0.5)), [PIGMENTS[name] for name in mix])
+    paper = Paper(tooth, torch.zeros_like(tooth), torch.full_like(tooth, 0.5), ground=ground)
+    sheet = Sheet(paper, [PIGMENTS[name] for name in mix])
     for index, amount in enumerate(mix.values()):
         sheet.deposited[index] = amount
     return render(sheet)[:, 4:-4, 4:-4].mean((1, 2))  # the border is lit as though the grain fell away beyond it
@@ -113,3 +114,27 @@ def test_the_fluorescent_paints_reach_neon_chroma_alone_and_mixed(
     found_lightness, chroma = cielab_lightness_and_chroma(dried_colour(mix))
     assert lightness[0] <= found_lightness <= lightness[1]
     assert chroma >= least_chroma
+
+
+@pytest.mark.parametrize(
+    ("name", "least", "most"),
+    [
+        ("azurite", 0.95, 1.0),  # measured 0.976
+        ("malachite", 0.9, 1.0),  # 0.928
+        ("opaque_white", 0.75, 0.85),  # 0.789
+        ("shell_white", 0.55, 0.75),  # 0.652: less than opaque white, so it builds over more coats
+        ("hansa_yellow", 0.0, 0.4),  # 0.368, all of it the yellow's own absorption; 0.686 before 0.11.0
+    ],
+)
+def test_two_coats_of_a_covering_paint_hide_what_is_beneath_and_hansa_yellow_does_not(
+    name: str, least: float, most: float
+) -> None:
+    """Two coats' worth of paint (2.6) over paper and over black, and the share of the difference between paper and
+    black that it hides. A covering paint hides most of it; a transparent one keeps it, so laid over a dried colour it
+    glazes it."""
+
+    def value(amount: float, ground: Tensor | None = None) -> float:
+        return float(TO_XYZ[1] @ dried_colour({name: amount}, ground))
+
+    hidden = 1.0 - (value(2.6) - value(2.6, torch.zeros(3, 1, 1))) / value(0.0)
+    assert least <= hidden <= most

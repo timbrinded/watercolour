@@ -5,10 +5,10 @@ from itertools import pairwise
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from torch import Tensor
 
+from .optics import blend, over
 from .paper import PAPER_COLOR  # noqa: F401 - kept importable from here, where it was defined before supports
 from .simulation import SHINE_DEPTH, Sheet
 
@@ -16,11 +16,7 @@ from .simulation import SHINE_DEPTH, Sheet
 MASK_TINT = (0.98, 0.94, 0.72)
 VIEWS = ("color", "value", "wetness")
 MINIMUM_VIEW_SIZE = 768
-# Optical strength of one unit of pigment: a brush concentration of 1.0 is a mid-strength wash.
-TINTING_STRENGTH = 0.4
 GRID_MARGIN = 30
-# Share of a cell's paint seen at the cell itself and at each neighbour along one axis.
-EDGE_BLEND = (0.12, 0.76, 0.12)
 # Colour of damp paper that can take up no more water, in the wetness view.
 PAPER_FULL = (0.62, 0.85, 0.70)
 # Colours of the wetness view at landmark depths of the film of water on the surface.
@@ -115,7 +111,7 @@ def sheen(sheet: Sheet) -> Tensor:
 
 def _film_height(sheet: Sheet) -> Tensor:
     """Height of the water's surface above the paper beneath it, in cells, with shape (H, W)."""
-    return FILM_HEIGHT * _blend(sheet.water[None], SURFACE_BLEND)[0]
+    return FILM_HEIGHT * blend(sheet.water[None], SURFACE_BLEND)[0]
 
 
 def _lamp_strength() -> float:
@@ -131,70 +127,31 @@ def _lamp_strength() -> float:
     return mirrored / (8.0 * SURFACE_ROUGHNESS**2 * math.cos(lamp))
 
 
-def _blend(layers: Tensor, shares: tuple[float, float, float]) -> Tensor:
-    """Share each cell of every layer, shape (N, H, W), with its neighbours along both axes."""
-    weights = torch.tensor(shares, device=layers.device)
-    layers = F.conv2d(F.pad(layers[:, None], (0, 0, 1, 1), mode="replicate"), weights.reshape(1, 1, 3, 1))
-    return F.conv2d(F.pad(layers, (1, 1, 0, 0), mode="replicate"), weights.reshape(1, 1, 1, 3))[:, 0]
-
-
-def _edge_blend(layers: Tensor, crisp: Tensor) -> Tensor:
-    """Share each cell of every layer, shape (N, H, W), with its neighbours by EDGE_BLEND, except across a face
-    between a crisp cell and one that is not: a crisp mark keeps its paint and takes none from beside it.
-
-    Along the rows and then the columns, each open face passes the neighbour's share of the difference between its two
-    cells. That is the separable blend itself, whose replicated border is a face with nothing passing across it.
-    """
-    if not bool(crisp.any()):
-        return _blend(layers, EDGE_BLEND)
-    share = EDGE_BLEND[0]
-    passed = share * (layers[..., :-1, :] - layers[..., 1:, :]) * (crisp[:-1, :] == crisp[1:, :])
-    layers = layers - F.pad(passed, (0, 0, 0, 1)) + F.pad(passed, (0, 0, 1, 0))
-    passed = share * (layers[..., :, :-1] - layers[..., :, 1:]) * (crisp[:, :-1] == crisp[:, 1:])
-    return layers - F.pad(passed, (0, 1)) + F.pad(passed, (1, 0))
-
-
 def _paint(sheet: Sheet) -> Tensor:
     """Return the paint and paper as an even light shows them, as RGB with shape (3, H, W).
 
-    What the water does to the lamp's light, mirroring some and gathering the rest, is left out.
+    Each layer of paint lies over what is beneath it: the top layer over the buried one, and that over the paper,
+    the pencil marks on it and the colour of the paint further down. What the water does to the lamp's light,
+    mirroring some and gathering the rest, is left out.
     """
     device = sheet.tooth.device
-    absorption = torch.tensor([p.absorption for p in sheet.pigments], device=device)
-    scattering = torch.tensor([p.scattering for p in sheet.pigments], device=device)
-    relief = sheet.tooth - F.avg_pool2d(sheet.tooth[None, None], 5, stride=1, padding=2)[0, 0]
-    paper = sheet.ground * (1.0 + sheet.relief_shading * relief)
-    color = _over(sheet.deposited + sheet.suspended, absorption, scattering, paper, sheet.crisp)
+    absorption, scattering = sheet.pigment_absorption, sheet.pigment_scattering
+    color = sheet.beneath_paint()
+    if bool(sheet.buried.any()):
+        color = over(sheet.buried, absorption, scattering, color, sheet.crisp)
+    color = over(sheet.deposited + sheet.suspended, absorption, scattering, color, sheet.crisp)
 
     # Masking fluid is a translucent tinted skin over whatever is under it, and paint that landed on it
     # lies on top of the skin until the fluid is rubbed away.
     if bool((sheet.mask > 0).any()):
         mask = sheet.mask.clamp(0, 1)[None]
         skin = color * torch.tensor(MASK_TINT, device=device).reshape(3, 1, 1)
-        on_skin = _over(sheet.mask_pigment, absorption, scattering, skin, sheet.crisp)
+        on_skin = over(sheet.mask_pigment, absorption, scattering, skin, sheet.crisp)
         color = color * (1.0 - mask) + on_skin * mask
 
     dampness = (sheet.saturation / sheet.capacity).clamp(0, 1)
     color = color * (1.0 - 0.05 * dampness - 0.04 * sheet.water.clamp(0, 1))
-    color = color * (1.0 - 0.6 * sheet.graphite)
     return color.clamp(0, 1)
-
-
-def _over(pigment: Tensor, absorption: Tensor, scattering: Tensor, background: Tensor, crisp: Tensor) -> Tensor:
-    """Colour of a layer of paint, shape (P, H, W), over a background, by Kubelka and Munk."""
-    # Paint does not stop dead at the boundary of a cell. Each cell shares a little with its
-    # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
-    # The edge of a crisp mark, a pen line or paper kept white by masking fluid, is not shared.
-    amount = _edge_blend(TINTING_STRENGTH * pigment, crisp)
-    k = torch.einsum("phw,pc->chw", amount, absorption) + 1e-6
-    s = torch.einsum("phw,pc->chw", amount, scattering) + 1e-4
-    a = 1.0 + k / s
-    b = (a * a - 1.0).sqrt()
-    thickness = (b * s).clamp(max=20.0)
-    denominator = a * thickness.sinh() + b * thickness.cosh()
-    reflectance = thickness.sinh() / denominator
-    transmittance = b / denominator
-    return reflectance + transmittance**2 * background / (1.0 - reflectance * background)
 
 
 def render_view(sheet: Sheet, view: str) -> Tensor:

@@ -88,11 +88,13 @@ def test_paint_charged_into_a_shining_wash_spreads_to_twice_its_width_on_dry_pap
 
 def dried_band(fixed: bool) -> tuple[Studio, torch.Tensor]:
     """A sheet with a band of dried ultramarine across its middle, fixed over the whole sheet or not, and the paint
-    on the paper as it was before anything touched the band. Dried paint is settled pigment with no water about it."""
+    on the paper as it was before anything touched the band. Dried paint is settled pigment with no water about it;
+    once water stands on it again it lies in the buried layer, beneath whatever settles out of that water."""
     studio = new_studio()
     sheet = studio.sheets["painting"]
     sheet.deposited[BLUE, 36:93, 20:109] = 1.0
     sheet._used.add(BLUE)
+    sheet.mark_dried_paint()
     if fixed:
         studio.fix("painting")
     return studio, sheet.deposited.clone()
@@ -100,7 +102,7 @@ def dried_band(fixed: bool) -> tuple[Studio, torch.Tensor]:
 
 def test_dried_paint_on_fixed_paper_does_not_lift_into_a_clear_wash() -> None:
     """A clear wash laid over dried ultramarine takes some of it back into the water; on paper fixed first it takes
-    none, and leaves the dried paint exactly as it was. Measured: 6.0% of it in the water after 10 s, and none when
+    none, and leaves the dried paint exactly as it was. Measured: 6.3% of it in the water after 10 s, and none when
     fixed."""
 
     def lifted(fixed: bool) -> tuple[float, bool]:
@@ -108,7 +110,9 @@ def test_dried_paint_on_fixed_paper_does_not_lift_into_a_clear_wash() -> None:
         sheet = studio.sheets["painting"]
         lay_wash(studio, {})
         studio.wait(10)
-        return float(sheet.suspended[BLUE].sum() / dried[BLUE].sum()), torch.equal(sheet.deposited, dried)
+        return float(sheet.suspended[BLUE].sum() / dried[BLUE].sum()), torch.equal(
+            sheet.deposited + sheet.buried, dried
+        )
 
     assert lifted(False)[0] >= 0.03
     assert lifted(True) == (0.0, True)
@@ -127,8 +131,9 @@ def test_a_stiff_drained_brush_scrubs_nothing_from_fixed_paper() -> None:
         for _ in range(4):
             studio.stroke("painting", [[40, 64, 0.9], [88, 64, 0.9]], 120, smooth=False)
         under = (slice(59, 70), slice(44, 85))
-        left = float(sheet.deposited[BLUE][under].sum() / dried[BLUE][under].sum())
-        return 1.0 - left, torch.equal(sheet.deposited, dried)
+        settled = sheet.deposited + sheet.buried
+        left = float(settled[BLUE][under].sum() / dried[BLUE][under].sum())
+        return 1.0 - left, torch.equal(settled, dried)
 
     assert scrubbed(False)[0] >= 0.2
     assert scrubbed(True) == (0.0, True)
