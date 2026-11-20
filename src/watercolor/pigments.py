@@ -53,6 +53,12 @@ PIGMENTS: dict[str, Pigment] = {
         # display can show. They do not glow, and are never lighter than the paper.
         Pigment("fluorescent_pink", (0.01, 2.60, 0.45), (0.005, 0.005, 0.005), 0.012, 6.0, 0.0),
         Pigment("fluorescent_yellow", (0.02, 0.005, 2.60), (0.005, 0.005, 0.005), 0.012, 6.0, 0.0),
+        # Carbon (stick, Chinese or India) ink: twice ivory_black's absorption, no granulation, and staining high
+        # enough that dried ink barely lifts. It stands in for ink that is fixed once dry.
+        Pigment("carbon_ink", (3.8, 3.8, 3.7), (0.004, 0.004, 0.006), 0.025, 40.0, 0.0),
+        # Water-soluble dye ink, a cool black: staining so low that water standing on a dried line takes most of it
+        # back up, and a damp brush drawn across the line pulls it out.
+        Pigment("soluble_ink", (2.1, 2.0, 1.7), (0.005, 0.005, 0.005), 0.020, 0.12, 0.0),
     )
 }
 

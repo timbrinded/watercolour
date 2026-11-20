@@ -84,6 +84,7 @@ A pass is a JSON list of actions carried out in order:
 | `tilt` | `x`, `y` (up to 0.3); paint runs downhill |
 | `mask` | `path` of `[x, y]` or `[x, y, pressure]` points, `radius` (0.5 to 40, the width at full pressure; a point with no pressure is laid at full pressure, and lifting narrows the line to 0.15 of it, so one stroke can taper like a brush), `smooth`: lay masking fluid. It seals the paper (no water crosses into it, so a wash meets it as a wall and dries with a crisp, darker edge), it protects any paint already under it, and paint landing on it stands on the rubber. It forms only where no film of water stands; laid into wet paint it seals nothing |
 | `unmask` | optional `path` and `radius` together: rub the masking fluid away, all of it or along a path. Paint dried on it comes away with it; paint still wet on it is smeared onto the paper |
+| `pen` | `path` of `[x, y]` or `[x, y, pressure]` points, `width` (0.25 to 8, the full width at full pressure; lifting narrows the line to 0.15 of it), `ink` (palette paints to the amount laid on each pixel, at most 8 in all), `speed`, `smooth`: draw a line in ink. It lays the same ink from the start of the line to its end, and never draws narrower than one pixel. On dry paper the line keeps a crisp edge and the pixels beside it stay paper; on wet paper it spreads into the water. It needs no brush. The paints `carbon_ink`, which barely lifts once dry, and `soluble_ink`, which water takes back up, are chosen with `--palette` |
 
 `look` saves a picture of the sheet as it is now: in colour, as values only, or as a wetness map. Looking changes nothing.
 
@@ -183,7 +184,7 @@ uv run python trials/lighthouse_painting.py paintings/lighthouse
 - Only the law of the surface flow comes from physics, and it shows only at the scale of a pool on dry paper, where a ripple levels and a band runs down a tilted sheet at the rates the cube of the depth gives. Over a few pixels the damped surface tension sets how fast a ripple levels, nearer the square of the depth; on damp paper the paper's own wicking and pull decide it; and a film lying within the grain is not modelled by its depth at all. Depths are not tied to micrometres, so the rates themselves are still set by eye.
 - Wet-in-wet blends come out more even in width and in value than a painter's. A granulating paint dries as dark dots of one size, where real paint clumps at several scales and leaves pale flecks of paper inside dense colour. Reviewers comparing the two wet-in-wet trials with real paintings of the same effects rated them mostly, not fully, alike.
 - There is no spatter tool.
-- Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. The smallest shape it reliably keeps white is about 2 pixels in radius, because each cell of paint is shared a little with its neighbours when the sheet is pictured.
+- Masking fluid sets the moment it is laid, where the real fluid needs some minutes to dry, and it never tears damp paper when it is rubbed away. Its finest line seals a band one to two pixels wide, about 1.5 at most angles, so no white line is finer than that.
 - A painting of about 770 by 540 pixels takes seven to nine minutes on an RTX 3080.
 - The package and command are spelled `watercolor`; the repository is `watercolour`.
 

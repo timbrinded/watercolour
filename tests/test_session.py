@@ -272,3 +272,22 @@ def test_masking_fluid_with_an_impossible_pressure_is_refused(tmp_path: Path) ->
     session = new_session(tmp_path)
     with pytest.raises(ValueError):
         session.paint([{"action": "mask", "path": [[40, 40, 1.5], [60, 40, 0.5]], "radius": 6}])
+
+
+def test_a_pen_needs_no_brush_but_counts_against_the_budget_and_ends_the_underdrawing(tmp_path: Path) -> None:
+    session = new_session(tmp_path, stroke_budget=1)
+    pen = {"action": "pen", "path": [[20, 40], [70, 40, 0.5]], "width": 1.5, "ink": {"cobalt_blue": 2.0}}
+    for impossible in (
+        {"width": 9},
+        {"ink": {"cobalt_blue": 0.0}},
+        {"ink": {"ivory_black": 2.0}},
+        {"path": [[20, 40, 2]]},
+    ):
+        with pytest.raises(ValueError):
+            session.paint([pen | impossible])
+    session.paint([pen])
+    assert session.strokes_used == 1 and session.studio.brush is None
+    with pytest.raises(RuleViolation, match="underdrawing"):
+        session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]}])
+    with pytest.raises(RuleViolation, match="budget"):
+        session.paint([pen])

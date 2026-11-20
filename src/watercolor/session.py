@@ -25,12 +25,12 @@ from .pigments import PIGMENTS
 from .recording import FrameRecorder, encode_video
 from .rendering import VIEWS, inspection_image, render, to_image
 from .simulation import Sheet
-from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_request
+from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_request, validate_pen_request
 
 SCRAP_SIZE = 256
-TOUCHING_ACTIONS = ("stroke", "blot")  # these put paint on the sheet or take it off
+TOUCHING_ACTIONS = ("stroke", "blot", "pen")  # these put paint on the sheet or take it off
 MASKING_ACTIONS = ("mask", "unmask")  # these count against the stroke budget too, but lay no paint
-SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask")
+SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask", "pen")
 SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
 
 
@@ -211,7 +211,7 @@ class Session:
                         raise RuleViolation("this painting has no scrap sheet")
                     if sheet not in ("painting", "scrap"):
                         raise ValueError(f"unknown sheet {sheet!r}")
-                if kind in ("stroke", "blot", "pencil", "erase", "mask") and not action["path"]:
+                if kind in ("stroke", "blot", "pencil", "erase", "mask", "pen") and not action["path"]:
                     raise ValueError("path is empty")
                 if kind == "load":
                     hair = action.get("hair", "")
@@ -251,6 +251,9 @@ class Session:
                             raise ValueError("a mask point is [x, y] or [x, y, pressure]")
                         if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
                             raise ValueError("mask pressure must be between 0 and 1")
+                elif kind == "pen":
+                    speed = action.get("speed", DEFAULT_STROKE_SPEED)
+                    validate_pen_request(action["path"], action["width"], action["ink"], speed, config.palette)
                 elif kind == "unmask":
                     if ("path" in action) != ("radius" in action):
                         raise ValueError("unmask takes a path and a radius together, or neither")
@@ -356,6 +359,15 @@ class Session:
             studio.mask(sheet, action["path"], action["radius"], action.get("smooth", True))
         elif kind == "unmask":
             studio.unmask(sheet, action.get("path"), action.get("radius"))
+        elif kind == "pen":
+            studio.pen(
+                sheet,
+                action["path"],
+                action["width"],
+                action["ink"],
+                action.get("speed", DEFAULT_STROKE_SPEED),
+                action.get("smooth", True),
+            )
         elif kind == "pencil":
             studio.pencil(sheet, action["path"], action.get("darkness", 0.6), action.get("smooth", True))
         elif kind == "erase":

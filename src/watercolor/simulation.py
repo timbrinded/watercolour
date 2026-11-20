@@ -142,6 +142,9 @@ BRIDGING_FILM = 0.05
 MASK_SEALED = 0.5
 # Softness of the edge of a line of masking fluid, as a share of its radius: it dries with a crisp edge.
 MASK_EDGE_SOFTNESS = 0.15
+# Narrowest radius of masking fluid, after any taper. The finest line then seals an unbroken band one to two cells wide
+# at every angle; a thinner one sealed only along rows and columns and broke into dashes at other angles.
+MASK_SMALLEST_RADIUS = 1.25
 
 
 def _faces(field: Tensor, axis: int) -> tuple[Tensor, Tensor]:
@@ -376,9 +379,19 @@ class Sheet:
     tools (brush, blot, graphite) work on a single sheet.
     """
 
-    STATE_FIELDS = ("water", "saturation", "suspended", "deposited", "graphite", "mask", "mask_water", "mask_pigment")
-    # Fields that a painting begun before masking fluid existed has no record of; they start empty.
-    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment")
+    STATE_FIELDS = (
+        "water",
+        "saturation",
+        "suspended",
+        "deposited",
+        "graphite",
+        "mask",
+        "mask_water",
+        "mask_pigment",
+        "crisp",
+    )
+    # Fields that a painting begun before masking fluid or crisp marks existed has no record of; they start empty.
+    OPTIONAL_STATE_FIELDS = ("mask", "mask_water", "mask_pigment", "crisp")
 
     def __init__(
         self,
@@ -407,6 +420,9 @@ class Sheet:
         self.mask = torch.zeros_like(tooth)
         self.mask_water = torch.zeros_like(tooth)
         self.mask_pigment = torch.zeros(len(pigments), *tooth.shape, device=device)
+        # Cells whose paint ends at a crisp edge: paper sealed by masking fluid, and ink a pen laid on dry paper. The
+        # picture shares no paint between such a cell and one beside it that is not crisp. A cell stays crisp for good.
+        self.crisp = torch.zeros_like(tooth, dtype=torch.bool)
         self.tilt: tuple[float | Tensor, float | Tensor] = (0.0, 0.0)  # downhill pull along x and y
         self._used: set[int] = set()  # pigments that have ever been on this sheet
 
@@ -892,10 +908,35 @@ class Sheet:
 
     def apply_mask(self, points: Tensor, radii: Tensor) -> None:
         """Lay masking fluid along a path. It forms its skin only on paper with no film standing on it: put
-        into wet paint, it mixes with the water and seals nothing."""
+        into wet paint, it mixes with the water and seals nothing. Paper it seals keeps a crisp edge in the picture."""
+        radii = radii.clamp(min=MASK_SMALLEST_RADIUS)
         rows, columns, coverage = self._coverage(points, radii, MASK_EDGE_SOFTNESS, irregular=True)
         dry = (self.water[rows, columns] <= self.parameters.wet_threshold).float()
-        self.mask[rows, columns] = torch.maximum(self.mask[rows, columns], coverage * dry)
+        mask = torch.maximum(self.mask[rows, columns], coverage * dry)
+        self.mask[rows, columns] = mask
+        self.crisp[rows, columns] |= mask >= MASK_SEALED
+
+    def apply_pen(self, points: Tensor, radii: Tensor, amounts: Tensor, covered: Tensor) -> None:
+        """Draw a short piece of a pen line, laying the amount of each pigment on every cell the line covers fully.
+
+        A cell is covered as far as its centre lies within the line, with a ramp one cell wide centred on the line's
+        true edge, and no line is taken as narrower than one cell: a finer one lays a cell's worth of ink along its path
+        rather than fading. Covered holds how far this line has already inked each cell, so where its pieces overlap or
+        it crosses itself it lays no more. On dry paper the ink goes onto the paper and keeps a crisp edge; where a film
+        stands it goes into the water and spreads with it; on masking fluid it stays on the rubber.
+        """
+        rows, columns, coverage = self._coverage(points, radii.clamp(min=0.5) + 0.5, 0.0)
+        laid = (coverage - covered[rows, columns]).clamp(min=0)
+        covered[rows, columns] = torch.maximum(covered[rows, columns], coverage)
+        ink = amounts.reshape(-1, 1, 1) * laid
+        masked = self.mask[rows, columns]
+        self.mask_pigment[:, rows, columns] += ink * masked
+        on_paper = ink * (1.0 - masked)
+        wet = self.water[rows, columns] > self.parameters.wet_threshold
+        self.suspended[:, rows, columns] += on_paper * wet
+        self.deposited[:, rows, columns] += on_paper * ~wet
+        self.crisp[rows, columns] |= ~wet & (laid > 0) & (masked < 1.0)
+        self._used.update((amounts > 0).nonzero().flatten().tolist())
 
     def remove_mask(self, points: Tensor | None = None, radii: Tensor | None = None) -> None:
         """Rub masking fluid away, all of it or along a path. Paint dried on the rubber comes away with it;

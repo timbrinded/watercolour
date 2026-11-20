@@ -1,13 +1,14 @@
 """Physical invariants of the engine. Each of these was broken at some point during development."""
 
 import dataclasses
+import math
 
 import pytest
 import torch
 
 from watercolor.paper import generate_paper
 from watercolor.pigments import PIGMENTS
-from watercolor.simulation import Sheet
+from watercolor.simulation import MASK_SEALED, Sheet
 from watercolor.studio import Studio
 
 SIZE = 128
@@ -450,3 +451,78 @@ def test_masking_fluid_laid_with_falling_pressure_tapers(studio: Studio) -> None
     studio.mask("painting", [[20, 64, 1.0], [108, 64, 0.0]], 10.0)
     sealed = studio.sheets["painting"].mask >= 0.5
     assert int(sealed[:, 28].sum()) > 2 * int(sealed[:, 100].sum()) > 0
+
+
+def test_the_finest_ring_of_masking_fluid_keeps_out_water_from_every_side(studio: Studio) -> None:
+    """A circle of fluid at the smallest radius and no pressure, so every angle is met, with deep water against it
+    outside and a thin film on damp paper inside, which takes in any water that finds a gap. Measured: the water
+    inside gains 3e-5 in 2 s; with the narrowest fluid at radius 1.0 it gained 13.7."""
+    sheet = studio.sheets["painting"]
+    sheet.parameters = dataclasses.replace(sheet.parameters, evaporation_rate=0.0, absorption_rate=0.0)
+    turns = [2 * math.pi * step / 96 for step in range(97)]
+    studio.mask("painting", [[64 + 30 * math.cos(turn), 64 + 30 * math.sin(turn), 0.0] for turn in turns], 0.5)
+    open_paper = sheet.mask < MASK_SEALED
+    inside = (torch.hypot(sheet._xs - 64, sheet._ys - 64) < 30) & open_paper
+    sheet.water[inside] = 0.05
+    sheet.water[~inside & open_paper] = 1.0
+    sheet.saturation.copy_(sheet.capacity)
+    before = float(sheet.water[inside].sum())
+    studio.wait(2)
+    assert float(sheet.water[inside].sum()) < before + 0.1
+
+
+def test_a_sheet_saved_before_crisp_marks_existed_still_loads(studio: Studio) -> None:
+    sheet = studio.sheets["painting"]
+    mask_disc(studio)
+    state = {name: value for name, value in sheet.state().items() if name != "crisp"}
+    sheet.mask.zero_()
+    sheet.load_state(state)
+    assert float(sheet.mask.sum()) > 0.0 and not bool(sheet.crisp.any())
+
+
+INKS = ["carbon_ink", "soluble_ink"]
+
+
+def ink_studio() -> Studio:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    sheet = Sheet(generate_paper(SIZE, SIZE, 3, device), [PIGMENTS[name] for name in INKS])
+    return Studio({"painting": sheet}, INKS)
+
+
+def test_a_pen_line_lays_the_same_ink_from_its_start_to_its_end() -> None:
+    """A line one pixel wide holds its full ink in one row, in every column from its first point to its last, however
+    fast it is drawn. Measured: 2.0 in each of its 101 columns, at both speeds."""
+    for speed in (120, 2000):
+        studio = ink_studio()
+        studio.pen("painting", [[14, 64], [114, 64]], 1.0, {"carbon_ink": 2.0}, speed, smooth=False)
+        ink = studio.sheets["painting"].deposited[0]
+        per_column = ink[:, 14:115].sum(dim=0)
+        assert 1.96 <= float(per_column.min()) <= float(per_column.max()) <= 2.04
+        assert float(ink[64].sum()) == pytest.approx(float(ink.sum()))
+
+
+def test_carbon_ink_stays_put_under_a_wash_and_soluble_ink_runs_into_it() -> None:
+    """A line of each ink, one clear wash laid over both, then dried. Measured: carbon_ink keeps 0.992 of its ink on
+    its line and 0.005 lies more than 2 px from it; soluble_ink keeps 0.14 on its line and 0.63 has run beyond 2 px."""
+    studio = ink_studio()
+    sheet = studio.sheets["painting"]
+    lines = {"carbon_ink": 56, "soluble_ink": 72}
+    for name, row in lines.items():
+        studio.pen("painting", [[30, row], [98, row]], 1.0, {name: 2.0}, 120, smooth=False)
+    laid = sheet.deposited.clone()
+    studio.load_brush("mop", 16, {}, 1.0)
+    studio.stroke("painting", [[20, 64], [108, 64]], 120, smooth=False)
+    studio.dry()
+    ink = sheet.deposited + sheet.suspended
+
+    def shares(name: str) -> tuple[float, float]:
+        """Share of the ink laid that is still on the line, and the share more than 2 px from it."""
+        index = INKS.index(name)
+        total = float(laid[index].sum())
+        away = (sheet._ys - lines[name]).abs() > 2
+        return float(ink[index][laid[index] > 0].sum()) / total, float(ink[index][away].sum()) / total
+
+    kept, beyond = shares("carbon_ink")
+    assert kept > 0.97 and beyond < 0.02
+    kept, beyond = shares("soluble_ink")
+    assert kept < 0.5 and beyond > 0.3
