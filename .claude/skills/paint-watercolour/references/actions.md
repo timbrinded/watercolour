@@ -9,7 +9,7 @@ watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--see
 
 - `--size` is the width in pixels (128 to 1024); `--height` makes the sheet other than square.
 - `--palette` names the paint box for this painting; the default is the thirteen paints of the first table under [Paints](#paints). The paints of the second table must be named here.
-- `--stroke-budget` caps strokes, blots, pen lines and masking on the painting itself. A pass that would exceed it is refused whole.
+- `--stroke-budget` caps strokes, blots, pen lines, masking and fixative on the painting itself. A pass that would exceed it is refused whole.
 - `--seed` fixes the paper and the small variation in each brush load, so a painting replays identically.
 
 ## A pass
