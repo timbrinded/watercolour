@@ -37,5 +37,11 @@ PIGMENTS: dict[str, Pigment] = {
         # Opaque white (gouache): it scatters strongly and absorbs almost nothing, so it covers what lies beneath.
         Pigment("opaque_white", (0.004, 0.004, 0.006), (3.0, 3.0, 3.0), 0.080, 1.0, 0.0),
         Pigment("ivory_black", (1.9, 1.9, 1.8), (0.01, 0.01, 0.01), 0.030, 2.0, 0.30),
+        # Carbon (stick, Chinese or India) ink: twice ivory_black's absorption, no granulation, and staining high
+        # enough that dried ink barely lifts. It stands in for ink that is fixed once dry.
+        Pigment("carbon_ink", (3.8, 3.8, 3.7), (0.004, 0.004, 0.006), 0.025, 40.0, 0.0),
+        # Water-soluble dye ink, a cool black: staining so low that water standing on a dried line takes most of it
+        # back up, and a damp brush drawn across the line pulls it out.
+        Pigment("soluble_ink", (2.1, 2.0, 1.7), (0.005, 0.005, 0.005), 0.020, 0.12, 0.0),
     )
 }
