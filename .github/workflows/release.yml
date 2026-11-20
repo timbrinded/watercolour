@@ -1,0 +1,56 @@
+name: Release
+
+# A version reaching main that has no tag of its own is released: the commit is tagged v<version>, the wheel and
+# source archive are built, and a GitHub release lists the commits since the previous one.
+on:
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Read the version
+        id: version
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          engine=$(sed -n 's/^ENGINE_VERSION = "\(.*\)"$/\1/p' src/watercolor/__init__.py)
+          if [ "$version" != "$engine" ]; then
+            echo "::error::pyproject.toml gives version $version but ENGINE_VERSION is $engine"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "Version $version is already released."
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: steps.version.outputs.released == 'false'
+
+      - name: Build
+        if: steps.version.outputs.released == 'false'
+        run: uv build
+
+      - name: Publish the release
+        if: steps.version.outputs.released == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          .github/scripts/write_release_notes.sh "$VERSION" > notes.md
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" --title "$VERSION" --notes-file notes.md
