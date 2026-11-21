@@ -44,8 +44,12 @@ def layer(pigment: Tensor, absorption: Tensor, scattering: Tensor, crisp: Tensor
     # neighbours, which turns the stepped outline of the grid into the smooth edge of a wash.
     # The edge of a crisp mark, a pen line or paper kept white by masking fluid, is not shared.
     amount = edge_blend(TINTING_STRENGTH * pigment, crisp)
-    k = torch.einsum("phw,pc->chw", amount, absorption) + 1e-6
-    s = torch.einsum("phw,pc->chw", amount, scattering) + 1e-4
+    return layer_of(torch.einsum("phw,pc->chw", amount, absorption), torch.einsum("phw,pc->chw", amount, scattering))
+
+
+def layer_of(absorption: Tensor, scattering: Tensor) -> tuple[Tensor, Tensor]:
+    """Reflectance and transmittance of a layer whose total absorption and scattering are given, each (3, H, W)."""
+    k, s = absorption + 1e-6, scattering + 1e-4
     a = 1.0 + k / s
     b = (a * a - 1.0).sqrt()
     thickness = (b * s).clamp(max=20.0)

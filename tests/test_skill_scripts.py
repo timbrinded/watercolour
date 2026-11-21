@@ -14,7 +14,7 @@ from preview_pass import painted_width
 from style_target import remap_values
 
 from watercolor.brushes import BRUSH_TYPES
-from watercolor.session import SURFACE_TREATMENTS, TOUCHING_ACTIONS
+from watercolor.session import DRAWING_ACTIONS, SURFACE_TREATMENTS, TOUCHING_ACTIONS
 
 SCRIPTS = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "paint-watercolour" / "scripts"
 
@@ -70,7 +70,7 @@ def test_a_painting_with_no_bare_paper_is_measured_against_the_harness_paper(tmp
 
 
 def test_a_pass_counts_what_the_session_counts_against_the_stroke_budget() -> None:
-    counted = [{"action": kind, "path": [[10, 10]]} for kind in TOUCHING_ACTIONS + SURFACE_TREATMENTS]
+    counted = [{"action": kind, "path": [[10, 10]]} for kind in TOUCHING_ACTIONS + SURFACE_TREATMENTS + DRAWING_ACTIONS]
     on_scrap = [dict(action, sheet="scrap") for action in counted]
     free = [{"action": kind} for kind in ("load", "drain", "wait", "dry", "tilt", "pencil", "erase")]
     assert budgeted(counted + on_scrap + free) == len(counted)

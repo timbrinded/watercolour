@@ -40,7 +40,7 @@ Run them with the Python the harness uses, because two of them read its pigment 
 | `crisp_layers.py` | A pass of hard-edged shapes where the sheet still lacks tone, each filled with rounds kept inside it: breaking foam, and any passage of small lights and darks that the measured stages dry soft. See `water.md`. |
 | `trace_troughs.py` | The dark troughs of choppy water, each as one tapered stroke traced from the reference. See `water.md`. |
 | `mask_lights.py` | Masking fluid over the reference's lights, for a wash that must cross them: on 0.10.0 every light, down to one pixel wide (`--least-radius` 1, the default), as one stroke of the finest fluid (radius 1.25) through the pixel centres of each run of light along a row. On 0.8.0 and 0.9, give `--least-radius 2`. See `water.md`. |
-| `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `pen`, `fix`, `rows`, `offset_path`, `translate`, `merge_stages`. |
+| `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `pen`, `draw`, `hatch`, `fix`, `rows`, `offset_path`, `translate`, `merge_stages`. |
 
 ## Step 1: grid and sample the reference
 

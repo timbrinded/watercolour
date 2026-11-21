@@ -320,3 +320,84 @@ def test_fixative_takes_a_path_and_a_radius_together_or_neither(tmp_path: Path) 
     with pytest.raises(RuleViolation, match="no scrap sheet"):
         session.paint([{"action": "fix", "sheet": "scrap"}])
     assert session.strokes_used == 0
+
+
+def test_pencil_after_paint_is_refused_unless_the_painting_allows_it(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    session.paint(STROKE)
+    with pytest.raises(RuleViolation, match="underdrawing"):
+        session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]}])
+    allowing = Session.create(
+        tmp_path / "allowing",
+        Configuration(
+            prompt="test",
+            size=96,
+            seed=1,
+            palette=["cobalt_blue"],
+            stroke_budget=10,
+            scrap_allowed=False,
+            pencil_allowed=True,
+            pencil_after_paint=True,
+        ),
+    )
+    allowing.paint(STROKE)
+    allowing.paint([{"action": "pencil", "path": [[10, 10, 0.5], [30, 30]], "darkness": 1.2, "radius": 2.0}])
+    with pytest.raises(RuleViolation, match="underdrawing"):
+        allowing.paint([{"action": "erase", "path": [[10, 10], [30, 30]]}])
+
+
+def test_pencil_of_an_impossible_darkness_radius_or_pressure_is_refused(tmp_path: Path) -> None:
+    session = new_session(tmp_path)
+    for impossible, problem in (
+        ({"darkness": 0.0}, "darkness"),
+        ({"darkness": 2.6}, "darkness"),
+        ({"radius": 0.4}, "radius"),
+        ({"path": [[10, 10, 1.5], [30, 30]]}, "pressure"),
+    ):
+        with pytest.raises(ValueError, match=problem):
+            session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]} | impossible])
+
+
+def test_dry_media_count_against_the_budget_and_can_follow_paint(tmp_path: Path) -> None:
+    session = new_session(tmp_path, stroke_budget=2)
+    draw = {
+        "action": "draw",
+        "medium": "pastel",
+        "pigments": {"cobalt_blue": 2.0},
+        "path": [[20, 40], [70, 40]],
+        "radius": 3,
+    }
+    for impossible, problem in (
+        ({"medium": "crayon"}, "unknown medium"),
+        ({"pigments": {"ivory_black": 2.0}}, "palette"),
+        ({"pigments": {"cobalt_blue": 0.0}}, "at most 4"),
+        ({"pigments": {"cobalt_blue": 4.5}}, "at most 4"),
+        ({"radius": 0.4}, "radius"),
+        ({"path": [[20, 40, 1.2]]}, "pressure"),
+    ):
+        with pytest.raises(ValueError, match=problem):
+            session.paint([draw | impossible])
+    session.paint(STROKE)
+    session.paint([draw])
+    assert session.strokes_used == 2
+    with pytest.raises(RuleViolation, match="budget"):
+        session.paint([draw])
+
+
+def test_dry_media_are_refused_when_the_painting_allows_no_pencil(tmp_path: Path) -> None:
+    session = Session.create(
+        tmp_path / "painting",
+        Configuration(
+            prompt="test",
+            size=96,
+            seed=1,
+            palette=["cobalt_blue"],
+            stroke_budget=10,
+            scrap_allowed=False,
+            pencil_allowed=False,
+        ),
+    )
+    with pytest.raises(RuleViolation, match="dry media"):
+        session.paint(
+            [{"action": "draw", "medium": "pastel", "pigments": {"cobalt_blue": 2.0}, "path": [[20, 40]], "radius": 3}]
+        )
