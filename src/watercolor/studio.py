@@ -29,7 +29,7 @@ from .brushes import (
     trace_journey,
     trace_path,
 )
-from .pigments import PIGMENTS
+from .pigments import DRY_MEDIA, PIGMENTS, STRONGEST_STICK
 from .recording import FrameRecorder
 from .rendering import render, to_image
 from .simulation import Sheet
@@ -45,7 +45,10 @@ DEFAULT_STROKE_SPEED = 120.0  # pixels per second
 DAB_DURATION = 0.3
 DRAIN_DURATION = 1.0  # seconds taken to touch the brush to a cloth
 FILM_WATCH_INTERVAL = 1.0  # seconds between looks at the film while waiting for it to thin
-PENCIL_RADIUS = 0.9
+PENCIL_RADIUS = 0.9  # half-width of a pencil line at full pressure, unless the action gives another
+PENCIL_DARKEST = 2.5  # darkest a pencil may be set: broad charcoal and black chalk bands
+DRAW_SPEED = 80.0  # pixels per second at which a dry stick is drawn
+DRAW_PRESSURE = 0.7  # pressure of a dry-stick point that gives none
 MASK_SPEED = 60.0  # pixels per second at which masking fluid is drawn on
 MASK_LIGHTEST_SHARE = 0.15  # width of a line of masking fluid laid with no pressure, as a share of its full width
 UNMASK_DURATION = 5.0  # seconds taken to rub masking fluid away
@@ -267,11 +270,55 @@ class Studio:
         self._pass_time(FIX_DURATION)
         self._record()
 
-    def pencil(self, sheet_name: str, path: Path, darkness: float, smooth: bool = True) -> None:
-        samples = trace_path(path, smooth)
-        radii = torch.full((len(samples),), PENCIL_RADIUS)
-        self.sheets[sheet_name].draw_graphite(self._tensor(samples[:, :2]), self._tensor(radii), darkness)
+    def pencil(
+        self, sheet_name: str, path: Path, darkness: float, smooth: bool = True, radius: float = PENCIL_RADIUS
+    ) -> None:
+        """Draw a pencil line. Pressed down it is as wide as the radius and as dark as the darkness; lifted it narrows
+        to half and fades. A point that gives no pressure is drawn at full pressure."""
+        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
+        samples = trace_path(controls, smooth)
+        pressure = samples[:, 2]
+        radii = radius * (0.5 + 0.5 * pressure)
+        self.sheets[sheet_name].draw_graphite(
+            self._tensor(samples[:, :2]), self._tensor(radii), self._tensor(darkness * pressure)
+        )
         self._record()
+
+    def draw(
+        self,
+        sheet_name: str,
+        medium: str,
+        pigments: dict[str, float],
+        path: Path,
+        radius: float,
+        smooth: bool = False,
+    ) -> None:
+        """Draw with a dry stick: coloured pencil or pastel. Pressed down the line is as wide as the radius and reaches
+        deep into the grain; lifted it narrows to half and marks only the peaks, and at pressure 0 it marks nothing, so
+        one line can hold a whole hatch patch. A point that gives no pressure is drawn at 0.7. The stick travels at
+        80 pixels per second while the paint keeps drying."""
+        sheet = self.sheets[sheet_name]
+        controls = [list(point) if len(point) > 2 else [point[0], point[1], DRAW_PRESSURE] for point in path]
+        traced = trace_journey(controls, smooth, DRAW_SPEED, DAB_DURATION)
+        strength = self._tensor([float(pigments.get(name, 0.0)) for name in self.palette])
+        covered = torch.zeros_like(sheet.water)  # how far this line has already marked each cell
+        dt = self._time_step
+        for step in range(max(1, math.ceil(float(traced[-1, TIME]) / dt - 1e-6))):
+            piece = journey_between(traced, step * dt, (step + 1) * dt)
+            radii = radius * (0.5 + 0.5 * piece[:, PRESSURE])
+            sheet.draw_dry(
+                self._tensor(piece[:, :2]),
+                self._tensor(radii),
+                self._tensor(piece[:, PRESSURE]),
+                strength,
+                DRY_MEDIA[medium],
+                covered,
+            )
+            self._pass_time(dt)
+            self._since_frame += dt
+            if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
+                self._since_frame = 0.0
+                self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
 
     def erase(self, sheet_name: str, path: Path, radius: float) -> None:
         samples = trace_path(path, smooth=False)
@@ -346,6 +393,35 @@ def validate_pen_request(path: Path, width: float, ink: dict[str, float], speed:
     _validate_mix(ink, palette)
     if sum(ink.values()) <= 0.0:
         raise ValueError("the ink must hold some paint")
+
+
+def validate_pencil_request(path: Path, darkness: float, radius: float) -> None:
+    for point in path:
+        if len(point) not in (2, 3):
+            raise ValueError("a pencil point is [x, y] or [x, y, pressure]")
+        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
+            raise ValueError("pencil pressure must be between 0 and 1")
+    if not 0.0 < darkness <= PENCIL_DARKEST:
+        raise ValueError(f"pencil darkness must be more than 0 and at most {PENCIL_DARKEST:g}")
+    if not 0.5 <= radius <= 10:
+        raise ValueError("pencil radius must be between 0.5 and 10 pixels")
+
+
+def validate_draw_request(
+    medium: str, pigments: dict[str, float], path: Path, radius: float, palette: list[str]
+) -> None:
+    if medium not in DRY_MEDIA:
+        raise ValueError(f"unknown medium {medium!r}; available: {', '.join(DRY_MEDIA)}")
+    for point in path:
+        if len(point) not in (2, 3):
+            raise ValueError("a draw point is [x, y] or [x, y, pressure]")
+        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
+            raise ValueError("draw pressure must be between 0 and 1")
+    if not 0.5 <= radius <= 20:
+        raise ValueError("draw radius must be between 0.5 and 20 pixels")
+    _validate_mix(pigments, palette)
+    if not 0.0 < sum(pigments.values()) <= STRONGEST_STICK:
+        raise ValueError(f"a stick holds more than 0 and at most {STRONGEST_STICK:g} of paint in all")
 
 
 def _validate_mix(pigments: dict[str, float], palette: list[str]) -> None:

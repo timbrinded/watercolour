@@ -16,7 +16,7 @@ is a full wash.
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from functools import cached_property
 
@@ -24,9 +24,9 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from .optics import GRAPHITE_SHADE, lay_over, layer, under
+from .optics import GRAPHITE_SHADE, TINTING_STRENGTH, lay_over, layer, layer_of, under
 from .paper import COLD_PRESS_GRAIN, PAPER_COLOR, Grain, Paper, generate_paper
-from .pigments import Pigment
+from .pigments import DryMedium, Pigment
 
 
 @dataclass(frozen=True)
@@ -152,6 +152,12 @@ MASK_EDGE_SOFTNESS = 0.15
 # Narrowest radius of masking fluid, after any taper. The finest line then seals an unbroken band one to two cells wide
 # at every angle; a thinner one sealed only along rows and columns and broke into dashes at other angles.
 MASK_SMALLEST_RADIUS = 1.25
+
+# A dry stick meets the grain as a brush does: pressure p reaches down to this share of the grain's height times p below
+# its peaks, so light pressure marks only the peaks and full pressure fills nearly all the hollows. A fine point presses
+# harder on what it touches than the broad side of a stick, and reaches deeper by up to half as much again.
+GRIP_HEAVIEST = 1.15
+GRIP_SOFTNESS = 0.06  # spread, in grain heights, of where the stick stops touching
 
 # A brush or pen reaches a cell where it covers more than this share of it.
 LAYER_FOOTPRINT = 0.02
@@ -497,9 +503,10 @@ class Sheet:
         return self.ground * (1.0 + self.relief_shading * relief)
 
     def beneath_paint(self, rows: slice = slice(None), columns: slice = slice(None)) -> Tensor:
-        """Reflectance of what lies under the paint still kept as pigment: the sheet, its pencil marks, which lie under
-        all paint, and the paint pressed down, with shape (3, H, W) or that of the rows and columns given."""
-        paper = self.paper_reflectance[:, rows, columns] * (1.0 - GRAPHITE_SHADE * self.graphite[rows, columns])
+        """Reflectance of what lies under the paint still kept as pigment: the sheet, the pencil drawn on it, and the
+        paint and dry marks pressed down, with shape (3, H, W) or that of the rows and columns given."""
+        through = (1.0 - GRAPHITE_SHADE * self.graphite[rows, columns]).clamp(0.0, 1.0)
+        paper = self.paper_reflectance[:, rows, columns] * through
         return paper + self.substrate_change[:, rows, columns]
 
     # ----------------------------------------------------------------- layers
@@ -534,15 +541,19 @@ class Sheet:
                 own[top:bottom, left:right],
             )
 
-    def _begin_layer(self, rows: slice, columns: slice, opening: Tensor) -> None:
-        """Move the top layer's settled paint in the opening cells, within the rows and columns, onto the buried layer,
-        without changing the picture.
+    def _keep_picture(
+        self,
+        rows: slice,
+        columns: slice,
+        move: Callable[[tuple[slice, slice], tuple[slice, slice], Tensor, Tensor, Tensor], Tensor],
+    ) -> None:
+        """Move paint between the layers in the rows and columns without changing the picture.
 
-        Where the two look the same mixed as layered, they are merged and stay liftable; elsewhere the buried layer is
-        pressed into the colour beneath, where nothing can lift or move it any more, and the top layer's paint takes its
-        place. Every cell shares a little of its neighbours' paint, so moving paint changes the colour of the cells
-        beside it as well; each of them, like each cell opened, keeps the colour it showed, the colour beneath taking up
-        the difference.
+        Move does it, given the cells worked on, the rows and columns within them, and the colour beneath, the colour of
+        the buried layer over it and the colour seen, each over the cells worked on; it returns the colour beneath for
+        cells no light reaches. Every cell shares a little of its neighbours' paint, so moving paint changes the colour of the
+        cells beside it as well; each of them, like each cell in the rows and columns, keeps the colour it showed, the
+        colour beneath taking up the difference.
         """
         # The cells whose colour can change are those in the rows and columns and one more on every side. Their colours
         # depend on one cell further out.
@@ -556,8 +567,9 @@ class Sheet:
             slice(max(left - 2, 0), min(right + 2, self.width)),
         )
         within = tuple(slice(c.start - a.start, c.stop - a.start) for c, a in zip(changing, around))
-        opened = tuple(
-            slice(o - a.start, e - a.start) for o, e, a in ((top, bottom, around[0]), (left, right, around[1]))
+        moved = (
+            slice(top - around[0].start, bottom - around[0].start),
+            slice(left - around[1].start, right - around[1].start),
         )
         absorption, scattering, crisp = self.pigment_absorption, self.pigment_scattering, self.crisp[around]
 
@@ -571,27 +583,79 @@ class Sheet:
         (top_reflectance, top_transmittance), (buried_reflectance, buried_transmittance) = colours()
         shown = lay_over(buried_reflectance, buried_transmittance, beneath)
         seen = lay_over(top_reflectance, top_transmittance, shown)
+        hidden = move(around, moved, beneath, shown, seen)
 
-        # Merging changes a cell's colour where the top layer's settled paint over the buried layer differs from the two
-        # mixed; there the buried layer is pressed down.
-        settled = layer(self.deposited[:, *around], absorption, scattering, crisp)
-        mixed = layer(self.deposited[:, *around] + self.buried[:, *around], absorption, scattering, crisp)
-        changed = (lay_over(*settled, shown) - lay_over(*mixed, beneath)).abs().amax(0) > LAYER_MERGE_ERROR
-        pressed = opening & changed[opened]
-        buried, deposited = self.buried[:, rows, columns], self.deposited[:, rows, columns]
-        buried.copy_(torch.where(pressed, deposited, buried + deposited * opening))
-        deposited *= ~opening
-        self.dried_paint[rows, columns] &= ~opening
-
-        # The colour beneath that gives each changing cell the colour it showed, where any light reaches it. Where none
-        # does, a cell pressed down takes the colour of its pressed paint and any other keeps what lay beneath.
+        # The colour beneath that gives each changing cell the colour it showed, where any light reaches it.
         (top_reflectance, top_transmittance), (buried_reflectance, buried_transmittance) = colours()
         solved = under(buried_reflectance, buried_transmittance, under(top_reflectance, top_transmittance, seen))
         reaching = top_transmittance * buried_transmittance > LAYER_THROUGH
-        hidden = beneath.clone()
-        hidden[:, *opened] = torch.where(pressed, shown[:, *opened], beneath[:, *opened])
         background = torch.where(reaching, solved.clamp(0.0, 1.0), hidden)
         self.substrate_change[:, *changing] += (background - beneath)[:, *within]
+
+    def _begin_layer(self, rows: slice, columns: slice, opening: Tensor) -> None:
+        """Move the top layer's settled paint in the opening cells, within the rows and columns, onto the buried layer,
+        keeping the picture. Where the two look the same mixed as layered, they are merged and stay liftable; elsewhere
+        the buried layer is pressed into the colour beneath, where nothing can lift or move it any more, and the top
+        layer's paint takes its place."""
+
+        def move(
+            around: tuple[slice, slice], moved: tuple[slice, slice], beneath: Tensor, shown: Tensor, seen: Tensor
+        ) -> Tensor:
+            absorption, scattering = self.pigment_absorption, self.pigment_scattering
+            # Merging changes a cell's colour where the top layer's settled paint over the buried layer differs from
+            # the two mixed; there the buried layer is pressed down. Where no light reaches the colour beneath, a cell
+            # pressed down takes the colour of its pressed paint.
+            settled_paint = self.deposited[:, *around]
+            crisp = self.crisp[around]
+            settled = layer(settled_paint, absorption, scattering, crisp)
+            mixed = layer(settled_paint + self.buried[:, *around], absorption, scattering, crisp)
+            changed = (lay_over(*settled, shown) - lay_over(*mixed, beneath)).abs().amax(0) > LAYER_MERGE_ERROR
+            pressed = opening & changed[moved]
+            buried, deposited = self.buried[:, rows, columns], self.deposited[:, rows, columns]
+            buried.copy_(torch.where(pressed, deposited, buried + deposited * opening))
+            deposited *= ~opening
+            self.dried_paint[rows, columns] &= ~opening
+            hidden = beneath.clone()
+            hidden[:, *moved] = torch.where(pressed, shown[:, *moved], beneath[:, *moved])
+            return hidden
+
+        self._keep_picture(rows, columns, move)
+
+    def _press_down(self, rows: slice, columns: slice, cells: Tensor) -> None:
+        """Press all the paint in the cells given, within the rows and columns, into the colour beneath, keeping the
+        picture: what is laid on them next lies over it."""
+
+        def move(
+            around: tuple[slice, slice], moved: tuple[slice, slice], beneath: Tensor, shown: Tensor, seen: Tensor
+        ) -> Tensor:
+            for field in (self.suspended, self.deposited, self.buried):
+                field[:, rows, columns] *= ~cells
+            self.dried_paint[rows, columns] &= ~cells
+            hidden = beneath.clone()
+            hidden[:, *moved] = torch.where(cells, seen[:, *moved], beneath[:, *moved])
+            return hidden
+
+        self._keep_picture(rows, columns, move)
+
+    def _lay_on_top(
+        self, rows: slice, columns: slice, cells: Tensor, reflectance: Tensor, transmittance: Tensor
+    ) -> None:
+        """Lay a dry mark of the reflectance and transmittance given on the cells, within the rows and columns: over
+        the paint already there, which is pressed into the colour beneath, and under any paint laid later. The paint in
+        the cells beside the mark is pressed down too, since the share of it each cell shows would otherwise lie over
+        the mark. The rows and columns must reach a cell beyond the mark on every side."""
+        if bool(((self.suspended + self.deposited + self.buried)[:, rows, columns].sum(0) > 0).any()):
+            beside = F.max_pool2d(cells[None, None].float(), 3, stride=1, padding=1)[0, 0] > 0
+            self._press_down(rows, columns, beside)
+        beneath = self.beneath_paint(rows, columns)
+        covered = lay_over(reflectance, transmittance, beneath)
+        self.substrate_change[:, rows, columns] += torch.where(cells, covered - beneath, 0.0)
+
+    def _dry_paper(self, rows: slice, columns: slice) -> Tensor:
+        """Cells with no film standing on them and paper no fuller than damp."""
+        p = self.parameters
+        dry = self.water[rows, columns] <= p.wet_threshold
+        return dry & (self.saturation[rows, columns] <= p.damp_threshold * self.capacity[rows, columns])
 
     def _dried(self, water: Tensor, saturation: Tensor, capacity: Tensor, deposited: Tensor) -> Tensor:
         """Cells whose settled paint has dried: no film stands on it and the paper is no fuller than damp."""
@@ -884,6 +948,8 @@ class Sheet:
         rounded: bool = False,
         slant: float = 0.0,
         twist: float = 0.0,
+        strengths: Tensor | None = None,
+        grip: Tensor | None = None,
     ) -> tuple[slice, slice, Tensor]:
         """Soft coverage in [0, 1] of a swept path of circles, within its bounding box.
 
@@ -891,6 +957,8 @@ class Sheet:
         A tip shallower than 1.0 is a flat head: the mark ends square (or in a curve if rounded, or
         at an angle if slanted) and a brush held still leaves a bar across the sheet. A flat head
         whose edge is turned toward its direction of travel draws a narrower mark, down to a line.
+        Strengths, one per point, scale the mark along the path. Grip, one pressure per point, makes
+        the mark a dry stick's: it touches only the grain its pressure reaches, and nothing at 0.
         """
         reach = float(radii.max()) * (1.0 + abs(slant)) + 2.0 + margin
         x0 = max(int(float(points[:, 0].min()) - reach), 0)
@@ -901,6 +969,8 @@ class Sheet:
         pixel = torch.stack((self._xs[rows, columns], self._ys[rows, columns]), dim=-1)
         if len(points) == 1:
             points, radii = points.repeat(2, 1), radii.repeat(2)
+            strengths = None if strengths is None else strengths.repeat(2)
+            grip = None if grip is None else grip.repeat(2)
             if tip < 1.0:
                 points = points + torch.tensor([[0.0, -0.01], [0.0, 0.01]], device=points.device)
         start, end = points[:-1, None, None, :], points[1:, None, None, :]
@@ -924,13 +994,25 @@ class Sheet:
                 flat = torch.hypot(across, beyond) if rounded else torch.maximum(across.abs(), beyond)
             # A step with no length has no direction to be flat across: there the head is taken as a point.
             distance = torch.where(length > 1e-6, flat, distance)
-        radius = radii[:-1, None, None] + fraction * (radii[1:, None, None] - radii[:-1, None, None])
+
+        def along(values: Tensor) -> Tensor:
+            return values[:-1, None, None] + fraction * (values[1:, None, None] - values[:-1, None, None])
+
+        radius = along(radii)
         if irregular:
             roughness = (radius / 8.0).clamp(max=1.0) * 2.0  # fine marks keep a clean edge
             radius = radius * (0.94 + 0.12 * self.cockle[rows, columns]) + roughness * (self.tooth[rows, columns] - 0.5)
         edge = (softness * radius).clamp(min=1.0)
-        coverage = ((radius - distance) / edge).clamp(0, 1).amax(dim=0)
-        return rows, columns, coverage
+        reached = ((radius - distance) / edge).clamp(0, 1)
+        if strengths is not None:
+            reached = reached * along(strengths)
+        if grip is not None:
+            pressure = along(grip)
+            height = (self.tooth[rows, columns] - self.valley) / self.grain_depth
+            reach = GRIP_HEAVIEST * pressure * (1.0 + 1.0 / (1.0 + radius))
+            touching = torch.sigmoid((height - (1.0 - reach)) / GRIP_SOFTNESS)
+            reached = reached * touching * (pressure > 0)
+        return rows, columns, reached.amax(dim=0)
 
     def apply_brush(
         self,
@@ -1191,14 +1273,61 @@ class Sheet:
         self.mask_pigment[:, rows, columns] *= 1.0 - 0.9 * coverage * wet
         self.mask_water[rows, columns] *= 1.0 - 0.9 * coverage
 
-    def draw_graphite(self, points: Tensor, radii: Tensor, darkness: float) -> None:
-        rows, columns, coverage = self._coverage(points, radii, 1.0)
-        mark = coverage * (0.35 + 0.65 * (self.tooth[rows, columns] + (1.0 - self.peak))) * darkness
-        self.graphite[rows, columns] = torch.maximum(self.graphite[rows, columns], mark)
+    def draw_graphite(self, points: Tensor, radii: Tensor, darkness: Tensor) -> None:
+        """Draw pencil along a path, at a darkness given for each point. Marks build tone where they overlap a mark
+        drawn before. On paper with no paint the graphite lies on the paper, under any paint laid later, and can be
+        erased; on paint that has dried it lies on that paint, under any paint laid later, and cannot be. It takes
+        nowhere paint is still wet."""
+        rows, columns, coverage = self._coverage(points, radii, 1.0, strengths=darkness)
+        mark = coverage * (0.35 + 0.65 * (self.tooth[rows, columns] + (1.0 - self.peak)))
+        through = (1.0 - GRAPHITE_SHADE * mark).clamp(0.0, 1.0)  # share of the light the mark lets through
+        painted = self._painted(rows, columns)
+        graphite = self.graphite[rows, columns]
+        lit = (1.0 - GRAPHITE_SHADE * graphite).clamp(0.0, 1.0)
+        graphite.copy_(torch.where(painted, graphite, (1.0 - lit * through) / GRAPHITE_SHADE))
+        on_paint = painted & self._dry_paper(rows, columns) & (mark > 0)
+        if bool(on_paint.any()):
+            self._lay_on_top(rows, columns, on_paint, torch.zeros_like(through)[None], through.sqrt()[None])
+
+    def draw_dry(
+        self,
+        points: Tensor,
+        radii: Tensor,
+        pressures: Tensor,
+        strength: Tensor,
+        medium: DryMedium,
+        covered: Tensor,
+    ) -> None:
+        """Draw a short piece of a line with a dry stick: coloured pencil or pastel.
+
+        Pressures, one per point, decide how deep into the grain the stick reaches; strength holds the stick's amount of
+        each pigment. The stick takes only on paper with no film standing on it and no fuller than damp, and never on
+        masking fluid. Each mark lies over the paint and the marks already there and under any paint laid later; no
+        water moves it. Covered holds how far this line has already marked each cell, so where its pieces overlap or it
+        crosses itself it lays no more.
+        """
+        rows, columns, coverage = self._coverage(points, radii.clamp(min=0.5) + 0.5, 0.0, grip=pressures)
+        weight = coverage * (1.0 - self.mask[rows, columns]) * self._dry_paper(rows, columns)
+        laid = (weight - covered[rows, columns]).clamp(min=0)
+        covered[rows, columns] = torch.maximum(covered[rows, columns], weight)
+        cells = laid > 1e-4
+        if not bool(cells.any()):
+            return
+        amount = TINTING_STRENGTH * medium.laydown * laid
+        absorption = strength @ self.pigment_absorption
+        scattering = strength @ self.pigment_scattering + medium.extender * strength.sum()
+        reflectance, transmittance = layer_of(amount * absorption[:, None, None], amount * scattering[:, None, None])
+        self._lay_on_top(rows, columns, cells, reflectance, transmittance)
 
     def erase_graphite(self, points: Tensor, radii: Tensor) -> None:
+        """Rub pencil off the paper. Pencil under paint, or drawn on paint, is out of the eraser's reach."""
         rows, columns, coverage = self._coverage(points, radii, 0.5)
-        self.graphite[rows, columns] *= 1.0 - coverage
+        self.graphite[rows, columns] *= 1.0 - coverage * ~self._painted(rows, columns)
+
+    def _painted(self, rows: slice, columns: slice) -> Tensor:
+        """Cells within the rows and columns that hold paint, or paint and marks pressed into the colour beneath."""
+        painted = (self.suspended + self.deposited + self.buried)[:, rows, columns].sum(0) > LAYER_PIGMENT
+        return painted | (self.substrate_change[:, rows, columns].abs().amax(0) > 0)
 
 
 class SheetBatch:

@@ -3,8 +3,8 @@
 import json
 
 # The actions that count against the stroke budget when they are on the painting and not the scrap sheet: session.py's
-# TOUCHING_ACTIONS and SURFACE_TREATMENTS, mirrored so that these helpers need only the standard library.
-BUDGETED_ACTIONS = ("stroke", "blot", "pen", "mask", "unmask", "fix")
+# TOUCHING_ACTIONS, SURFACE_TREATMENTS and DRAWING_ACTIONS, mirrored so that these helpers need only the standard library.
+BUDGETED_ACTIONS = ("stroke", "blot", "pen", "mask", "unmask", "fix", "draw")
 
 
 def scaled(mix: dict[str, float], total: float) -> dict[str, float]:
@@ -39,6 +39,24 @@ def pen(path, width, ink, speed=None, smooth=True, sheet=None):
     if sheet:
         action["sheet"] = sheet
     return action
+
+
+def draw(medium, pigments, path, radius, sheet=None):
+    """A line with a dry stick (`coloured_pencil` or `pastel`). Points at pressure 0 lift the stick, so one action can
+    hold a whole hatch patch (see hatch)."""
+    action = {"action": "draw", "medium": medium, "pigments": pigments, "path": path, "radius": radius}
+    if sheet:
+        action["sheet"] = sheet
+    return action
+
+
+def hatch(lines, pressure=0.6):
+    """The path of a hatch patch: each line is ((x0, y0), (x1, y1)), drawn at the pressure, with the stick lifted
+    between lines."""
+    path = []
+    for (x0, y0), (x1, y1) in lines:
+        path += [[x0, y0, 0.0], [x0, y0, pressure], [x1, y1, pressure], [x1, y1, 0.0]]
+    return path
 
 
 def fix(path=None, radius=None, sheet=None):
