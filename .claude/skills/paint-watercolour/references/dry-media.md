@@ -8,7 +8,7 @@ Read this before drawing with `draw` (coloured pencil, pastel, crayon, chalk, ch
 - **It takes only on dry paper.** Nothing takes where a film of water stands or the paper is fuller than damp (0.6 as `look --at` reads it), and nothing takes on masking fluid. Black pastel across a band of clear water and a band of masking fluid left both at paper (0.96) and read 0.09 on the dry paper between. `dry` before drawing.
 - **It fixes the paint under it.** Paint under a mark can no longer be lifted or moved, so lift what must be lifted before drawing over it.
 - **Water never moves it.** No wash, scrub, blot or tilt shifts a mark.
-- **Pressure decides how deep into the grain it reaches.** Light pressure marks only the peaks of the grain, leaving the paper or the wash showing in the hollows; full pressure fills the hollows. At 0.3, black pastel darkened the peaks about 160 times as much as the hollows; at 1 the hollows took almost as much as the peaks.
+- **Pressure decides how deep into the grain it reaches.** Light pressure marks only the peaks of the grain, leaving the paper or the wash showing in the hollows; full pressure fills the hollows. At 0.3, black pastel darkened the peaks 7.4 times as much as the hollows; at 1 the hollows took almost as much as the peaks. The paper rises and falls within each pixel too, so a light touch covers part of most pixels it reaches: it reads as a broken veil, not as solid specks.
 - **Pressure 0 lifts the stick.** One `draw` action can hold a whole patch of hatching, its lines joined by points at pressure 0. `scripts/passbuilder.py` writes the path with `hatch(lines, pressure)`.
 - **Within one action it lays once.** Where one line crosses itself or its pieces overlap, it lays no more. A second action over the same place adds a coat.
 - **Each `draw` is one stroke against the budget, and it does not end the underdrawing.** A patch of hatching is one stroke, so a drawn painting needs no larger budget than its number of patches and lines.
@@ -27,12 +27,12 @@ Patches of back-and-forth rows, radius 4 at a pitch of 6:
 
 | | coloured pencil | pastel |
 |---|---|---|
-| `ivory_black` 4 at pressure 0.3 | 0.63 | 0.58 |
-| at 0.6 | 0.20 | 0.15 |
+| `ivory_black` 4 at pressure 0.3 | 0.57 | 0.47 |
+| at 0.6 | 0.16 | 0.11 |
 | at 1 | 0.08 | 0.09 |
 | `french_ultramarine` 1 at 0.7 | 0.72 | 0.56 |
-| at 2 | 0.55 | 0.37 |
-| at 4 | 0.35 | 0.25 |
+| at 2 | 0.56 | 0.37 |
+| at 4 | 0.35 | 0.24 |
 
 ## Lights over darks
 
@@ -50,13 +50,13 @@ A later mark lies over an earlier one: blue pastel over white read 0.34 and whit
 
 ## Lines and hatching
 
-- **A fine line:** coloured pencil at radius 0.9 is unbroken at pressure 0.6 or more. At 0.4 about a quarter of its length breaks to paper on the grain, and at 0.3 about two fifths: use that for a dry, sparkling line (grass, a rim of light, fur).
+- **A fine line:** coloured pencil at radius 0.9 is unbroken at pressure 0.6 or more. At 0.4 about a tenth of its length breaks to paper on the grain, and at 0.3 a little over a quarter: use that for a dry, sparkling line (grass, a rim of light, fur).
 - **Radius** is the half-width at full pressure, 0.5 to 20, narrowing to half as the stick lifts: about 0.6 to 1.2 for a pencil point, 1.5 to 3 for the point of a pastel, 5 to 15 for the side of the stick.
 - **Hatching** in `coloured_pencil`, `ivory_black` 2, radius 0.9, pressure 0.6, lines along rows:
 
 | Pitch (pixels) | 2 | 3 | 4 | 8 |
 |---|---|---|---|---|
-| Value | 0.47 | 0.55 | 0.65 | 0.81 |
+| Value | 0.48 | 0.56 | 0.66 | 0.81 |
 
 Cross-hatch with a second action across the first. Give `"smooth": false` (the default for `draw`) so that the lifts between lines stay where they are put.
 

@@ -157,7 +157,12 @@ MASK_SMALLEST_RADIUS = 1.25
 # its peaks, so light pressure marks only the peaks and full pressure fills nearly all the hollows. A fine point presses
 # harder on what it touches than the broad side of a stick, and reaches deeper by up to half as much again.
 GRIP_HEAVIEST = 1.15
-GRIP_SOFTNESS = 0.06  # spread, in grain heights, of where the stick stops touching
+# The paper is rough below the size of a cell as well, at the scale of its fibres, so the stick does not stop touching
+# at one height: it coats a falling share of the surface over this spread, in grain heights.
+GRIP_SOFTNESS = 0.10
+# The grain is one height per cell, but the paper between cell centres rises and falls between them. A stick meets
+# that surface, so the share of a cell it touches is found on the grain interpolated this many times along each side.
+GRIP_SUBCELLS = 4
 
 # A brush or pen reaches a cell where it covers more than this share of it.
 LAYER_FOOTPRINT = 0.02
@@ -621,6 +626,19 @@ class Sheet:
 
         self._keep_picture(rows, columns, move)
 
+    def _share_above(self, rows: slice, columns: slice, level: Tensor) -> Tensor:
+        """Share of each cell within the rows and columns whose surface stands above the level, in grain heights from
+        the valley, for each level given (with shape (..., rows, columns)). The surface between cell centres is the
+        grain interpolated between them, so a cell between a peak and a hollow is touched in part."""
+        n = GRIP_SUBCELLS
+        height = ((self.tooth[rows, columns] - self.valley) / self.grain_depth)[None, None]
+        surface = F.interpolate(height, scale_factor=n, mode="bilinear", align_corners=False)[0, 0]
+        fine_level = level.repeat_interleave(n, dim=-2).repeat_interleave(n, dim=-1)
+        touched = torch.sigmoid((surface - fine_level) / GRIP_SOFTNESS)
+        shape = touched.shape
+        pooled = F.avg_pool2d(touched.reshape(-1, 1, *shape[-2:]), n)
+        return pooled.reshape(*shape[:-2], *pooled.shape[-2:])
+
     def _press_down(self, rows: slice, columns: slice, cells: Tensor) -> None:
         """Press all the paint in the cells given, within the rows and columns, into the colour beneath, keeping the
         picture: what is laid on them next lies over it."""
@@ -1008,10 +1026,8 @@ class Sheet:
             reached = reached * along(strengths)
         if grip is not None:
             pressure = along(grip)
-            height = (self.tooth[rows, columns] - self.valley) / self.grain_depth
             reach = GRIP_HEAVIEST * pressure * (1.0 + 1.0 / (1.0 + radius))
-            touching = torch.sigmoid((height - (1.0 - reach)) / GRIP_SOFTNESS)
-            reached = reached * touching * (pressure > 0)
+            reached = reached * self._share_above(rows, columns, 1.0 - reach) * (pressure > 0)
         return rows, columns, reached.amax(dim=0)
 
     def apply_brush(

@@ -56,8 +56,8 @@ def test_light_pastel_covers_a_dark_dried_wash_evenly() -> None:
 
 def test_light_pressure_marks_only_the_peaks_of_the_grain() -> None:
     """Black pastel over white paper. At pressure 0.3 the peaks of the grain take far more of it than the hollows; at
-    full pressure the hollows fill as well. Measured: the peaks darkened about 160 times as much as the hollows at 0.3,
-    and 1.02 times as much at 1."""
+    full pressure the hollows fill as well. Measured: the peaks darkened 7.4 times as much as the hollows at 0.3, and
+    1.02 times as much at 1."""
     darkened = []
     for pressure in (0.3, 1.0):
         studio = new_studio()
@@ -70,6 +70,22 @@ def test_light_pressure_marks_only_the_peaks_of_the_grain() -> None:
     light, full = darkened
     assert light > 4.0
     assert full < 1.3
+
+
+def test_a_light_touch_covers_much_of_the_grain_in_part() -> None:
+    """Black pastel at pressure 0.3 against the same patch at full pressure. The paper rises and falls within each cell,
+    so a light touch covers part of most cells it reaches, not all of some and none of the rest. Measured: 0.49 of the
+    cells darken by between a tenth and nine tenths of what full pressure gives them (0.29 when a cell was touched all
+    or nothing at its one height)."""
+    changes = []
+    for pressure in (0.3, 1.0):
+        studio = new_studio()
+        bare = value(studio)
+        draw_patch(studio, "pastel", {"ivory_black": 4.0}, pressure)
+        changes.append((bare - value(studio))[PATCH])
+    light, full = changes
+    share = (light / full).clamp(0, 1)
+    assert float(((share > 0.1) & (share < 0.9)).float().mean()) > 0.4
 
 
 def test_a_stick_lifted_to_pressure_zero_marks_nothing() -> None:
@@ -127,7 +143,7 @@ def test_dry_media_take_nothing_where_a_film_stands_or_on_masking_fluid() -> Non
 
 def test_a_fine_coloured_pencil_line_breaks_on_the_grain_only_under_light_pressure() -> None:
     """A line of radius 0.9 along the sheet. Measured: at pressure 0.6 no column of it is paler than 0.85; at 0.3,
-    0.41 of them are."""
+    0.28 of them are."""
     broken = []
     for pressure in (0.6, 0.3):
         studio = new_studio()
