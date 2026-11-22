@@ -45,7 +45,8 @@ MASK_COLOUR = (255, 214, 0)
 MASK_LIGHTEST_SHARE = 0.15  # the harness lays a mask line at no pressure this share of its full width
 PEN_LIGHTEST_SHARE = 0.15  # and draws a pen line at no pressure this share of its full width, but never under a pixel
 PENCIL_COLOUR = (90, 90, 90)
-PENCIL_RADIUS = 0.9  # the harness's pencil line is this radius at every pressure
+PENCIL_RADIUS = 0.9  # the harness's pencil line at full pressure, unless the action gives a radius
+STICK_LIGHTEST_SHARE = 0.5  # and a pencil or dry-stick line at no pressure this share of its full width
 CLEAR_WATER = (0, 220, 255)
 TINT = {
     "french_ultramarine": (60, 60, 200),
@@ -101,7 +102,7 @@ def half_width(action: dict, brush: str, size: float, pressure: float) -> float:
         return max(0.5, action["width"] * (PEN_LIGHTEST_SHARE + (1 - PEN_LIGHTEST_SHARE) * pressure) / 2)
     if kind == "mask":
         return action["radius"] * (MASK_LIGHTEST_SHARE + (1 - MASK_LIGHTEST_SHARE) * pressure)
-    return PENCIL_RADIUS
+    return action.get("radius", PENCIL_RADIUS) * (STICK_LIGHTEST_SHARE + (1 - STICK_LIGHTEST_SHARE) * pressure)
 
 
 def catmull_rom(points, steps=8):
@@ -129,14 +130,14 @@ def catmull_rom(points, steps=8):
     return curve
 
 
-def path_points(action: dict, default_pressure: float) -> list[tuple[float, float, float]]:
+def path_points(action: dict, default_pressure: float, smooth: bool) -> list[tuple[float, float, float]]:
     points = []
     for point in action["path"]:
         if isinstance(point, dict):
             points.append((point["x"], point["y"], point.get("pressure", default_pressure)))
         else:
             points.append((point[0], point[1], point[2] if len(point) > 2 else default_pressure))
-    if len(points) > 1 and action.get("smooth", True):
+    if len(points) > 1 and action.get("smooth", smooth):
         points = catmull_rom(points)
     return points
 
@@ -199,26 +200,35 @@ def main() -> None:
                 brush, size = action["brush"], action["size"]
                 colour = mixed_tint(action.get("pigments") or {})
                 continue
-            if kind not in ("stroke", "pen", "mask", "pencil") or action.get("sheet") == "scrap":
+            if kind not in ("stroke", "pen", "mask", "pencil", "draw") or action.get("sheet") == "scrap":
                 continue
             count += 1
             if kind == "stroke":
                 fill = colour
             elif kind == "pen":
                 fill = mixed_tint(action["ink"])
+            elif kind == "draw":
+                fill = mixed_tint(action["pigments"])
             else:
                 fill = MASK_COLOUR if kind == "mask" else PENCIL_COLOUR
-            # a path point with no pressure is laid at 0.7 by a brush and at full pressure by the others
-            default_pressure = 0.7 if kind == "stroke" else 1.0
-            centres = [
-                (
-                    (x + origin_x - x0) * zoom,
-                    (y + origin_y - y0) * zoom,
-                    half_width(action, brush, size, pressure) * zoom,
+            # a path point with no pressure is laid at 0.7 by a brush or a dry stick and at full pressure by the others
+            default_pressure = 0.7 if kind in ("stroke", "draw") else 1.0
+            # A pencil or dry stick lifted to pressure 0 marks nothing, so one action can hold several separate lines.
+            lifts = kind in ("pencil", "draw")
+            runs: list[list[tuple[float, float, float]]] = [[]]
+            for x, y, pressure in path_points(action, default_pressure, smooth=kind != "draw"):
+                if lifts and pressure <= 0:
+                    runs.append([])
+                    continue
+                runs[-1].append(
+                    (
+                        (x + origin_x - x0) * zoom,
+                        (y + origin_y - y0) * zoom,
+                        half_width(action, brush, size, pressure) * zoom,
+                    )
                 )
-                for x, y, pressure in path_points(action, default_pressure)
-            ]
-            view = trail(view, centres, fill + (arguments.alpha,))
+            for centres in runs:
+                view = trail(view, centres, fill + (arguments.alpha,))
 
     view.convert("RGB").save(arguments.output)
     print(f"{arguments.output}: {count} marks drawn over region {x0},{y0},{x1},{y1}")

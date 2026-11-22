@@ -27,12 +27,24 @@ from .pigments import PIGMENTS
 from .recording import FrameRecorder, encode_video
 from .rendering import VIEWS, inspection_image, render, to_image
 from .simulation import SUPPORTS, Sheet, support_sheet
-from .studio import DAB_DURATION, DEFAULT_STROKE_SPEED, Studio, validate_brush_request, validate_pen_request
+from .studio import (
+    DAB_DURATION,
+    DEFAULT_STROKE_SPEED,
+    PENCIL_DARKNESS,
+    PENCIL_RADIUS,
+    Studio,
+    validate_brush_request,
+    validate_draw_request,
+    validate_pen_request,
+    validate_pencil_request,
+    validate_points,
+)
 
 SCRAP_SIZE = 256
-TOUCHING_ACTIONS = ("stroke", "blot", "pen")  # these put paint on the sheet or take it off
-SURFACE_TREATMENTS = ("mask", "unmask", "fix")  # these count against the stroke budget too, but lay no paint
-SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask", "pen", "fix")
+TOUCHING_ACTIONS = ("stroke", "blot", "pen")  # these put paint on the sheet or take it off, ending the underdrawing
+# The actions that count against the stroke budget: those above, and these, which do not end the underdrawing.
+BUDGETED_ACTIONS = (*TOUCHING_ACTIONS, "mask", "unmask", "fix", "draw")
+SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask", "pen", "fix", "draw")
 SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
 GROUND_FILE = "ground.png"  # the image printed on the sheet, as resampled to it
 GROUND_PROPORTION_TOLERANCE = 0.02  # share by which a ground image's proportions may differ from the sheet's
@@ -64,7 +76,12 @@ class Configuration:
     engine_version: str = ENGINE_VERSION
     height: int | None = None  # the sheet is square unless a height is given; size is then its width
     support: str = "cold_press"  # one of SUPPORTS; a painting begun before there was a choice is on cold press
+    pencil_after_paint: bool = False  # pencil may be drawn once paint is on the painting
     ground_digest: str | None = None  # sha256 of ground.png, when an image is printed on the sheet
+
+    def __post_init__(self) -> None:
+        if self.pencil_after_paint and not self.pencil_allowed:
+            raise ValueError("pencil after paint needs a painting that allows pencil")
 
 
 def _digest(data: bytes) -> str:
@@ -276,7 +293,7 @@ class Session:
                         raise RuleViolation("this painting has no scrap sheet")
                     if sheet not in ("painting", "scrap"):
                         raise ValueError(f"unknown sheet {sheet!r}")
-                if kind in ("stroke", "blot", "pencil", "erase", "mask", "pen") and not action["path"]:
+                if kind in ("stroke", "blot", "pencil", "erase", "mask", "pen", "draw") and not action["path"]:
                     raise ValueError("path is empty")
                 if kind == "load":
                     hair = action.get("hair", "")
@@ -311,11 +328,7 @@ class Session:
                 elif kind == "mask":
                     if not 0.5 <= action["radius"] <= 40:
                         raise ValueError("mask radius must be between 0.5 and 40 pixels")
-                    for point in action["path"]:
-                        if len(point) not in (2, 3):
-                            raise ValueError("a mask point is [x, y] or [x, y, pressure]")
-                        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
-                            raise ValueError("mask pressure must be between 0 and 1")
+                    validate_points(action["path"], "mask")
                 elif kind == "pen":
                     speed = action.get("speed", DEFAULT_STROKE_SPEED)
                     validate_pen_request(action["path"], action["width"], action["ink"], speed, config.palette)
@@ -336,11 +349,24 @@ class Session:
                             raise ValueError("fix radius must be between 1 and 80 pixels")
                         if any(not isinstance(point, list) or len(point) != 2 for point in action["path"]):
                             raise ValueError("a fix point is [x, y]")
-                elif kind in ("pencil", "erase"):
+                elif kind == "pencil":
+                    if not config.pencil_allowed:
+                        raise RuleViolation("this painting does not allow a pencil underdrawing")
+                    darkness = action.get("darkness", PENCIL_DARKNESS)
+                    validate_pencil_request(action["path"], darkness, action.get("radius", PENCIL_RADIUS))
+                    if on_painting and paint_applied and not config.pencil_after_paint:
+                        raise RuleViolation("the underdrawing cannot change once paint is on the painting")
+                elif kind == "erase":
                     if not config.pencil_allowed:
                         raise RuleViolation("this painting does not allow a pencil underdrawing")
                     if on_painting and paint_applied:
                         raise RuleViolation("the underdrawing cannot change once paint is on the painting")
+                elif kind == "draw":
+                    if not config.pencil_allowed:
+                        raise RuleViolation("this painting does not allow pencil or other dry media")
+                    validate_draw_request(
+                        action["medium"], action["pigments"], action["path"], action["radius"], config.palette
+                    )
                 elif kind == "wait":
                     if not 0 < action["seconds"] <= 3600:
                         raise ValueError("seconds must be between 0 and 3600")
@@ -358,7 +384,7 @@ class Session:
                         raise ValueError("tilt must be within 0.3 on each axis")
                 elif kind != "dry":
                     raise ValueError(f"unknown action {kind!r}")
-                if kind in TOUCHING_ACTIONS + SURFACE_TREATMENTS and on_painting:
+                if kind in BUDGETED_ACTIONS and on_painting:
                     strokes += 1
                     paint_applied = paint_applied or kind in TOUCHING_ACTIONS
                     if strokes > config.stroke_budget:
@@ -446,7 +472,22 @@ class Session:
         elif kind == "fix":
             studio.fix(sheet, action.get("path"), action.get("radius"))
         elif kind == "pencil":
-            studio.pencil(sheet, action["path"], action.get("darkness", 0.6), action.get("smooth", True))
+            studio.pencil(
+                sheet,
+                action["path"],
+                action.get("darkness", PENCIL_DARKNESS),
+                action.get("smooth", True),
+                action.get("radius", PENCIL_RADIUS),
+            )
+        elif kind == "draw":
+            studio.draw(
+                sheet,
+                action["medium"],
+                action["pigments"],
+                action["path"],
+                action["radius"],
+                action.get("smooth", False),
+            )
         elif kind == "erase":
             studio.erase(sheet, action["path"], action.get("radius", 4.0))
         elif kind == "wait" and "film" in action:
@@ -458,7 +499,7 @@ class Session:
             studio.tilt(sheet, action["x"], action["y"])
         elif kind == "dry":
             studio.dry()
-        if kind in TOUCHING_ACTIONS + SURFACE_TREATMENTS and sheet == "painting":
+        if kind in BUDGETED_ACTIONS and sheet == "painting":
             self.strokes_used += 1
             self.paint_applied = self.paint_applied or kind in TOUCHING_ACTIONS
         self._checkpoint({"action": kind, "detail": action})
@@ -519,6 +560,7 @@ class Session:
             "strokes_used": self.strokes_used,
             "stroke_budget": self.configuration.stroke_budget,
             "support": self.configuration.support,
+            "pencil_after_paint": self.configuration.pencil_after_paint,
             "ground": self.configuration.ground_digest is not None,
             "brush": None
             if brush is None
