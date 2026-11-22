@@ -53,8 +53,9 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--palette", default=",".join(DEFAULT_PALETTE), help="comma-separated pigment names")
     new.add_argument("--stroke-budget", type=int, default=150)
     new.add_argument("--no-scrap", action="store_true")
-    new.add_argument("--no-pencil", action="store_true", help="no pencil underdrawing and no dry media")
-    new.add_argument("--pencil-after-paint", action="store_true", help="allow pencil once paint is on the painting")
+    pencil = new.add_mutually_exclusive_group()
+    pencil.add_argument("--no-pencil", action="store_true", help="no pencil underdrawing and no dry media")
+    pencil.add_argument("--pencil-after-paint", action="store_true", help="allow pencil once paint is on the painting")
 
     paint = commands.add_parser("paint", help="carry out a pass of actions from a JSON file")
     paint.add_argument("directory", type=Path)

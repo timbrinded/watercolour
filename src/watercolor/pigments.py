@@ -87,22 +87,3 @@ DEFAULT_PALETTE: tuple[str, ...] = (
     "opaque_white",
     "ivory_black",
 )
-
-
-@dataclass(frozen=True)
-class DryMedium:
-    """A dry stick drawn over paper or dried paint: its paints, bound by wax or chalk, lie on the surface."""
-
-    name: str
-    laydown: float  # share of the stick's strength one full mark leaves on the sheet
-    extender: float  # scattering of the binder and filler (wax, chalk) per unit of the stick's paint, in every channel
-
-
-DRY_MEDIA: dict[str, DryMedium] = {
-    medium.name: medium
-    for medium in (
-        DryMedium("coloured_pencil", laydown=0.5, extender=0.2),
-        DryMedium("pastel", laydown=1.0, extender=0.4),
-    )
-}
-STRONGEST_STICK = 4.0  # most paint a stick may hold, in all

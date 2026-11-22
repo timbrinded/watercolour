@@ -6,7 +6,7 @@ earlier keeps flowing and drying while later strokes are made.
 
 import math
 import random
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -29,7 +29,8 @@ from .brushes import (
     trace_journey,
     trace_path,
 )
-from .pigments import DRY_MEDIA, PIGMENTS, STRONGEST_STICK
+from .dry_media import DRY_MEDIA, STRONGEST_STICK
+from .pigments import PIGMENTS
 from .recording import FrameRecorder
 from .rendering import render, to_image
 from .simulation import Sheet
@@ -46,9 +47,10 @@ DAB_DURATION = 0.3
 DRAIN_DURATION = 1.0  # seconds taken to touch the brush to a cloth
 FILM_WATCH_INTERVAL = 1.0  # seconds between looks at the film while waiting for it to thin
 PENCIL_RADIUS = 0.9  # half-width of a pencil line at full pressure, unless the action gives another
+PENCIL_DARKNESS = 0.6  # darkness of a pencil line at full pressure, unless the action gives another
 PENCIL_DARKEST = 2.5  # darkest a pencil may be set: broad charcoal and black chalk bands
+STICK_LIGHTEST_SHARE = 0.5  # width of a pencil or dry-stick line drawn with no pressure, as a share of its full width
 DRAW_SPEED = 80.0  # pixels per second at which a dry stick is drawn
-DRAW_PRESSURE = 0.7  # pressure of a dry-stick point that gives none
 MASK_SPEED = 60.0  # pixels per second at which masking fluid is drawn on
 MASK_LIGHTEST_SHARE = 0.15  # width of a line of masking fluid laid with no pressure, as a share of its full width
 UNMASK_DURATION = 5.0  # seconds taken to rub masking fluid away
@@ -189,11 +191,7 @@ class Studio:
             brush.reservoir = min(max(brush.reservoir - used, 0.0), brush.capacity)
             concentration = (pigment_held / max(brush.reservoir, 1e-3 * brush.capacity)).clamp(max=20.0)
             brush.concentration = concentration.tolist()
-            self._pass_time(dt)
-            self._since_frame += dt
-            if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
-                self._since_frame = 0.0
-                self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
+            self._end_piece(sheet_name, piece, float(radii[-1]))
         # When the brush leaves the sheet, what its tip still carries is drawn up into its body.
         pigment_held = concentration * brush.reservoir + on_tip
         brush.concentration = (pigment_held / max(brush.reservoir, 1e-3 * brush.capacity)).clamp(max=20.0).tolist()
@@ -209,8 +207,7 @@ class Studio:
         """Lay masking fluid along a path, as with an old brush or a colour shaper: pressed down the line is as
         wide as the radius, lifted it narrows towards a point. A point that gives no pressure is laid at full
         pressure. The line takes the time it takes to draw, and then resists water until it is rubbed away."""
-        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
-        samples = trace_path(controls, smooth)
+        samples = trace_path(_with_pressure(path, 1.0), smooth)
         share = MASK_LIGHTEST_SHARE + (1.0 - MASK_LIGHTEST_SHARE) * samples[:, 2]
         self.sheets[sheet_name].apply_mask(self._tensor(samples[:, :2]), self._tensor(radius * share))
         length = float(np.linalg.norm(np.diff(samples[:, :2], axis=0), axis=1).sum()) if len(samples) > 1 else 0.0
@@ -238,23 +235,15 @@ class Studio:
         a dab. Time passes on the sheet as the line is drawn. The pen needs no brush and leaves the one in hand as it was.
         """
         sheet = self.sheets[sheet_name]
-        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
-        traced = trace_journey(controls, smooth, speed, DAB_DURATION)
+        traced = trace_journey(_with_pressure(path, 1.0), smooth, speed, DAB_DURATION)
         amounts = self._tensor([float(ink.get(name, 0.0)) for name in self.palette])
         covered = torch.zeros_like(sheet.water)  # how far this line has already inked each cell
         reached = torch.zeros_like(sheet.water, dtype=torch.bool)  # cells this line has reached
         inked = torch.zeros_like(reached)  # cells this line has inked on dry paper
-        dt = self._time_step
-        # The pen keeps on until the last time step has reached the end of the line.
-        for step in range(max(1, math.ceil(float(traced[-1, TIME]) / dt - 1e-6))):
-            piece = journey_between(traced, step * dt, (step + 1) * dt)
+        for piece in self._line_pieces(traced):
             radii = 0.5 * width * (PEN_LIGHTEST_SHARE + (1.0 - PEN_LIGHTEST_SHARE) * piece[:, PRESSURE])
             sheet.apply_pen(self._tensor(piece[:, :2]), self._tensor(radii), amounts, covered, reached, inked)
-            self._pass_time(dt)
-            self._since_frame += dt
-            if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
-                self._since_frame = 0.0
-                self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
+            self._end_piece(sheet_name, piece, float(radii[-1]))
         sheet.end_pen_line(inked)
 
     def fix(self, sheet_name: str, path: Path | None = None, radius: float | None = None) -> None:
@@ -275,10 +264,9 @@ class Studio:
     ) -> None:
         """Draw a pencil line. Pressed down it is as wide as the radius and as dark as the darkness; lifted it narrows
         to half and fades. A point that gives no pressure is drawn at full pressure."""
-        controls = [list(point) if len(point) > 2 else [point[0], point[1], 1.0] for point in path]
-        samples = trace_path(controls, smooth)
+        samples = trace_path(_with_pressure(path, 1.0), smooth)
         pressure = samples[:, 2]
-        radii = radius * (0.5 + 0.5 * pressure)
+        radii = radius * (STICK_LIGHTEST_SHARE + (1.0 - STICK_LIGHTEST_SHARE) * pressure)
         self.sheets[sheet_name].draw_graphite(
             self._tensor(samples[:, :2]), self._tensor(radii), self._tensor(darkness * pressure)
         )
@@ -298,27 +286,31 @@ class Studio:
         one line can hold a whole hatch patch. A point that gives no pressure is drawn at 0.7. The stick travels at
         80 pixels per second while the paint keeps drying."""
         sheet = self.sheets[sheet_name]
-        controls = [list(point) if len(point) > 2 else [point[0], point[1], DRAW_PRESSURE] for point in path]
-        traced = trace_journey(controls, smooth, DRAW_SPEED, DAB_DURATION)
+        traced = trace_journey(path, smooth, DRAW_SPEED, DAB_DURATION)
         strength = self._tensor([float(pigments.get(name, 0.0)) for name in self.palette])
         covered = torch.zeros_like(sheet.water)  # how far this line has already marked each cell
+        for piece in self._line_pieces(traced):
+            if piece[:, PRESSURE].max() > 0:  # a lifted stick marks nothing
+                points = self._tensor(piece[:, : PRESSURE + 1])
+                pressures = points[:, PRESSURE]
+                radii = radius * (STICK_LIGHTEST_SHARE + (1.0 - STICK_LIGHTEST_SHARE) * pressures)
+                sheet.draw_dry(points[:, :2], radii, pressures, strength, DRY_MEDIA[medium], covered)
+            lightest = STICK_LIGHTEST_SHARE + (1.0 - STICK_LIGHTEST_SHARE) * float(piece[-1, PRESSURE])
+            self._end_piece(sheet_name, piece, radius * lightest)
+
+    def _line_pieces(self, traced: np.ndarray) -> Iterator[np.ndarray]:
+        """The pieces of a traced line drawn in each time step, until the last step has reached its end."""
         dt = self._time_step
         for step in range(max(1, math.ceil(float(traced[-1, TIME]) / dt - 1e-6))):
-            piece = journey_between(traced, step * dt, (step + 1) * dt)
-            radii = radius * (0.5 + 0.5 * piece[:, PRESSURE])
-            sheet.draw_dry(
-                self._tensor(piece[:, :2]),
-                self._tensor(radii),
-                self._tensor(piece[:, PRESSURE]),
-                strength,
-                DRY_MEDIA[medium],
-                covered,
-            )
-            self._pass_time(dt)
-            self._since_frame += dt
-            if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
-                self._since_frame = 0.0
-                self._record((float(piece[-1, 0]), float(piece[-1, 1]), float(radii[-1])))
+            yield journey_between(traced, step * dt, (step + 1) * dt)
+
+    def _end_piece(self, sheet_name: str, piece: np.ndarray, radius: float) -> None:
+        """Let the time step pass in which a tool crossed a piece of its line, recording a frame when one is due."""
+        self._pass_time(self._time_step)
+        self._since_frame += self._time_step
+        if self._since_frame >= STROKE_FRAME_INTERVAL and sheet_name == self.recorded_sheet:
+            self._since_frame = 0.0
+            self._record((float(piece[-1, 0]), float(piece[-1, 1]), radius))
 
     def erase(self, sheet_name: str, path: Path, radius: float) -> None:
         samples = trace_path(path, smooth=False)
@@ -380,12 +372,17 @@ def validate_brush_request(
     _validate_mix(pigments, palette)
 
 
-def validate_pen_request(path: Path, width: float, ink: dict[str, float], speed: float, palette: list[str]) -> None:
+def validate_points(path: Path, tool: str) -> None:
+    """Check the points of a path drawn with a tool that takes [x, y] or [x, y, pressure] points."""
     for point in path:
         if len(point) not in (2, 3):
-            raise ValueError("a pen point is [x, y] or [x, y, pressure]")
+            raise ValueError(f"a {tool} point is [x, y] or [x, y, pressure]")
         if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
-            raise ValueError("pen pressure must be between 0 and 1")
+            raise ValueError(f"{tool} pressure must be between 0 and 1")
+
+
+def validate_pen_request(path: Path, width: float, ink: dict[str, float], speed: float, palette: list[str]) -> None:
+    validate_points(path, "pen")
     if not 0.25 <= width <= 8:
         raise ValueError("pen width must be between 0.25 and 8 pixels")
     if speed <= 0:
@@ -396,11 +393,7 @@ def validate_pen_request(path: Path, width: float, ink: dict[str, float], speed:
 
 
 def validate_pencil_request(path: Path, darkness: float, radius: float) -> None:
-    for point in path:
-        if len(point) not in (2, 3):
-            raise ValueError("a pencil point is [x, y] or [x, y, pressure]")
-        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
-            raise ValueError("pencil pressure must be between 0 and 1")
+    validate_points(path, "pencil")
     if not 0.0 < darkness <= PENCIL_DARKEST:
         raise ValueError(f"pencil darkness must be more than 0 and at most {PENCIL_DARKEST:g}")
     if not 0.5 <= radius <= 10:
@@ -412,16 +405,17 @@ def validate_draw_request(
 ) -> None:
     if medium not in DRY_MEDIA:
         raise ValueError(f"unknown medium {medium!r}; available: {', '.join(DRY_MEDIA)}")
-    for point in path:
-        if len(point) not in (2, 3):
-            raise ValueError("a draw point is [x, y] or [x, y, pressure]")
-        if len(point) == 3 and not 0.0 <= point[2] <= 1.0:
-            raise ValueError("draw pressure must be between 0 and 1")
+    validate_points(path, "draw")
     if not 0.5 <= radius <= 20:
         raise ValueError("draw radius must be between 0.5 and 20 pixels")
     _validate_mix(pigments, palette)
     if not 0.0 < sum(pigments.values()) <= STRONGEST_STICK:
         raise ValueError(f"a stick holds more than 0 and at most {STRONGEST_STICK:g} of paint in all")
+
+
+def _with_pressure(path: Path, pressure: float) -> list[list[float]]:
+    """The points of a path, each given the pressure given where it has none."""
+    return [list(point) if len(point) > 2 else [point[0], point[1], pressure] for point in path]
 
 
 def _validate_mix(pigments: dict[str, float], palette: list[str]) -> None:

@@ -22,7 +22,9 @@ STROKE_THEN_WAIT = [*STROKE, {"action": "wait", "seconds": 4}]
 UNENDING_PASS = [*STROKE, STROKE[1], {"action": "wait", "seconds": 3600}]
 
 
-def new_session(directory: Path, stroke_budget: int = 10) -> Session:
+def new_session(
+    directory: Path, stroke_budget: int = 10, pencil_allowed: bool = True, pencil_after_paint: bool = False
+) -> Session:
     configuration = Configuration(
         prompt="test",
         size=96,
@@ -30,7 +32,8 @@ def new_session(directory: Path, stroke_budget: int = 10) -> Session:
         palette=["cobalt_blue"],
         stroke_budget=stroke_budget,
         scrap_allowed=False,
-        pencil_allowed=True,
+        pencil_allowed=pencil_allowed,
+        pencil_after_paint=pencil_after_paint,
     )
     return Session.create(directory / "painting", configuration)
 
@@ -327,19 +330,7 @@ def test_pencil_after_paint_is_refused_unless_the_painting_allows_it(tmp_path: P
     session.paint(STROKE)
     with pytest.raises(RuleViolation, match="underdrawing"):
         session.paint([{"action": "pencil", "path": [[10, 10], [30, 30]]}])
-    allowing = Session.create(
-        tmp_path / "allowing",
-        Configuration(
-            prompt="test",
-            size=96,
-            seed=1,
-            palette=["cobalt_blue"],
-            stroke_budget=10,
-            scrap_allowed=False,
-            pencil_allowed=True,
-            pencil_after_paint=True,
-        ),
-    )
+    allowing = new_session(tmp_path / "allowing", pencil_after_paint=True)
     allowing.paint(STROKE)
     allowing.paint([{"action": "pencil", "path": [[10, 10, 0.5], [30, 30]], "darkness": 1.2, "radius": 2.0}])
     with pytest.raises(RuleViolation, match="underdrawing"):
@@ -385,19 +376,13 @@ def test_dry_media_count_against_the_budget_and_can_follow_paint(tmp_path: Path)
 
 
 def test_dry_media_are_refused_when_the_painting_allows_no_pencil(tmp_path: Path) -> None:
-    session = Session.create(
-        tmp_path / "painting",
-        Configuration(
-            prompt="test",
-            size=96,
-            seed=1,
-            palette=["cobalt_blue"],
-            stroke_budget=10,
-            scrap_allowed=False,
-            pencil_allowed=False,
-        ),
-    )
+    session = new_session(tmp_path, pencil_allowed=False)
     with pytest.raises(RuleViolation, match="dry media"):
         session.paint(
             [{"action": "draw", "medium": "pastel", "pigments": {"cobalt_blue": 2.0}, "path": [[20, 40]], "radius": 3}]
         )
+
+
+def test_pencil_after_paint_is_refused_for_a_painting_without_pencil(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="allows pencil"):
+        new_session(tmp_path, pencil_allowed=False, pencil_after_paint=True)

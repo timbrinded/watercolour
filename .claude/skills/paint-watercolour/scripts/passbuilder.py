@@ -3,7 +3,7 @@
 import json
 
 # The actions that count against the stroke budget when they are on the painting and not the scrap sheet: session.py's
-# TOUCHING_ACTIONS, SURFACE_TREATMENTS and DRAWING_ACTIONS, mirrored so that these helpers need only the standard library.
+# BUDGETED_ACTIONS, mirrored so that these helpers need only the standard library.
 BUDGETED_ACTIONS = ("stroke", "blot", "pen", "mask", "unmask", "fix", "draw")
 
 

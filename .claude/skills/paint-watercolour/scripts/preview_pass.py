@@ -46,6 +46,7 @@ MASK_LIGHTEST_SHARE = 0.15  # the harness lays a mask line at no pressure this s
 PEN_LIGHTEST_SHARE = 0.15  # and draws a pen line at no pressure this share of its full width, but never under a pixel
 PENCIL_COLOUR = (90, 90, 90)
 PENCIL_RADIUS = 0.9  # the harness's pencil line at full pressure, unless the action gives a radius
+STICK_LIGHTEST_SHARE = 0.5  # and a pencil or dry-stick line at no pressure this share of its full width
 CLEAR_WATER = (0, 220, 255)
 TINT = {
     "french_ultramarine": (60, 60, 200),
@@ -101,8 +102,7 @@ def half_width(action: dict, brush: str, size: float, pressure: float) -> float:
         return max(0.5, action["width"] * (PEN_LIGHTEST_SHARE + (1 - PEN_LIGHTEST_SHARE) * pressure) / 2)
     if kind == "mask":
         return action["radius"] * (MASK_LIGHTEST_SHARE + (1 - MASK_LIGHTEST_SHARE) * pressure)
-    # A pencil line and a dry stick narrow to half their radius when lifted.
-    return action.get("radius", PENCIL_RADIUS) * (0.5 + 0.5 * pressure)
+    return action.get("radius", PENCIL_RADIUS) * (STICK_LIGHTEST_SHARE + (1 - STICK_LIGHTEST_SHARE) * pressure)
 
 
 def catmull_rom(points, steps=8):
@@ -130,7 +130,7 @@ def catmull_rom(points, steps=8):
     return curve
 
 
-def path_points(action: dict, default_pressure: float, smooth: bool = True) -> list[tuple[float, float, float]]:
+def path_points(action: dict, default_pressure: float, smooth: bool) -> list[tuple[float, float, float]]:
     points = []
     for point in action["path"]:
         if isinstance(point, dict):
@@ -213,10 +213,11 @@ def main() -> None:
                 fill = MASK_COLOUR if kind == "mask" else PENCIL_COLOUR
             # a path point with no pressure is laid at 0.7 by a brush or a dry stick and at full pressure by the others
             default_pressure = 0.7 if kind in ("stroke", "draw") else 1.0
-            # A dry stick lifted to pressure 0 marks nothing, so one draw action can hold several separate lines.
+            # A pencil or dry stick lifted to pressure 0 marks nothing, so one action can hold several separate lines.
+            lifts = kind in ("pencil", "draw")
             runs: list[list[tuple[float, float, float]]] = [[]]
             for x, y, pressure in path_points(action, default_pressure, smooth=kind != "draw"):
-                if kind == "draw" and pressure <= 0:
+                if lifts and pressure <= 0:
                     runs.append([])
                     continue
                 runs[-1].append(
