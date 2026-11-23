@@ -160,3 +160,56 @@ def test_body_colour_lights_are_brush_strokes_of_the_strength_the_light_needs(tm
     assert all(load["pigments"]["opaque_white"] == pytest.approx(load["pigments"]["yellow_ochre"]) for load in loads)
     assert max(strengths) > 4.5  # the middle of the band, far lighter than the sheet, takes paint that covers
     assert max(strengths) <= 7.5  # and no load is stronger than a brush can hold
+
+
+def test_a_row_wash_that_reaches_the_edge_of_the_sheet_runs_off_it(tmp_path: Path) -> None:
+    Image.new("RGB", (160, 120), (90, 90, 90)).save(tmp_path / "reference.png")
+    command = [sys.executable, str(SCRIPTS / "measured_layers.py"), str(tmp_path / "reference.png")]
+    options = ["--sheet", "160,120", "--paints", "ivory_black", "--brush", "mop", "--size", "18"]
+    subprocess.run([*command, str(tmp_path / "pass.json"), *options], check=True, capture_output=True)
+    rows = [action["path"] for action in json.loads((tmp_path / "pass.json").read_text()) if "path" in action]
+    assert rows
+    # an even tone is one stroke to a row, and each leaves the sheet at both ends: lifted inside it, a row
+    # leaves the paper along the edge bare
+    assert all(min(x for x, *_ in row) < 0 and max(x for x, *_ in row) > 160 for row in rows)
+
+
+def wash_references(tmp_path: Path) -> dict[str, np.ndarray]:
+    """What wash_references.py writes for a dark field holding a warm disc, a pale spar five pixels wide that
+    touches the disc, and a small cold light away from both."""
+    reference = np.full((120, 160, 3), (30, 32, 28), dtype=np.uint8)
+    ys, xs = np.mgrid[:120, :160]
+    reference[(xs - 60) ** 2 + (ys - 60) ** 2 <= 22**2] = (220, 190, 120)
+    reference[58:63, 82:120] = (220, 190, 120)
+    reference[28:33, 128:133] = (200, 200, 200)
+    Image.fromarray(reference).save(tmp_path / "reference.png")
+    command = [sys.executable, str(SCRIPTS / "wash_references.py"), str(tmp_path / "reference.png"), str(tmp_path)]
+    options = ["--sheet", "160,120", "--seed", "60,60", "--warmer-than", "0.07"]
+    subprocess.run([*command, *options], check=True, capture_output=True)
+    names = ("reference", "shape", "tint", "filled", "ground")
+    return {name: np.asarray(Image.open(tmp_path / f"{name}.png").convert("RGB")).astype(int) for name in names}
+
+
+def test_the_light_grown_from_a_seed_leaves_out_what_a_narrow_neck_joins_and_its_tint_runs_past_its_edge(
+    tmp_path: Path,
+) -> None:
+    images = wash_references(tmp_path)
+    shape = images["shape"][..., 0] > 127
+    assert shape[60, 60] and not shape[60, 100]  # the disc, and not the spar that touches it
+    assert shape.sum() == pytest.approx(np.pi * 22**2, rel=0.1)
+    tint = images["tint"]
+    assert (tint[60, 60] == images["reference"][60, 60]).all()
+    assert tint[30, 60, 0] - tint[30, 60, 2] > 60 and tint[30, 60, 1] < 235  # eight pixels past the disc: its colour
+    assert (tint[10, 10] == 255).all()  # and white paper far from it
+
+
+def test_the_wash_references_fill_the_shape_with_its_surround_and_spread_each_light_into_the_dark_beside_it(
+    tmp_path: Path,
+) -> None:
+    images = wash_references(tmp_path)
+    reference, filled, ground = images["reference"], images["filled"], images["ground"]
+    assert filled[60, 60].max() < 60  # under the fluid the darks aim at the field, not at the disc
+    assert (filled[10, 10] == reference[10, 10]).all() and (filled[30, 130] == reference[30, 130]).all()
+    assert (ground >= filled - 1).all()  # a wet wash is nowhere asked to be darker than the darks will be
+    assert ground[37, 130].min() - reference[37, 130].max() > 40  # five pixels under the small light: light
+    assert np.abs(ground[100, 20] - reference[100, 20]).max() <= 2  # far from every light: the field
