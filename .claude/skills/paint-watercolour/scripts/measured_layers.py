@@ -262,6 +262,15 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
 
     actions, strokes = [], 0
 
+    def run_off(point, sense):
+        """A row whose next step would leave the sheet is carried off it, as a hand carries a wash off the paper.
+        Lifted at its last point, up to a step inside, it leaves the paper along the edge bare and ragged."""
+        beyond = (point[0] + sense * along[0] * step, point[1] + sense * along[1] * step)
+        if 0 <= beyond[0] < width_pixels and 0 <= beyond[1] < height:
+            return point
+        carried = step + stroke_width / 2
+        return (point[0] + sense * along[0] * carried, point[1] + sense * along[1] * carried)
+
     def emit(points, gaps):
         nonlocal strokes
         mean = np.mean(gaps, axis=0)
@@ -270,8 +279,8 @@ def build(target: np.ndarray, current: np.ndarray, arguments) -> list[dict]:
         pigments = to_load(solve_mix(mean, arguments.absorption, arguments.without), arguments.gain, arguments.size)
         if sum(pigments.values()) < 0.03:
             return
-        start, end = points[0], points[-1]
-        if len(points) == 1:
+        start, end = run_off(points[0], -1), run_off(points[-1], 1)
+        if start == end:
             end = (start[0] + along[0] * 2, start[1] + along[1] * 2)
         load = {
             "action": "load",
