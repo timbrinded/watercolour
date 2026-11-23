@@ -115,14 +115,14 @@ The sheets recorded in this file were painted before a correction to how a centr
 ## The thirteen stages
 
 ```bash
-watercolor new paintings/copy --prompt "..." --size 960 --height 680 --stroke-budget 12000 \
+watercolor new paintings/copy --prompt "..." --size 960 --height 680 \
     --palette cobalt_blue,burnt_umber,yellow_ochre,cadmium_red,burnt_sienna,opaque_white
 python scripts/copy_reference.py paintings/copy reference.png --sheet 960,680 \
     --paints cobalt_blue,burnt_umber,yellow_ochre,cadmium_red,burnt_sienna --white 244,246,240 \
     --out-of-washes burnt_umber --exclude 514,300,608,318 --bloom 884,176 --bloom 700,80
 ```
 
-Start the painting with a stroke budget to match. The default of 150 is spent in the first stage, and a pass that would overrun the budget is refused. `--first` and `--last` run part of the sequence. The sizes are for a sheet about 960 pixels wide; on a much smaller or larger sheet, scale the sizes and blurs with it (this was not tried).
+The thirteen stages take about ten thousand strokes. From 0.13.0 a painting has no stroke budget unless one is given, so the command above needs none. On an older version add `--stroke-budget 12000`: the default of 150 there is spent in the first stage, and a pass that would overrun the budget is refused. `--first` and `--last` run part of the sequence. The sizes are for a sheet about 960 pixels wide; on a much smaller or larger sheet, scale the sizes and blurs with it (this was not tried).
 
 | Stage | Tool | Brush | Threshold | Lays |
 |---|---|---|---|---|

@@ -23,7 +23,7 @@ UNENDING_PASS = [*STROKE, STROKE[1], {"action": "wait", "seconds": 3600}]
 
 
 def new_session(
-    directory: Path, stroke_budget: int = 10, pencil_allowed: bool = True, pencil_after_paint: bool = False
+    directory: Path, stroke_budget: int | None = 10, pencil_allowed: bool = True, pencil_after_paint: bool = False
 ) -> Session:
     configuration = Configuration(
         prompt="test",
@@ -54,6 +54,28 @@ def test_a_pass_over_the_stroke_budget_is_refused_whole(tmp_path: Path) -> None:
     with pytest.raises(RuleViolation):
         session.paint(STROKE)
     assert Session(session.directory).strokes_used == 1
+
+
+def test_a_painting_started_without_a_stroke_budget_has_no_limit(tmp_path: Path) -> None:
+    session = new_session(tmp_path, stroke_budget=None)
+    for _ in range(3):
+        session.paint([STROKE[0], *[STROKE[1]] * 4])
+    assert session.strokes_used == 12
+    assert session.report()["stroke_budget"] is None
+    assert Session(session.directory).configuration.stroke_budget is None
+
+
+def test_the_command_starts_a_painting_without_a_stroke_budget_unless_one_is_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for name, flags, expected in (("unlimited", [], None), ("limited", ["--stroke-budget", "40"], 40)):
+        directory = tmp_path / name
+        monkeypatch.setattr(
+            sys, "argv", ["watercolor", "new", str(directory), "--prompt", "test", "--size", "128", *flags]
+        )
+        main()
+        assert json.loads(capsys.readouterr().out)["stroke_budget"] == expected
+        assert Session(directory).configuration.stroke_budget == expected
 
 
 def test_a_finished_painting_accepts_nothing_more(tmp_path: Path) -> None:

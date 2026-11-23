@@ -45,7 +45,7 @@ A feathered line in a wet passage (a branch in mist, a reflection) is drawn at f
 
 - **Pressure sets the width, never the value.** A line is `width` × (0.15 + 0.85 × pressure) wide, and never under one pixel. Measured on a line of width 6 swelling from no pressure to full and back: 1.0, 2.1, 3.5, 4.8 and 5.9 pixels at pressure 0, 0.25, 0.5, 0.75 and 1, with its darkest value between 0.046 and 0.068 all along. For a paler line, lay less ink.
 - **Whole pixels are crispest.** A line along a row or column on whole-pixel coordinates covers one pixel; drawn between pixel centres it is shared between two and reads paler on each (`actions.md`). A slanting line covers about one and a half pixels.
-- **A stroke of the pen is one line.** It counts against the stroke budget like a brush stroke, so a hatched passage of forty lines costs forty strokes. Set `--stroke-budget` for it at `new`. `scripts/passbuilder.py` writes pen lines and fixative with `pen` and `fix`, and counts both against the budget.
+- **A stroke of the pen is one line.** It is counted like a brush stroke, so a hatched passage of forty lines is forty strokes; where a stroke budget is set at `new`, allow for them. `scripts/passbuilder.py` writes pen lines and fixative with `pen` and `fix`, and counts both against the budget.
 
 ## Hatching
 

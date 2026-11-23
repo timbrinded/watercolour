@@ -1,6 +1,6 @@
 """Command-line harness.
 
-    watercolor new    <directory> --prompt "..." [--size 512] [--height 360] [--stroke-budget 150] ...
+    watercolor new    <directory> --prompt "..." [--size 512] [--height 360] [--stroke-budget N] ...
     watercolor paint  <directory> <actions.json>
     watercolor look   <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] [--grid] [--scrap]
                                   [--at x,y ...]
@@ -51,7 +51,12 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--support", default="cold_press", choices=SUPPORTS, help="what the painting is painted on")
     new.add_argument("--ground", type=Path, metavar="IMAGE", help="an image printed on the sheet before any paint")
     new.add_argument("--palette", default=",".join(DEFAULT_PALETTE), help="comma-separated pigment names")
-    new.add_argument("--stroke-budget", type=int, default=150)
+    new.add_argument(
+        "--stroke-budget",
+        type=int,
+        metavar="STROKES",
+        help="refuse a pass that would take the painting past this many strokes; there is no limit unless this is given",
+    )
     new.add_argument("--no-scrap", action="store_true")
     pencil = new.add_mutually_exclusive_group()
     pencil.add_argument("--no-pencil", action="store_true", help="no pencil underdrawing and no dry media")

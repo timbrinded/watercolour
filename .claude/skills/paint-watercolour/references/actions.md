@@ -5,12 +5,12 @@
 ```bash
 watercolor new <directory> --prompt "<brief>" [--size 512] [--height 360] [--seed 0] \
     [--support cold_press|hot_press|rough] [--ground <image>] \
-    [--palette name,name,...] [--stroke-budget 150] [--no-scrap] [--no-pencil] [--pencil-after-paint]
+    [--palette name,name,...] [--stroke-budget N] [--no-scrap] [--no-pencil] [--pencil-after-paint]
 ```
 
 - `--size` is the width in pixels (128 to 1024); `--height` makes the sheet other than square.
 - `--palette` names the paint box for this painting; the default is the thirteen paints of the first table under [Paints](#paints). The paints of the second table must be named here.
-- `--stroke-budget` caps strokes, blots, pen lines, dry-media lines (`draw`), masking and fixative on the painting itself. A pass that would exceed it is refused whole.
+- `--stroke-budget` sets a limit on strokes, blots, pen lines, dry-media lines (`draw`), masking and fixative on the painting itself. A pass that would exceed it is refused whole, and the limit cannot be changed once the painting is started. Without it there is no limit (0.13.0 or later; before, the limit was 150 unless another was given). Give one only when the brief asks for a set number of strokes.
 - `--no-pencil` refuses `pencil`, `erase` and `draw` on the painting. `--pencil-after-paint` (0.12.0 or later) allows `pencil` once paint is on the painting; without it pencil is the underdrawing only. The two cannot be given together.
 - `--seed` fixes the paper and the small variation in each brush load, so a painting replays identically.
 - `--support` is what the painting is painted on, fixed for the whole painting and shared by its scrap sheet. The default, `cold_press`, is the sheet every earlier painting was painted on.
@@ -51,7 +51,7 @@ Fixative, for example:
 - `{"action": "fix", "path": [[40, 60], [200, 60], [200, 140]], "radius": 24}`: alum over passages that have dried.
 - `{"action": "fix", "path": [[128, 128]], "radius": 60, "sheet": "scrap"}`
 
-`"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes do not count against the budget.
+`"sheet": "scrap"` sends an action to the 256 by 256 scrap sheet, if the painting has one. Scrap strokes are not counted, so they take nothing from a stroke budget.
 
 ### Layers (0.11.0 or later)
 
@@ -155,8 +155,8 @@ watercolor look <directory> [--view color|value|wetness] [--region x0,y0,x1,y1] 
 - `--region` enlarges part of the sheet; `--grid` draws labelled pixel coordinates over it.
 - `--at x,y` (repeatable) reads the wetness at a point as numbers: `film`, the depth of water on the surface, and `paper`, how full the sheet is from 0 to 1. Use it before any stroke whose result depends on wetness.
 
-`status` reports the clock, strokes used against the budget, the `support` and whether a printed `ground` lies on it, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15, or 0.03 on `hot_press`), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
+`status` reports the clock, the strokes used and the stroke budget (`null` when there is none), the `support` and whether a printed `ground` lies on it, what is in the brush and how full it is, and for each sheet its `wetness` (the film at its deepest, the film's usual depth where there is one, and how full the damp paper is) and the share of it that is shiny (film over 0.15, or 0.03 on `hot_press`), moist (a thinner film), damp (no film, paper more than 0.6 full) or dry. Those four names are only landmarks on the two scales; the numbers are what to act on.
 
 When the last pass stopped before its end, because the command was killed or a fault ended it, every report also carries `interrupted_pass`: `actions_completed` out of `actions_given`, and `seconds_passed_in_next_action`, the part of a `wait` or `dry` that had already run when it stopped. Giving the same `paint` command again carries on from there, and its report then has `resumed_after_action` with the number of actions it did not repeat. A pass that differs in any way is a new pass and starts from its first action.
 
-`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0; `pen`, the two inks, masking fluid's unbroken finest line, `fix`, `--support`, `--ground` and the paints that must be named in `--palette` need 0.10.0; layers, the covering paints and a transparent `hansa_yellow` need 0.11.0; `draw`, `--pencil-after-paint`, and pencil `radius`, pressure and building tone need 0.12.0.
+`watercolor --version` prints the version. `drain`, `wait` with `film`, `--at` and the wetness scale need 0.5.0 or later; carrying on after a command is cut short needs 0.5.2; water showing as light in the colour picture needs 0.6.0; the lit rim of a pool that stands proud needs 0.7.0; `pen`, the two inks, masking fluid's unbroken finest line, `fix`, `--support`, `--ground` and the paints that must be named in `--palette` need 0.10.0; layers, the covering paints and a transparent `hansa_yellow` need 0.11.0; `draw`, `--pencil-after-paint`, and pencil `radius`, pressure and building tone need 0.12.0; a painting with no stroke budget needs 0.13.0.

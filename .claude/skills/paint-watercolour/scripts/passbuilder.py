@@ -2,8 +2,9 @@
 
 import json
 
-# The actions that count against the stroke budget when they are on the painting and not the scrap sheet: session.py's
-# BUDGETED_ACTIONS, mirrored so that these helpers need only the standard library.
+# The actions the session counts as strokes when they are on the painting and not the scrap sheet, and against the
+# stroke budget where one is set: session.py's BUDGETED_ACTIONS, mirrored so that these helpers need only the standard
+# library.
 BUDGETED_ACTIONS = ("stroke", "blot", "pen", "mask", "unmask", "fix", "draw")
 
 
@@ -99,14 +100,14 @@ DRY = {"action": "dry"}
 
 
 def budgeted(actions) -> int:
-    """How many of the actions count against the painting's stroke budget."""
+    """How many of the actions the session counts as strokes on the painting."""
     return sum(1 for action in actions if action["action"] in BUDGETED_ACTIONS and action.get("sheet") != "scrap")
 
 
 def write(actions, path):
     with open(path, "w") as handle:
         json.dump(actions, handle, indent=1)
-    print(f"{path}: {len(actions)} actions, {budgeted(actions)} against the stroke budget")
+    print(f"{path}: {len(actions)} actions, {budgeted(actions)} counted as strokes")
 
 
 def offset_path(points, distance):
