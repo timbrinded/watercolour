@@ -118,7 +118,7 @@ The painting is saved as each action ends and every few seconds through a long w
 - **No undo.** There is no command that previews, rehearses or reverses an action.
 - **A tamper-evident record.** Every action is appended to a hash-chained log with a digest of the state saved after it. A state file that does not follow from the log is refused.
 - **One command at a time.** A second command on a painting is refused until the first ends.
-- **A stroke budget**, a restricted palette, an optional scrap sheet, optional pencil and dry media, and whether pencil may follow paint, all fixed when the painting is started.
+- **A restricted palette**, an optional scrap sheet, optional pencil and dry media, whether pencil may follow paint, and an optional limit on strokes (`--stroke-budget`; there is none unless one is given), all fixed when the painting is started.
 - **Time passes.** A stroke takes time to make, and paint laid earlier keeps flowing and drying while later strokes are made.
 
 ## The engine

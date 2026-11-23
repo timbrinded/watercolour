@@ -25,8 +25,9 @@ script.
                  however narrow it is. 0.08 (near-white) with --even-passages, where the heavier smoothing
                  would otherwise tone every narrow light over; off without it. 0 turns it off.
 
-The painting must have been started with a stroke budget large enough for every stage (`watercolor new
---stroke-budget`): a sheet 960 pixels wide took about ten thousand strokes.
+A sheet 960 pixels wide took about ten thousand strokes. From 0.13.0 a painting has no stroke budget unless one is
+given; on an older version it must have been started with one large enough for every stage (`watercolor new
+--stroke-budget`).
 
 The sizes, thresholds and blurs below were settled on a sheet 960 pixels wide. Run this with the Python that the
 watercolor tool uses.

@@ -42,7 +42,7 @@ from .studio import (
 
 SCRAP_SIZE = 256
 TOUCHING_ACTIONS = ("stroke", "blot", "pen")  # these put paint on the sheet or take it off, ending the underdrawing
-# The actions that count against the stroke budget: those above, and these, which do not end the underdrawing.
+# The actions counted as strokes, and against the stroke budget where one is set: those above, and these, which do not end the underdrawing.
 BUDGETED_ACTIONS = (*TOUCHING_ACTIONS, "mask", "unmask", "fix", "draw")
 SHEET_ACTIONS = ("stroke", "blot", "pencil", "erase", "tilt", "mask", "unmask", "pen", "fix", "draw")
 SAVE_INTERVAL = 10.0  # seconds of computing between saves during a long wait
@@ -70,7 +70,7 @@ class Configuration:
     size: int
     seed: int
     palette: list[str]
-    stroke_budget: int
+    stroke_budget: int | None  # the most strokes the painting may take; None for no limit
     scrap_allowed: bool
     pencil_allowed: bool
     engine_version: str = ENGINE_VERSION
@@ -387,7 +387,7 @@ class Session:
                 if kind in BUDGETED_ACTIONS and on_painting:
                     strokes += 1
                     paint_applied = paint_applied or kind in TOUCHING_ACTIONS
-                    if strokes > config.stroke_budget:
+                    if config.stroke_budget is not None and strokes > config.stroke_budget:
                         raise RuleViolation(f"the stroke budget of {config.stroke_budget} is spent")
             except KeyError as missing:
                 raise ValueError(f"action {number} is missing {missing}") from None

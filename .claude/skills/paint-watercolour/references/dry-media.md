@@ -11,7 +11,7 @@ Read this before drawing with `draw` (coloured pencil, pastel, crayon, chalk, ch
 - **Pressure decides how deep into the grain it reaches.** Light pressure marks only the peaks of the grain, leaving the paper or the wash showing in the hollows; full pressure fills the hollows. At 0.3, black pastel darkened the peaks 7.4 times as much as the hollows; at 1 the hollows took almost as much as the peaks. The paper rises and falls within each pixel too, so a light touch covers part of most pixels it reaches: it reads as a broken veil, not as solid specks. On hot press, whose grain is a fifth as deep, the same touch reaches nearly all of it and covers almost evenly (peaks against hollows 1.05 at 0.3).
 - **Pressure 0 lifts the stick.** One `draw` action can hold a whole patch of hatching, its lines joined by points at pressure 0. `scripts/passbuilder.py` writes the path with `hatch(lines, pressure)`.
 - **Within one action it lays once.** Where one line crosses itself or its pieces overlap, it lays no more. A second action over the same place adds a coat.
-- **Each `draw` is one stroke against the budget, and it does not end the underdrawing.** A patch of hatching is one stroke, so a drawn painting needs no larger budget than its number of patches and lines.
+- **Each `draw` is counted as one stroke, and it does not end the underdrawing.** A patch of hatching is one stroke, so where a stroke budget was set a drawn painting needs no more of it than its number of patches and lines.
 - The stick travels at 80 pixels per second, and the paint keeps drying while it does.
 
 ## The two media

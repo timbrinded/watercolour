@@ -67,6 +67,6 @@ Named in `--palette` only. Each covers in proportion to its thickness. A round 6
 
 On a sheet printed with a tone (`supports-and-grounds.md`), transparent paint only darkens the tone, a mask keeps the tone (not white), and every light above the tone is covering paint. Two coats of `opaque_white` at 4.5 brought a tan ground of 0.66 to 0.84. Lay transparent darks first or last; lay lights in covering paint after a `dry`.
 
-## Budget
+## Cost
 
-Each coat is a stroke against the budget, and each needs a `dry` before the next. A light that needs two coats costs two strokes where a masked one costs the mask.
+Each coat needs a `dry` before the next, and is a stroke against the stroke budget where one was set. A light that needs two coats costs two strokes and two waits where a masked one costs the mask.
