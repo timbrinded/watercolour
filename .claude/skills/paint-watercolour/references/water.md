@@ -5,6 +5,8 @@ from a photograph. Each passage of a beach needs its own method: the one that pa
 muddy, and the one that painted the sea well lost the foam. This file says which method to use for which passage,
 in what order, and what failed.
 
+For a sea in weather, where the light is laid over the dark and not kept as paper, read `seascapes.md` instead.
+
 It was worked out on three beach paintings and about twenty rehearsal sheets (harness 0.7.1): one from an idea
 (waves lapping on a calm beach, with lace foam), and two copies of a photograph of surf breaking on salmon-pink sand,
 768 by 1024. The masking trials were run on 0.8.0. Where no masking fluid is laid, 0.8.0 paints exactly as 0.7.1

@@ -111,3 +111,52 @@ def test_a_painting_on_a_printed_ground_is_measured_against_the_page_it_was_prin
     assert measured["white"] == "rig"
     assert float(measured["p50"]) == pytest.approx(1.0, abs=0.01)
     assert float(measured["paper%"]) == pytest.approx(75.0, abs=3.0)
+
+
+def scumble(tmp_path: Path, *options: str) -> list[dict]:
+    """The pass scumble_lights.py writes for a dark sheet and a reference holding one slanting band of light."""
+    reference = np.full((120, 160), 20, dtype=np.uint8)
+    for x in range(20, 140):
+        y = 20 + (x - 20) * 2 // 3  # the band falls two pixels in every three across
+        reference[y - 4 : y + 5, x] = 200
+    Image.fromarray(reference).convert("RGB").save(tmp_path / "reference.png")
+    Image.new("RGB", (160, 120), (20, 20, 20)).save(tmp_path / "look.png")
+    command = [
+        sys.executable,
+        str(SCRIPTS / "scumble_lights.py"),
+        str(tmp_path / "reference.png"),
+        str(tmp_path / "pass.json"),
+    ]
+    subprocess.run(
+        [*command, "--sheet", "160,120", "--look", str(tmp_path / "look.png"), *options],
+        check=True,
+        capture_output=True,
+    )
+    return json.loads((tmp_path / "pass.json").read_text())
+
+
+def test_lights_are_scumbled_along_a_band_of_light_and_nowhere_else(tmp_path: Path) -> None:
+    actions = scumble(tmp_path, "--radius", "3")
+    pressed = [point for action in actions for point in action["path"] if point[2] > 0]
+    assert all(action["action"] == "draw" for action in actions)
+    assert len(pressed) > 20
+    assert all(abs(y - (20 + (x - 20) * 2 / 3)) < 8 for x, y, _ in pressed)  # every mark lies on the band
+    runs = [(a, b) for action in actions for a, b in zip(action["path"], action["path"][1:]) if a[2] > 0 and b[2] > 0]
+    along = [
+        abs((b[0] - a[0]) * 3 + (b[1] - a[1]) * 2) / (13**0.5 * np.hypot(b[0] - a[0], b[1] - a[1])) for a, b in runs
+    ]
+    assert np.mean(along) > 0.95  # strokes run along the band, not across it
+
+
+def test_body_colour_lights_are_brush_strokes_of_the_strength_the_light_needs(tmp_path: Path) -> None:
+    actions = scumble(
+        tmp_path, "--radius", "3", "--medium", "body_colour", "--stick", "opaque_white:1.0,yellow_ochre:1.0"
+    )
+    loads = [action for action in actions if action["action"] == "load"]
+    strokes = [action for action in actions if action["action"] == "stroke"]
+    assert len(loads) == len(strokes) > 0
+    assert actions[-1] == {"action": "dry"}
+    strengths = [sum(load["pigments"].values()) for load in loads]
+    assert all(load["pigments"]["opaque_white"] == pytest.approx(load["pigments"]["yellow_ochre"]) for load in loads)
+    assert max(strengths) > 4.5  # the middle of the band, far lighter than the sheet, takes paint that covers
+    assert max(strengths) <= 7.5  # and no load is stronger than a brush can hold

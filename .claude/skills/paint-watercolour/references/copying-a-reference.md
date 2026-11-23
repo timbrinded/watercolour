@@ -39,6 +39,7 @@ Run them with the Python the harness uses, because two of them read its pigment 
 | `copy_reference.py` | Runs the thirteen measured stages below, one after another. |
 | `crisp_layers.py` | A pass of hard-edged shapes where the sheet still lacks tone, each filled with rounds kept inside it: breaking foam, and any passage of small lights and darks that the measured stages dry soft. See `water.md`. |
 | `trace_troughs.py` | The dark troughs of choppy water, each as one tapered stroke traced from the reference. See `water.md`. |
+| `scumble_lights.py` | A pass that lays light over the dried sheet wherever it is darker than the reference, in strokes that follow the reference's streaks: body colour with a brush, or pastel and coloured pencil. The only measuring script that lightens. See `seascapes.md`. |
 | `mask_lights.py` | Masking fluid over the reference's lights, for a wash that must cross them: on 0.10.0 every light, down to one pixel wide (`--least-radius` 1, the default), as one stroke of the finest fluid (radius 1.25) through the pixel centres of each run of light along a row. On 0.8.0 and 0.9, give `--least-radius 2`. See `water.md`. |
 | `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `pen`, `draw`, `hatch`, `fix`, `rows`, `offset_path`, `translate`, `merge_stages`. |
 
@@ -192,7 +193,7 @@ A passage that is a plain gradation with nothing in it is still better laid by h
 
 ## Step 6: the hand
 
-The measured stages do not draw, do not make a stroke longer than a shape is, do not choose which edges to lose, and cannot lighten. What is left is done by hand, on a dry sheet, in this order with a `dry` between each:
+The measured stages do not draw, do not make a stroke longer than a shape is, do not choose which edges to lose, and cannot lighten. (`scumble_lights.py` can lighten, with covering paint or a dry stick: `seascapes.md`.) What is left is done by hand, on a dry sheet, in this order with a `dry` between each:
 
 1. **Gestures.** The long strokes that are one movement of the arm: hair from crown to fringe, the length of a hanging ear, a contour restated against a finished background. One stroke each of three or four points, pressure 0.15, 0.8, 0.9, 0.15. Make them lighter than seems right (strength 1 to 1.7): on the sheet where everything else was within 0.04 of the reference, every red patch in the difference map was a hand stroke a third too wide and half as strong again as the original's. That holds for broad gestures. A thin line needs more, because a small brush lays less: the outlines of a sail from a size 1.2 round at strength 1.4 dried invisible on a middle-value sky, and at 3.2 they read.
 2. **Small whites** that could not be reserved, in `opaque_white`, before the darks that will sit beside them. On 0.10.0 a white line was not among them: a stay drawn with a size 1.3 rigger at strength 4.5 in two coats did not show at all on a sky of value 0.6. From 0.11.0 the same line reads 0.79 over a value of 0.67, so a light stay or rigging line can go in after a `dry` (`body-colour.md`).
