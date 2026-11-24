@@ -153,12 +153,15 @@ What they read as: the dark sky with its clouds, the one pool of olive and cream
 
 ## A sea from an idea
 
-The method above copies a picture. For a picture that does not exist yet, make the picture first, as a design, and copy that. A cruise liner coming level through a storm sea was done this way on a 1024 by 768 sheet.
+The method above copies a picture. For a picture that does not exist yet, make the picture first, as a design, and copy that. A cruise liner coming level through a storm sea was done this way on two 1024 by 768 sheets.
 
 - **Design it as a model, not as a drawing.** The sea was a spectrum of wind waves on tiles, with their crests sharpened, plus a few mounds placed by hand for the one great wave and the trough; the ship a lofted hull and stepped decks drawn with a depth buffer; the light one key with pools where the cloud breaks. Moving the eye, the wave or the ship and rendering again takes a minute, so a composition can be tried and thrown away. Any renderer will do; it is not part of this skill.
 - **Check the design against the table at the top before painting.** The liner's design measured mean 0.24, median 0.17, 10.9% lighter than 0.5, 4.5% lighter than 0.7, 7.2% hard edges and chroma 0.03, beside The Shipwreck's 0.21, 0.15, 7%, 2.5%, 4.7% and 0.06. Reduce it to three values as well: the light should come out as one shape.
 - **Then the layered method as written**, with the object's silhouette from the render given to `wash_references.py --shape`. The sheet stood at 0.045 and 0.079 when the fluid came off and finished at **0.035 and 0.062, edge agreement 0.60**, in 6,622 strokes and 116 minutes of the sheet's clock.
-- **What the copy lost.** The design's breaking crest came out understated and its foam as thin lines. A broad soft light, such as a crest in spray, is not found by passes that lay streaks; nothing here lays one from a measurement.
+- **What the copy lost.** The design's crest came out understated and its foam as thin lines, because the design itself carried the sea's light in thin lines.
+- **Give the sea its light as masses.** A second design had the great wave break (a thick lip, spray thrown off it, its face lit above and black in the trough), a train of breakers behind, and rain over the ship's after end. Painted the same way, with the lights as body colour at radius 5 (threshold 0.07) and then 3 (0.09) and pastel at radius 4 and 2.5, and no pencil threads, it stood at 0.045 when the fluid came off and at 0.033 and 0.059 after the lights, in 5,718 strokes. The lip still came out as a pale band of wash with flecks of pastel for spray: a broad soft light is not found by passes that lay streaks.
+- **Keep the foam strokes off smooth water.** On a smooth dark foreground the design has no streaks to follow, and `scumble_lights.py` laid pale tangled loops there, as it lays worms in a sky. Leave such passages out of the `--within` image.
+- **Sinking a blemish.** Measured darks (`shape_strokes.py --region`, 206 strokes) did nothing to the loops. A dark glaze did: clear water in rows of a mop along the run of the wave, reaching past where the glaze should end, then `ivory_black` 1.5, `cobalt_blue` 0.4, `hansa_yellow` 0.25 at water 0.7 into it. Laid in level rows first it dried with a level upper edge that fought the wave; along the wave it read as the trough in shadow. It was tried twice on a copy of the painting directory before it went on the sheet, and it took the value gap from 0.033 to 0.041, since the design is not that dark there.
 
 ## A hard object in the sea
 
@@ -173,6 +176,7 @@ A ship, a pier or a lighthouse is the one thing in such a picture with straight 
 | Wyllie, Carmania, 1914 (watercolour) | 3.1 px (2.7 to 3.6) | 2.7% | 4 px |
 | The liner, ruled | 2.7 px (2.6 to 2.8) | 9.2% | 15 px |
 | The liner, repainted | 2.7 px (2.5 to 3.0) | 5.7% | 10 px |
+| The liner on a second sheet, only her forward part masked | 2.8 px (2.6 to 3.0) | 4.4% | 11 px |
 
 The width of an edge is its step in value divided by its steepest slope, over the strongest 3% of edges in the ship's box; a hard step is a change of more than 0.15 from one pixel to the next. A painter's edges vary by about a pixel within one ship, the hard lines break, detail thins with distance, the far end goes into smoke or haze, the waterline is lost in foam, and lit ports are uneven dabs.
 
@@ -181,7 +185,8 @@ The width of an edge is its step in value divided by its steepest slope, over th
 - **Bands with a small round on dry paper.** Size about half the band's width, `ivory_black` 0.85 and `cobalt_blue` 0.65 at water 0.75, each point up to a third of a pixel off the line, the pressure falling towards the far end, and about one point in five lifted (pressure 0) so that the line breaks. Positions come from the model, projected. On damp paper the same strokes bloomed.
 - **Lamps as uneven dabs.** One dab of covering paint (`opaque_white` 3.0, `yellow_ochre` 2.0, `hansa_yellow` 0.6, `cadmium_red` 0.18) for each lit window in the design, each moved up to a pixel, sized 0.85 to 1.4 times, and an eighth of them left out at the near end rising to two fifths at the far end.
 - **To lose an edge, wet it and charge it.** A clean brush at 0.45, 0.6 or 1.0 run along a dried cut edge changed nothing. Clear water along the edge and then dark of strength about 6 (`ivory_black` 4.5, `cobalt_blue` 1.5, water 0.6) laid on the edge itself runs into the object and turns it into shadow over about 15 pixels. Dark charged beside the edge and not on it never reaches it; dark of strength 2 to 3 only greys it. Where the ground behind the edge is lighter than the charge, the charge leaves a darker rim outside it.
-- **A cut outline stays cut.** None of this softens the fluid's own edge: the repainted ship's strongest edges are as sharp as before. An outline that should be soft is not to be masked. Masking only the part that must stay firm was not tried.
+- **A cut outline stays cut.** None of this softens the fluid's own edge: the repainted ship's strongest edges are as sharp as before. An outline that should be soft is not to be masked.
+- **Mask only what must be firm.** On the second sheet the fluid covered only the ship forward of a line 112 metres aft of her stem (the lit bow and forward face), its outline blurred by 2.5 pixels before it was cut so that the steps of the decks lost their corners. The rest of her was given to `wash_references.py` as her own light tint with nothing drawn on it, so the washes left it softly, and where the design took her into rain they closed over her. Her after skyline, funnel and stern have no edge at all; the strongest edges the table measures are the bow's, kept on purpose. Bands, lamps and boats went on as above, with no veil needed.
 - **Rehearse on the CPU when the graphics card is busy.** `CUDA_VISIBLE_DEVICES= uv run watercolor ...` runs the harness without it; a 300 by 270 sheet takes about half a minute a pass, which is enough for edges and bands.
 
 ## Rules the first full sheet taught
@@ -214,5 +219,5 @@ So pressure is a continuous control from a breath of light to a covering coat, a
 - Body-colour strokes have even edges, and the pencil's threads are wires. Turner's paint is thick in one place and scraped thin in the next within one stroke; nothing here varies a stroke's cover along its length except its width.
 - The sheet is softer than the picture (edge energy 0.043 against 0.052). Its darks are built from many small touches with soft borders.
 - The scripts copy a picture that exists. They do not compose one. A sea from an idea is designed first and then copied ("A sea from an idea" above); deciding the pool of light, the one warm light and the diagonals is still the painter's.
-- A broad soft light and a soft outline: the first is not laid by any measured pass, and the second cannot be had from masking fluid.
+- A broad soft light, such as a breaking crest in spray, is not laid by any measured pass. It comes out as wash with flecks on it.
 - Figures are suggested, not drawn. What the measured stages cannot find at the sheet's scale is not there.
