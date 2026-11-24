@@ -108,7 +108,7 @@ The same reference corrected two other habits:
 
 Forty or fifty crisp marks turn a soft, correct wash into a particular person. Draw them on washes that are completely dry, one stroke per mark, each loaded fresh and laid slowly. Measure every one first: enlarge the eyes and the mouth to seven times their size with a 10 pixel grid (`scripts/reference_grid.py --zoom 7 --step 10`), write each mark down as points, and check the pass over the reference (`scripts/preview_pass.py`). Marks this small must sit within two pixels.
 
-The sizes below are for a face about 300 pixels across. "Dark" is burnt umber 3 to French ultramarine 1.2.
+The sizes below are for a face about 300 pixels across. "Dark" is burnt umber 3 to French ultramarine 1.2, which is right for the lines and small spots of this table. Filled into a shape wider than about 20 pixels (a large pupil) it dries red-brown; there use cobalt blue 2.8, burnt umber 1.7, burnt sienna 0.8 (`SKILL.md`, "Greys and darks are mixed").
 
 | Mark | Brush and load | Path |
 |---|---|---|
