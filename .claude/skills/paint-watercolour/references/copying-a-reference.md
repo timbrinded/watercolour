@@ -40,6 +40,11 @@ Run them with the Python the harness uses, because two of them read its pigment 
 | `crisp_layers.py` | A pass of hard-edged shapes where the sheet still lacks tone, each filled with rounds kept inside it: breaking foam, and any passage of small lights and darks that the measured stages dry soft. See `water.md`. |
 | `trace_troughs.py` | The dark troughs of choppy water, each as one tapered stroke traced from the reference. See `water.md`. |
 | `mask_lights.py` | Masking fluid over the reference's lights, for a wash that must cross them: on 0.10.0 every light, down to one pixel wide (`--least-radius` 1, the default), as one stroke of the finest fluid (radius 1.25) through the pixel centres of each run of light along a row. On 0.8.0 and 0.9, give `--least-radius 2`. See `water.md`. |
+| `isolate_subject.py` | A photograph's subject alone on paper white, in a high key, from the photograph and a mask of the subject; and the alpha the next two read. See `animal-portraits.md`. |
+| `keep_passage.py` | The reference with a passage as it stands on the sheet (an eye painted first, a sky laid by hand), so no stage lays on it, in the passage's own shape. |
+| `fit_light_lines.py` | Whiskers and other thin light lines, from guides read off the grid: the fitted lines, masking fluid along them, and the reference with them painted out. |
+| `soften_outline.py` | A clean damp brush run along the outside of a wet first wash, round a whole outline. |
+| `coat_hairs.py` | Tapered hairs on a dry coat, in the fur's colour at a strength set by hand: tufts along the outline, or long hairs followed through the reference's grain. |
 | `passbuilder.py` | Helpers for writing a pass in Python: `scaled`, `load`, `stroke`, `dab`, `pen`, `draw`, `hatch`, `fix`, `rows`, `offset_path`, `translate`, `merge_stages`. |
 
 ## Step 1: grid and sample the reference
@@ -186,15 +191,38 @@ A passage that is a plain gradation with nothing in it is still better laid by h
 - **Let the rows wander** (`--wobble 0.12 --tolerance 0.5`), and change the row angle with every layer. Ruled strokes at one pressure dried as straight bars with round-ended dots, and layers all at one angle read as scan lines.
 - **Match the blur to the brush** in shape strokes: about as many pixels as the largest size of the pass. With a blur of 3 at size 9, grain broke the broad shapes into hundreds of spots. The blur is a window of an odd width, and an even figure is taken as the next odd one, so 2 and 3 are the same blur, as are 4 and 5, and 6 and 7.
 - **Do not use shape strokes for the masses.** A background that is one connected shape has a centre line like a river system. Rows cover it evenly.
-- **Fence off what must stay as it is** (`--exclude`). Teeth, and any white too small for the footprint rule to protect, are toned to cream by the layers unless their rectangle is excluded from every stage. So is a signature or watermark, which the layers will otherwise copy as a smudge. Exclude the eyes and mouth from any layer laid after they are drawn. A row brush stays half its own width outside the rectangle, so the mop leaves a margin of 19 pixels round it and each smaller brush closes more of it. Keep the rectangle small. One drawn round a whole group of sails kept the row stages out of the sky between them, and the shape strokes then filled that sky as a mosaic of small touches with hairlines of paper between them.
+- **Fence off what must stay as it is** (`--exclude`). Teeth, and any white too small for the footprint rule to protect, are toned to cream by the layers unless their rectangle is excluded from every stage. So is a signature or watermark, which the layers will otherwise copy as a smudge. Exclude the eyes and mouth from any layer laid after they are drawn. A row brush stays half its own width outside the rectangle, so the mop leaves a margin of 19 pixels round it and each smaller brush closes more of it. Keep the rectangle small. One drawn round a whole group of sails kept the row stages out of the sky between them, and the shape strokes then filled that sky as a mosaic of small touches with hairlines of paper between them. A passage that is not a rectangle (an eye, a head against a sky) is better kept with `keep_passage.py`: it puts the passage into the reference as it stands on the sheet, so the sheet lacks nothing there and each brush keeps off in the passage's own shape, with no bare corners to fill by hand. Two eyes painted first on a cat's head were kept this way through all thirteen stages.
 - **Build each pass from a look taken after `dry`.** A wet sheet is not the colour it will dry to, and from 0.6.0 its picture also carries the light of the lamp on the water, which the scripts would read as paper. A look taken with `--grid` or `--region` is saved under the same name as a plain one, so when running the measuring scripts alone, take a plain `look` last and give them that. On a printed ground (`new --ground`), give them a look even before the first paint: without `--look` they take the sheet to be white paper and paint over the print.
 - **Small strokes cost time.** A sixth to a third of a second of computing each, more with a larger palette: a layer of 2,000 took twelve minutes here. Confine the finest brush with `--region` where only part of the sheet needs it.
+
+### A soft outline for the first wash
+
+`copy_reference.py` dries stage 1 before it returns, and by then its row ends are a hard, stepped edge. Where the subject's outline should be soft (fur, foliage, smoke), lay stage 1 yourself and soften it while it is wet:
+
+```bash
+python scripts/measured_layers.py reference.png first_wash.json --sheet 1024,768 --paints ... --look <plain look> \
+    --wobble 0.12 --tolerance 0.5 --brush mop --size 18 --gain 0.85 --least 0.05 --longest 220 --speed 280 \
+    --smoothing 0.5 --cut-in 8 --no-dry [--without <the paints kept out of washes>]
+watercolor paint paintings/copy first_wash.json
+watercolor look paintings/copy --view wetness --at <points just inside the wash's edge>
+python scripts/soften_outline.py alpha.png soften.json --sheet 1024,768 --keep-crisp x0,y0,x1,y1
+```
+
+`--cut-in 8` lets a size 8 round follow the mop to the outline in the same wet pass, so the edge is the subject's and not a staircase of row ends. Add `{"action": "dry"}` to the end of the softening pass, paint it if the film at the edge reads 0.15 or more, and carry on with `copy_reference.py --first 2`. On a sheet where the wash covered three fifths of the paper the rows took 58 seconds and the edge still read 0.18 to 0.57.
+
+### Masking fluid under the measured stages
+
+Fluid shows pale yellow in a look, about (241, 229, 170), so the stages read a masked line as a faint yellow tint and paint across it. What matters is the reference: a light left in it is painted round by every stage, a smaller brush each time, and dries with a ragged margin although the fluid already keeps it. Paint the masked lights out of the reference (`fit_light_lines.py --without` does it for lines).
+
+### A correction glaze as a made-up reference
+
+After a `fix`, one broad passage can be taken darker without touching the rest: give `measured_layers.py` the sheet's own plain look as the reference, darkened where the glaze should go (multiplied by 0.66 to 0.85 inside a soft mask), with `--brush mop --size 14 --least 0.05`. The sheet lacks nothing outside the mask, so nothing is laid there. Run a damp `mop` 9 along the row ends before the `dry`. Two such glazes on a cat's flank, each asked for a fifth to a quarter darker, took it from 0.25 to 0.20 and then to 0.17, and dried without an edge.
 
 ## Step 6: the hand
 
 The measured stages do not draw, do not make a stroke longer than a shape is, do not choose which edges to lose, and cannot lighten. What is left is done by hand, on a dry sheet, in this order with a `dry` between each:
 
-1. **Gestures.** The long strokes that are one movement of the arm: hair from crown to fringe, the length of a hanging ear, a contour restated against a finished background. One stroke each of three or four points, pressure 0.15, 0.8, 0.9, 0.15. Make them lighter than seems right (strength 1 to 1.7): on the sheet where everything else was within 0.04 of the reference, every red patch in the difference map was a hand stroke a third too wide and half as strong again as the original's. That holds for broad gestures. A thin line needs more, because a small brush lays less: the outlines of a sail from a size 1.2 round at strength 1.4 dried invisible on a middle-value sky, and at 3.2 they read.
+1. **Gestures.** The long strokes that are one movement of the arm: hair from crown to fringe, the length of a hanging ear, a contour restated against a finished background. One stroke each of three or four points, pressure 0.15, 0.8, 0.9, 0.15. Make them lighter than seems right (strength 1 to 1.7): on the sheet where everything else was within 0.04 of the reference, every red patch in the difference map was a hand stroke a third too wide and half as strong again as the original's. That holds for broad gestures. A thin line needs more, because a small brush lays less: the outlines of a sail from a size 1.2 round at strength 1.4 dried invisible on a middle-value sky, and at 3.2 they read. That is over a wash. Over bare paper the same rule gives paste: for a dark colour `to_load` returns 6 to 7.8 for a round under size 2, and hairs drawn past the edge of a coat at that strength dried as wire. Set the strength of a line over bare paper by hand, 0.3 to 1.3 for a hair (`coat_hairs.py` does).
 2. **Small whites** that could not be reserved, in `opaque_white`, before the darks that will sit beside them. On 0.10.0 a white line was not among them: a stay drawn with a size 1.3 rigger at strength 4.5 in two coats did not show at all on a sky of value 0.6. From 0.11.0 the same line reads 0.79 over a value of 0.67, so a light stay or rigging line can go in after a `dry` (`body-colour.md`).
 3. **The drawing**: every crisp dark mark, measured from an enlargement and checked with `preview_pass.py`, which must show each within two pixels.
 4. **Glints.**
