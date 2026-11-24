@@ -1,30 +1,12 @@
-# Seascapes: a sea in weather
+# Seascapes: a sea that is the subject, after Turner
 
-Read this before painting a sea in weather: a storm, a wreck, a ship in a gale, surf at night. `water.md` is about copying a photograph of surf passage by passage. This file is about making a sea picture: its key, where its light lies, how foam and spray are painted, and how a hard object sits in it.
+Read this before painting a sea in weather: a storm, a wreck, boats in a gale, surf at night. It is a study of six sea pictures by J. M. W. Turner and of how to get their effects from the harness, worked out by copying *The Shipwreck* (1805) on four sheets. `water.md` is about copying a photograph of surf; this file is about making a sea picture hold together: a low key, a sea of middle tones, one hard-edged light, and light laid over dark.
 
-There are two jobs here and they are not done the same way.
+It needs 0.12.0 or later. The trials were on cold press, on 1024 by 736 sheets and 400 by 300 crops at the same scale. Values are the value view, where paper reads 0.96.
 
-- **A sea of your own** is painted directly: planned in numbers, then laid in a few hundred strokes that use what water does. "Painting a sea directly" below.
-- **A copy of a sea picture that exists**, a study after a painter, is measured and built in layers. "Copying a sea picture" below.
+## What the pictures have in common
 
-It rests on six sea pictures by J. M. W. Turner, measured; six small studies of one breaking crest, four sheets of single effects and two full sheets, all painted directly; two copies of Turner's *Shipwreck* (1805); and five painters' liners, measured. Three sheets of a liner in a storm were also copied from rendered designs before the direct ones: that was the wrong way to make an original, and what it taught is under "What copying a render taught". It needs 0.12.0 or later. Everything was on cold press, on sheets 1024 pixels wide and on 440 by 330 studies at the same scale. Values are the value view, where paper reads 0.96.
-
-## The rules, in brief
-
-1. **The sea is the picture.** A low key, one mass of light off centre, dark corners, few hard edges, almost no colour.
-2. **An original is painted, not copied.** Plan it in numbers. Do not render a reference and reproduce it: three sheets made that way took about 5,700 strokes each and read as copies of a render. The same picture painted directly took 722.
-3. **Every large light is paper.** Foam is the paper the sea's own upper edge leaves, shaded afterwards. Nothing laid afterwards is lighter than about 0.8.
-4. **A light has a shape only against a dark.** Bring the dark sky down behind the foam and beside the bow.
-5. **Soft comes from water, not from small strokes.** Lay a bed of clear water and charge colour into it. The colour dries crisp where it reaches the bed's boundary and fades where it does not, so an edge is found or lost by how near to it the colour is put.
-6. **Foam on the water is covering white charged into the wet sea**, as its shine goes. On dry paint it is a wire.
-7. **Mask only what must be firm**: a bow, flecks of spray. A masked edge stays cut.
-8. **A hard object is brushed, not ruled**, and lost at one end.
-9. **Try each passage on a small sheet, rehearse the whole at half size, and copy the painting's directory before each pass.**
-10. **A copy of an existing picture** takes a light ground laid wet and its darks in dry layers.
-
-## What the picture needs
-
-Measured on reproductions of six pictures by Turner, each scaled to 640 pixels:
+Measured on reproductions of six pictures, each scaled to 640 pixels:
 
 | Picture | Mean value | Median | Lighter than 0.5 | Lighter than 0.7 | Lightest 7% centred at (x, y) | Hard edges | Mean chroma |
 |---|---|---|---|---|---|---|---|
@@ -37,87 +19,156 @@ Measured on reproductions of six pictures by Turner, each scaled to 640 pixels:
 
 "Hard edges" is the share of pixels where the value changes by more than 0.15 in one pixel. "Chroma" is the mean difference between the strongest and weakest channel.
 
-- **The sea is the picture.** The boats are small, tilted, cut off by waves and half lost in them. A ship set whole and upright in front of a tidy sea is an illustration of a ship.
-- **A low key with little light.** Four of the six have a median under 0.31. The Shipwreck's darks sit at 0.05 to 0.15 and its foam at 0.4 to 0.6: what reads as white foam there is a middle value made bright by the dark round it.
-- **The water is middle tone, not dark.** A wave's face in The Shipwreck is one continuous olive mass at 0.35 to 0.45. Only the troughs and the far sea are black.
-- **One pool of light**, off centre, with the corners falling away dark, and **one light set against the darkest dark**.
-- **Almost no colour.** The Shipwreck is a warm black and one ochre. Ivory black with a little hansa yellow gives its olive water; for a cool sea the same black takes cobalt blue.
-- **Few hard edges, spent on purpose**: under 5% of the picture in five of the six. The water has none.
-- **Diagonals.** Spar, sail, wave backs and the line of the boats all lean.
+- **The sea is the picture.** The boats are small, tilted, cut off by waves and half lost in them. Nothing is an object set in front of a backdrop. A ship drawn whole and upright on a tidy wave is an illustration of a ship, however well it is modelled.
+- **A low key with very little light.** Four of the six have a median under 0.31, and in all but Calais Pier under a twelfth of the picture is lighter than 0.7. The Shipwreck's darks sit at 0.05 to 0.15 and its foam at 0.4 to 0.6: what reads as white foam is a middle value made bright by the dark round it.
+- **The water is middle tone, not dark.** A wave's face in The Shipwreck is one continuous olive mass at 0.35 to 0.45, with fine lighter streaks and fine darker lines running down it. Only the troughs and the far sea are black.
+- **One pool of light.** The lightest passages lie together, off centre, and the corners fall away dark. In The Shipwreck the light is the foam in the middle of the sea, lighter than any sky above it.
+- **A warm light against the darkest dark.** One sail, the largest flat light in the picture and the one shape with a cut edge all round, is set against the blackest sky. A smaller sail repeats it further off.
+- **Almost no colour.** The Shipwreck is a warm black and one ochre. Its darks are near neutral (absorbance about 0.94 : 0.91 : 1.00, red to blue) and every light is the same ochre (0.23 : 0.43 : 1.00). Ivory black with a little hansa yellow gives the olive of the water; no green or blue paint is in it.
+- **Few hard edges, spent on purpose.** Under 5% of the picture in five of the six. They belong to the sail, the spar and the boat. The water has none.
+- **Diagonals.** Spar, sail, wave backs and the line of the boats all lean. The horizon is high and nearly lost.
 
-## Painting a sea directly
+## Three ways that fail
 
-A cruise liner coming level through a storm, a great wave breaking over her bow, on 1024 by 768. The figures are that sheet's; a study at 440 pixels took them divided by 2.3.
+- **Foam kept as paper.** Mask the foam, wash the sea over it, rub the mask away: on three sheets that gave white shapes with cut edges lying on a flat sea, and every one read as a diagram. The foam of these pictures is not a shape.
+- **A dark ground with every light laid over it.** The first study of The Shipwreck laid the row stages of `copy_reference.py --even-passages` from the picture itself and then dragged body colour over them. At arm's length it read as the picture. Close up the wave faces were flat cream ribbons on black, two values where the picture has a mass of middle tone. The cause is the wet wash: laid from the picture, its darks run into the middle tones beside them. On a crop the passages the picture has above 0.5 dried at 0.27, its middle tones at 0.25 and its darks at 0.15, one tone for all three. Every light then has to be covering paint, and thin white over black dries cool and grey (red less blue 0.137 where the picture has 0.179).
+- **Fixative under the body colour.** It was tried in case the white was taking up the dark beneath it. It changed nothing (the lights at 0.445 fixed against 0.438 unfixed): the grey is the white's own thinness, not the ground.
 
-### Plan it in numbers, not as a picture
+## The method: a light ground, the darks in dry layers, the lights last
 
-Write the composition down as a few functions of x: the crest's upper edge, how deep the foam lies under it, the foam's uneven lower edge, and the way the water runs down the face. An object that must be in perspective (the liner) is a silhouette projected from a model, used as a drawing is used: for its outline and where its decks lie, never as a picture to match. Then:
+The wet washes are laid from a reference in which every light has been spread into its surround, so they dry no darker anywhere than the lightest thing near by. The darks are then built over them on dry paper, where they stay where they are put. The sail is tinted first and kept under masking fluid until the darks are done. Covering paint is left for the fine lights.
 
-- **Draw the plan and the strokes over it** with `preview_pass.py` on a blank sheet before any paint. It shows a gap between strokes or a wash that crosses the foam.
-- **Rehearse the whole at half size.** Scale places, brush sizes and speeds together and leave the waits alone: the film dries at the same rate on any sheet. One rehearsal showed a bare gap where two strokes drew apart, a hull shadow that dried as a blob, and too many trails in what should be empty water.
-- **Copy the painting's directory before each pass.** It is the only way back. On the first full sheet one pass was taken back from a copy, and the sheet was started again twice.
-- **Shape matters more than finish.** A crest that rose to a peak with sky on both sides read as a snowy mountain, however it was painted. A crest that enters at the top corner and runs down to the ship reads as a wall of water.
+1. **The references.** `scripts/wash_references.py` writes four images from the picture and one point on the sail:
 
-### The order
+   ```bash
+   python scripts/wash_references.py reference.png plate --sheet 1024,736 --seed 660,320 --warmer-than 0.07
+   ```
 
-1. **Fluid.** The forward part of the liner (`mask_lights.py` on her silhouette) and forty to fifty flecks of spray about the lip, radius 1.3 to 3, a third of them drawn out downwind.
-2. **The sky, into a bed of clear water.** A mop 40 lays the bed: one stroke along the crest and one along the liner, each with its lower side on the edge, then level rows 36 apart over the rest. Into it, at once:
-   - grey (`ivory_black` 2.0, `cobalt_blue` 1.5, `burnt_sienna` 0.4, water 0.65, mop 28) in three strokes parallel to the crest, 64, 116 and 176 above it, and lifted 70 to 90 higher wherever spray is to leave the lip;
-   - the dark of the storm (`ivory_black` 5.0, `cobalt_blue` 2.0, water 0.6, mop 32) across the top, behind the liner's upper decks and down beside her bow.
+   `plate/shape.png` is the sail's silhouette, `tint.png` its colour carried past its edge on white, `filled.png` the picture with the sail filled in by the sky round it, and `ground.png` the filled picture with every light spread 7 pixels into its surround.
+2. **The sail: its tint, then fluid.** Three measured layers of a size 10 round from `tint.png` on the bare paper, each from a look of the dried sheet; then `mask_lights.py plate/shape.png` lays fluid on the silhouette.
 
-   Where grey lies within about 65 of the bed's boundary the crest is found against it. Where it is 130 or more away the paper stays pale and the edge is lost: that is the spray, and nothing else paints it. With plumes 200 wide the whole crest was lost; at 90 to 120 wide it is found between them.
-3. **The sea, in one wet pass.**
-   - Its upper edge first, which draws the foam's lower edge: a round 15 of pale sea (`cobalt_blue` 0.8, `hansa_yellow` 0.45, `ivory_black` 0.55, water 0.95) with its centre 11 below the edge.
-   - Then the water in strokes that follow it down the face: a mop 34 (`cobalt_blue` 1.1, `hansa_yellow` 0.6, `ivory_black` 0.9, water 1.0), 44 apart, each starting 30 below the edge at half pressure. Every stroke bends by the same rule of y alone, so strokes side by side stay side by side. At 520 pixels a second the wash is unbroken; at 900 the brush skipped on the grain and speckled the whole sea.
-   - Then the dark of the hollow (`ivory_black` 4.2, `cobalt_blue` 1.4, `hansa_yellow` 0.7, water 0.6, mop 34) charged into the wet sea in seven strokes low on the sheet, and with a round 18 under the heaviest of the foam.
-   - Where the foam's edge should be lost, wet the foam side first (a round 22 of clear water 20 and 50 above the edge): the sea runs up into it.
-4. **Foam on the water, while the sea is wet.** `opaque_white` 6.0 at water 0.55. Take the sheet a third at a time, each with its own `wait` on the film at a point in it:
-   - at film 0.30, tongues: a round 8 to 17 that starts 10 inside the foam and runs 60 to 300 down the face, its pressure falling away;
-   - at film 0.16, trails: a round 5 to 7.5 that starts 150 to 330 below the edge and runs 170 to 320.
+   ```bash
+   python scripts/measured_layers.py plate/tint.png tint.json --sheet 1024,736 --look <look> --brush round --hair squirrel \
+       --size 10 --paints yellow_ochre,burnt_sienna,burnt_umber --gain 0.9 --least 0.03 --smoothing 0.5 --wobble 0.12 --tolerance 0.5
+   python scripts/mask_lights.py plate/shape.png mask.json --sheet 1024,736
+   ```
 
-   Give each its own length, wobble and bend (0.55 to 1.5 of the water's). Leave the hollow empty.
-5. **Dry, then shade the foam.** Clear water inside the white (a mop 26 at 0.88, 0.72 and 0.56 of the foam's depth, the lowest kept 10 inside the lower edge), then cool grey (`cobalt_blue` 0.9, `burnt_sienna` 0.45, `ivory_black` 0.25, water 0.6, round 15) along a line 26 inside the lower edge. It climbs into the bed and fades, so the shadow has no upper edge and the top of the foam stays paper. A deeper touch (1.6, 0.8, 0.5) goes under the heaviest parts while the bed is wet. For a billow higher in the mass, lay a bed of three strokes (a round 18 at 18, 44 and 68 above the top of the billow below) and charge grey at 0.6 to 0.7 strength 11 above its lower boundary.
-6. **The fluid off, and the object.** "A hard object in the sea".
-7. **The last lights, few.** `opaque_white` 4.5 at water 0.7 on the dry sheet, two coats, over the first two fifths of the larger tongues where they leave the foam; a broken line along a second crest; flecks of 1.6 to 4.
+   The tint runs under the fluid's edge everywhere, so the sail comes out with no rim of white paper and no ring of pooled paint, and every wash after it dries against the rubber with a cut edge. Painting the sail after the fluid comes off, in strokes kept inside the silhouette, left both: a hairline of paper along the edge and a burnt ring inside it.
+3. **The ground, wet.** Stages 1 and 2 of `copy_reference.py --even-passages`, from `ground.png`:
 
-The second full sheet took 722 strokes and 56 minutes of the sheet's clock: fluid 290, sky 28, sea 81, foam 21, the liner 261 (198 of them lamps), lights 40. Its foam measures 0.95 at its lightest tenth, 0.88 at its median and 0.68 at its darkest tenth; its sea has a median of 0.14 and its sky 0.04; 1.7% of it is hard edge.
+   ```bash
+   python scripts/copy_reference.py paintings/sea plate/ground.png --sheet 1024,736 --even-passages --last 2 \
+       --paints ivory_black,burnt_umber,burnt_sienna,hansa_yellow --out-of-washes burnt_umber
+   ```
 
-### What the trials showed
+   It dries as a pale sea under a dark sky, with nothing drawn.
+4. **The darks, in rows on dry paper.** Stages 3 to 5 from `filled.png` (`--first 3 --last 5`), then the size 8 round twice more across them:
 
-Ten study sheets, 440 by 330, forty to a hundred and sixty strokes and about ten minutes each, and what went wrong on the full sheets.
+   ```bash
+   python scripts/measured_layers.py plate/filled.png rows.json --sheet 1024,736 --look <look> --brush round --hair squirrel \
+       --size 8 --angle 60 --paints ivory_black,burnt_umber,burnt_sienna,hansa_yellow --gain 1.0 --least 0.08 --smoothing 0.5 --wobble 0.12 --tolerance 0.5
+   # and again with --angle -60
+   ```
 
-| Tried | Result |
-|---|---|
-| Sky and face laid at full strength in level rows, cut to the slope | Flat slabs with a stair-stepped edge |
-| The face dragged up into the foam with a half-dry flat or hake | Dotted columns, like a bar code |
-| The face as pointed strokes pulled down from the foam | A fence |
-| **The sky charged into a bed of clear water, grey near the crest and far from it** | The edge found and lost; plumes of spray |
-| **The foam's lower edge drawn by the sea's upper edge, uneven** | Lobes of foam. Even scallops read as a curtain |
-| The dark under the foam added as the wash lost its shine (film 0.14) | A black wire along the foam |
-| **The same dark charged in at once, into the wet sea** | A soft hollow |
-| Strips of paper left between the strokes of the face | White bars |
-| **The foam side wetted before the sea's edge is laid** | The edge lost; the sea bleeds up softly |
-| Stippled dabs along the edge | Dashes |
-| Streaks lifted three times with a drained round at film 0.25 | Soft and faint: good for far trails |
-| **Covering white charged in at film 0.36; at 0.15** | Broad and faint; clear and soft-edged, the best trail |
-| Drops of clear water at film 0.08; a streak of it at 0.10 | Blobs and streaks with dark rims |
-| Covering white on the dry wash, two coats | A crisp broken line: for a few accents only |
-| **Grey charged into a tall bed along the underside of the foam** | A rolling mass, white above |
-| Grey charged into narrow beds, 75 deep, along the crest | Hard grey sausages in the sky: the colour reached every boundary |
-| A stroke of sea laid on the dry sea to close a gap | A dark-rimmed patch. Wet the place and charge white into it |
-| The sea laid at 900 pixels a second | Speckled with bare paper |
-| A crest rising to a peak, with sky on both sides | A snowy mountain |
+   Each row lays only what its whole footprint lacks, so the wave faces keep their middle tone and the troughs and the sky go dark round them.
+5. **The darks, as shapes.** Stages 6 to 8 from `filled.png` (`--first 6 --last 8`): the troughs between the foam, the hulls, the dark heads. Then one finer pass of `shape_strokes.py` (`--threshold 0.2 --widest 2.5 --blur 3`) with `--region` round each boat.
+6. **The fluid off.** `[{"action": "unmask"}]` on the dry sheet.
+7. **The lights, and few of them.** `scumble_lights.py` lays light wherever the dried sheet is still darker than the picture, in strokes that follow the picture's own streaks. Each pass is built from a look of the dried sheet:
 
-### What these sheets do not reach
+   ```bash
+   # the streaks of the water, in body colour
+   python scripts/scumble_lights.py reference.png body.json --sheet 1024,736 --look <look> --medium body_colour \
+       --radius 3 --threshold 0.08 --longest 120 --stick opaque_white:1.0,yellow_ochre:0.7 --top 0.68 --within water.png
+   # the lights of the boats and figures, as dabs
+   python scripts/scumble_lights.py reference.png dabs.json ... --radius 2.5 --threshold 0.08 --longest 14 --within boats.png
+   # broken light, with pastel; then the brightest threads, with coloured pencil
+   python scripts/scumble_lights.py reference.png top.json ... --medium pastel --radius 2.5 --threshold 0.06 --longest 80 \
+       --stick opaque_white:1.3,yellow_ochre:0.7 --top 0.7 --within water.png
+   python scripts/scumble_lights.py reference.png threads.json ... --medium coloured_pencil --radius 1 --threshold 0.06 \
+       --longest 140 --stick opaque_white:1.2,yellow_ochre:0.8 --top 0.8 --ridges 0.08 --persist 3 --shortest 20 --press 0.4 --within water.png
+   ```
 
-- A fifth of the sheet is lighter than 0.7, where Turner's storms have a fortieth. The foam and the ship together are a larger light than his pictures carry.
-- Two thirds of the foam carries some shadow, so it reads a little as snow or cloud. It wants more paper and fewer billows.
-- The trails are grey and too alike, and the wave's face is a dark slope with no light coming through it under the lip.
-- No lace: the net of fine foam on a face was not tried by hand.
+   The options left out (`...`) are those of the first command. `--top` is the value a full coat of that mix dries at; set it too high and every stroke comes out too thin.
+8. **The hand, and very little of it.** The spar, a rope, a mast and a red cap or two, on the dry sheet from coordinates read off `reference_grid.py` and checked with `preview_pass.py`. A spar that is lighter than the sky behind it is a coloured pencil of ochre and umber, not a pen line.
+
+**Keep the lights to the water.** Give every `scumble_lights.py` pass `--within` an image that is white where it may work: `water.png` white over the sea and black over the sky, the sail and a rectangle round each boat, `boats.png` white in those rectangles. In a sky the picture has no streaks to follow, so the strokes wander: on the first full sheet they dried as pale worms across the clouds. Among figures they curl into outlines; there the lights are dabs (`--longest 14`). On the sail a dry stick speckles the wash.
+
+## What each step did, on a crop
+
+A 400 by 300 crop of the sail's foot, the rowing boat and the foam beside it, at the full sheet's scale, painted both ways from the same reference. Scores are from `value_difference.py`; the three columns after them are the mean value of the passages the picture has above 0.5, between 0.25 and 0.5, and under 0.15 (in the picture 0.59, 0.35 and 0.09).
+
+| After | Value gap | Colour distance | Lights | Middles | Darks |
+|---|---|---|---|---|---|
+| **A dark ground:** the five row stages from the picture | 0.083 | 0.145 | 0.27 | 0.25 | 0.15 |
+| Body colour at radius 5 over it | 0.047 | 0.086 | 0.44 | 0.35 | 0.15 |
+| A measured glaze | 0.046 | 0.084 | 0.44 | 0.35 | 0.15 |
+| **Layered:** the ground, wet, from `ground.png` (sail under fluid) | | | 0.67 | 0.61 | 0.42 |
+| Stages 3 to 5 from `filled.png` | | | 0.45 | 0.36 | 0.17 |
+| The size 8 round twice more | | | 0.45 | 0.36 | 0.16 |
+| Stages 6 to 8 | | | 0.44 | 0.33 | 0.12 |
+| The fluid off | 0.019 | 0.038 | 0.44 | 0.33 | 0.12 |
+| Body colour at radius 3 | 0.018 | 0.037 | 0.50 | 0.35 | 0.12 |
+| Pastel | 0.018 | 0.038 | | | |
+| Pencil threads | 0.025 | 0.050 | 0.54 | 0.37 | 0.13 |
+
+- **The layered sheet is at 0.019 before any covering paint goes on**, against 0.046 for the dark ground with all of its lights. The lights of the layered sheet are transparent wash over paper, and warmer for it (red less blue 0.157 against 0.137; the picture has 0.179).
+- **The darks must come from the picture, not from the lightened reference.** With all five row stages laid from a lightened reference the darks stopped at 0.20 to 0.25 and the sheet scored 0.10 to 0.12.
+- **A sky gains as much as the sea.** On a crop of the upper left, the row stages from the picture alone left the sky one dark tone (0.058 and 0.099). With stages 1 and 2 from the lightened reference its clouds kept their tones (0.023 and 0.042). So `ground.png` spreads the lights over the whole picture, not the water only.
+- **Pencil threads cost score every time** (0.018 to 0.025 here, 0.015 to 0.017 on the full sheet) and read as fine wires. Pastel does not. Raise `--ridges`, or leave the pencil out.
+- **The score does not see everything.** On the first study pastel alone scored best and looked worst: flecks with no direction. Judge the sheet enlarged, beside the picture.
+
+## The full sheets
+
+*The Shipwreck* on 1024 by 736, with eight paints named (`ivory_black`, `burnt_umber`, `burnt_sienna`, `hansa_yellow`, `yellow_ochre`, `opaque_white`, `cadmium_red`, `carbon_ink`), from a reproduction 1077 pixels wide. A blank sheet scores 0.748 and 1.305. While the fluid is on, the dark paint standing on it counts against the sheet, so the scores before it comes off are about 0.015 too high.
+
+The whole picture:
+
+| After | Strokes | Value gap | Colour distance |
+|---|---|---|---|
+| The sail's tint (three layers) and the fluid | 320 | | |
+| The ground, wet (stages 1 and 2 from `ground.png`) | 261 | 0.191 | 0.327 |
+| The darks in rows (stages 3 to 5 from `filled.png`) | 1,762 | 0.045 | 0.080 |
+| The size 8 round twice more | 912 | 0.041 | 0.074 |
+| The darks as shapes (stages 6 to 8) | 4,447 | 0.032 | 0.060 |
+| Finer shapes round the three boats | 694 | 0.032 | 0.060 |
+| The fluid off | | 0.018 | 0.036 |
+| Body colour: streaks on the water | 1,397 | 0.016 | 0.033 |
+| Body colour: dabs on the boats | 720 | 0.015 | 0.031 |
+| Pastel (800 strokes in 34 actions) | 34 | 0.015 | 0.031 |
+| Pencil threads (616 strokes in 26 actions) | 26 | 0.017 | 0.035 |
+| The hand: yard, stay, sprit, a sliver of sail, a mast, a rope, three touches of red | 11 | 0.017 | 0.035 |
+
+Finished: **0.017 and 0.035, edge agreement 0.55**, in 10,947 strokes and 108 minutes of the sheet's clock. The first study, by the dark ground, finished at 0.041, 0.074 and 0.47 against the same reproduction.
+
+A detail, the two boats and the sea between them at 1.77 times the scale (the same steps, the brushes for the lights half as large again): 0.018 and 0.037 when the fluid came off, 0.016 and 0.035 after the lights and the hand. Its boats were still soft blots, so two finer passes of `shape_strokes.py` round each boat (`--threshold 0.3 --widest 2 --narrowest 1.2 --blur 2 --cap 2.0 --peels 2`, then `--threshold 0.15 --widest 1.8 --narrowest 1.0 --blur 2 --spur 1.5 --peels 1 --cap 2.0`, both `--hair kolinsky_sable`) and smaller dabs of light (`--radius 2.4 --threshold 0.06 --longest 15`) followed: 2,041 strokes of dark and 1,224 of light, after which the hull's frames, the oars and separate figures could be told apart. Finished: **0.015 and 0.032, edge agreement 0.51**, in 13,424 strokes and 123 minutes.
+
+What they read as: the dark sky with its clouds, the one pool of olive and cream water, the sail cut out against black, the waves running with their streaks, the boats low in the water. What they do not have: Turner's figures, the weave and stain of his sail, and the thick paint of his foam.
+
+- **Nearly all of the picture is on the sheet before the lights.** The lights and the hand took 0.018 to 0.017. They are what makes the water look wet, and they are where the risk is.
+- **Stages 6 to 8 are the slow ones**: 4,447 strokes, about half the sheet. They are also what turns the row washes into waves.
+- **At the whole picture's scale a boat is thirty pixels of blots and stays so.** Figures need the sheet: on the detail a figure is twenty to forty pixels high, and the finer passes found it.
+- **Scale the silhouette on the sheet it is for.** The detail's fluid was laid from a silhouette enlarged 1.77 times, and the sail's upper edge dried in steps. Run `wash_references.py` on the reference at the sheet's own size.
+- **Close only bare paper.** A wash can leave a speck or a dash of bare paper in a dark sky, and a dab of dark closes it. A pass that dabbed dark wherever the sheet was lighter than the picture by 0.25 also peppered the edges of the foam with 361 dots, which still show close up. The test is the sheet above 0.75 where the picture is under 0.3.
+- **Two sheets on one graphics card took three hours and twenty minutes.** Run the sequence detached from the shell and wait on its log; a command left in the background is cut off at thirty minutes.
+
+## A sea from an idea
+
+The method above copies a picture. For a picture that does not exist yet, make the picture first, as a design, and copy that. A cruise liner coming level through a storm sea was done this way on three 1024 by 768 sheets.
+
+- **Design it as a model, not as a drawing.** The sea was a spectrum of wind waves on tiles, with their crests sharpened, plus a few mounds placed by hand for the one great wave and the trough; the ship a lofted hull and stepped decks drawn with a depth buffer; the light one key with pools where the cloud breaks. Moving the eye, the wave or the ship and rendering again takes a minute, so a composition can be tried and thrown away. Any renderer will do; it is not part of this skill.
+- **Check the design against the table at the top before painting.** The liner's design measured mean 0.24, median 0.17, 10.9% lighter than 0.5, 4.5% lighter than 0.7, 7.2% hard edges and chroma 0.03, beside The Shipwreck's 0.21, 0.15, 7%, 2.5%, 4.7% and 0.06. Reduce it to three values as well: the light should come out as one shape.
+- **Then the layered method as written**, with the object's silhouette from the render given to `wash_references.py --shape`. The sheet stood at 0.045 and 0.079 when the fluid came off and finished at **0.035 and 0.062, edge agreement 0.60**, in 6,622 strokes and 116 minutes of the sheet's clock.
+- **What the copy lost.** The design's crest came out understated and its foam as thin lines, because the design itself carried the sea's light in thin lines.
+- **Give the sea its light as masses.** A second design had the great wave break (a thick lip, spray thrown off it, its face lit above and black in the trough), a train of breakers behind, and rain over the ship's after end. Painted the same way, with the lights as body colour at radius 5 (threshold 0.07) and then 3 (0.09) and pastel at radius 4 and 2.5, and no pencil threads, it stood at 0.045 when the fluid came off and at 0.033 and 0.059 after the lights, in 5,718 strokes. The lip still came out as a pale band of wash with flecks of pastel for spray: a broad soft light is not found by passes that lay streaks.
+- **Leave the largest light as paper.** A third design made the breaking lip white and thick (30 to 100 pixels) and set it against a dark sky, with the pale light of the sky moved into the gap ahead of the ship's bow. Nothing was added to make the lip: the wet ground kept off it, the rows and shapes closed in round it, and it came out as near-bare paper with the sky cutting its upper edge softly and tongues of dark water running up into it. Its lightest tenth measured 0.75 where the design has 0.77. Covering paint then went only on the ribbons below it, in pure `opaque_white` (`--stick opaque_white:1.2 --top 0.82`): the cream used for Turner's foam dried as warm patches on a cool crest. No pastel was laid; the spray is the soft edge of the washes. The sheet stood at 0.042 when the fluid came off and finished at **0.035 and 0.060, edge agreement 0.56**, in 5,767 strokes.
+- **A light in front of a pale sky has no shape.** In the first two designs a glow in the sky lay behind the wave, and its crest melted into it and never stood up. A crest, a sail or a spray of foam reads as a shape only against something darker than itself.
+- **Keep the foam strokes off smooth water.** On a smooth dark foreground the design has no streaks to follow, and `scumble_lights.py` laid pale tangled loops there, as it lays worms in a sky. Leave such passages out of the `--within` image: on the third sheet it was white only where the design's foam, blurred by 14 pixels, covered more than 7% of the water, and no loops formed.
+- **Close specks of bare paper before any light goes on.** After the shape stages and before the fluid comes off, every small light patch in a dark passage is bare paper and can be dabbed dark without touching foam (sheet above 0.5 where the picture is under 0.22, 90 pixels or fewer: 119 on the third sheet). A second pass at the end, kept to water with no foam in it and well clear of the ship, closed 63 more.
+- **Sinking a blemish.** Measured darks (`shape_strokes.py --region`, 206 strokes) did nothing to the loops. A dark glaze did: clear water in rows of a mop along the run of the wave, reaching past where the glaze should end, then `ivory_black` 1.5, `cobalt_blue` 0.4, `hansa_yellow` 0.25 at water 0.7 into it. Laid in level rows first it dried with a level upper edge that fought the wave; along the wave it read as the trough in shadow. It was tried twice on a copy of the painting directory before it went on the sheet, and it took the value gap from 0.033 to 0.041, since the design is not that dark there.
 
 ## A hard object in the sea
 
-A ship, a pier or a lighthouse is the one thing in such a picture with straight edges, and painters do not rule it. Five paintings of liners, each ship scaled to 540 pixels long, beside the liner of the copied sheets:
+A ship, a pier or a lighthouse is the one thing in such a picture with straight edges, and painters do not rule it. Five paintings of liners, each ship scaled to 540 pixels long, beside the liner above as first painted (her deck bands ruled with the pen, every edge cut by masking fluid) and as repainted:
 
 | Ship | Width of a strong edge (quartiles) | Hard steps in the ship | Hard lines run unbroken (90th centile) |
 |---|---|---|---|
@@ -126,89 +177,35 @@ A ship, a pier or a lighthouse is the one thing in such a picture with straight 
 | Stöwer, Titanic sinking, 1912 (wash illustration) | 2.6 px (2.2 to 3.1) | 11.4% | 3 px |
 | Wilkinson, Lusitania, 1907 (oil) | 3.0 px (2.5 to 3.8) | 7.1% | 4 px |
 | Wyllie, Carmania, 1914 (watercolour) | 3.1 px (2.7 to 3.6) | 2.7% | 4 px |
-| The liner, all of her under fluid, deck bands ruled with the pen | 2.7 px (2.6 to 2.8) | 9.2% | 15 px |
-| The same, her bands brushed instead | 2.7 px (2.5 to 3.0) | 5.7% | 10 px |
-| Only her forward part under fluid | 2.8 px (2.6 to 3.0) | 4.4% | 11 px |
+| The liner, ruled | 2.7 px (2.6 to 2.8) | 9.2% | 15 px |
+| The liner, repainted | 2.7 px (2.5 to 3.0) | 5.7% | 10 px |
+| The liner on a second sheet, only her forward part masked | 2.8 px (2.6 to 3.0) | 4.4% | 11 px |
+| The liner on a third sheet, the same, a little larger | 2.7 px (2.4 to 3.2) | 5.8% | 12 px |
 
 The width of an edge is its step in value divided by its steepest slope, over the strongest 3% of edges in the ship's box; a hard step is a change of more than 0.15 from one pixel to the next. A painter's edges vary by about a pixel within one ship, the hard lines break, detail thins with distance, the far end goes into smoke or haze, the waterline is lost in foam, and lit ports are uneven dabs.
 
-- **Mask only what must be firm.** The fluid's edge stays cut whatever is done afterwards. The fluid covered the liner forward of a line 112 metres aft of her stem, its outline blurred by 2.5 pixels before it was cut so that the steps of her decks lost their corners. Her after end was left to the sky.
-- **Put the dark behind what is to be seen.** With pale spray behind her bow the bow was lost in it. With the storm's dark brought down beside it, her stem stands white.
-- **Lose the far end in rain.** After the fluid comes off: clear water over her after end and the sky beyond, grey charged in from the far side in slanting strokes, weaker towards her (1.0, 0.9, 0.7, 0.45 of the sky's grey).
-- **The shadow on her side goes into a bed.** A stroke of grey on the dry hull dried as a blob. Clear water over the lower hull (a mop 15 at 14, 36 and 56 above her foot) and grey (`cobalt_blue` 0.8, `burnt_sienna` 0.38, `ivory_black` 0.22, round 9) 12 above her foot fades upward. Its upper contour still shows; a taller bed would lose it.
-- **No pen and no `crisp_layers.py` for her detail.** Bands ruled with the pen read as a technical drawing, and carbon ink cannot be softened once dry. Three crisp layers inside the silhouette took 4,266 strokes for the first alone and turned her side into a grey smudge.
-- **Bands with a small round on dry paper.** Size about half the band's width, `ivory_black` 0.85 and `cobalt_blue` 0.65 at water 0.75, each point up to a third of a pixel off the line, the pressure falling towards the far end, and about one point in five lifted (pressure 0) so that the line breaks. On damp paper the same strokes bloomed.
-- **Lamps as uneven dabs.** One dab of covering paint (`opaque_white` 3.0, `yellow_ochre` 2.0, `hansa_yellow` 0.6, `cadmium_red` 0.18) for each lit window, each moved up to a pixel, sized 0.85 to 1.4 times, an eighth of them left out at the near end rising to two fifths at the far end.
-- **To lose an edge that was cut, wet it and charge it.** A clean damp brush run along a dried cut edge changed nothing. Clear water along the edge and then dark of strength about 6 (`ivory_black` 4.5, `cobalt_blue` 1.5, water 0.6) on the edge itself runs into the object over about 15 pixels. Dark charged beside the edge never reaches it. Not masking the edge is the better answer.
-- **Rehearse on the CPU when the graphics card is busy**: `CUDA_VISIBLE_DEVICES= uv run watercolor ...`. A 300 by 270 sheet takes about half a minute a pass.
+- **The tint under the fluid is the object's lights only.** Three measured layers from `tint.png` as `wash_references.py` writes it laid the average of the ship's light and dark bands, a middle grey, and her whites were gone. Make the tint from a render with the lamps out, spread its lights over the darks beside them (a maximum over 9 pixels, then a blur of 2), and add the darks after the fluid comes off.
+- **No pen and no `crisp_layers.py` for its detail.** Bands ruled with the pen read as a technical drawing, and carbon ink cannot be softened once dry: the sheet had to go back to a copy of the painting directory kept from before them. Three crisp layers inside the silhouette took 4,266 strokes for the first alone and turned the ship's side into a grey smudge.
+- **Bands with a small round on dry paper.** Size about half the band's width, `ivory_black` 0.85 and `cobalt_blue` 0.65 at water 0.75, each point up to a third of a pixel off the line, the pressure falling towards the far end, and about one point in five lifted (pressure 0) so that the line breaks. Positions come from the model, projected. On damp paper the same strokes bloomed.
+- **Lamps as uneven dabs.** One dab of covering paint (`opaque_white` 3.0, `yellow_ochre` 2.0, `hansa_yellow` 0.6, `cadmium_red` 0.18) for each lit window in the design, each moved up to a pixel, sized 0.85 to 1.4 times, and an eighth of them left out at the near end rising to two fifths at the far end.
+- **To lose an edge, wet it and charge it.** A clean brush at 0.45, 0.6 or 1.0 run along a dried cut edge changed nothing. Clear water along the edge and then dark of strength about 6 (`ivory_black` 4.5, `cobalt_blue` 1.5, water 0.6) laid on the edge itself runs into the object and turns it into shadow over about 15 pixels. Dark charged beside the edge and not on it never reaches it; dark of strength 2 to 3 only greys it. Where the ground behind the edge is lighter than the charge, the charge leaves a darker rim outside it.
+- **A cut outline stays cut.** None of this softens the fluid's own edge: the repainted ship's strongest edges are as sharp as before. An outline that should be soft is not to be masked.
+- **Mask only what must be firm.** On the second sheet the fluid covered only the ship forward of a line 112 metres aft of her stem (the lit bow and forward face), its outline blurred by 2.5 pixels before it was cut so that the steps of the decks lost their corners. The rest of her was given to `wash_references.py` as her own light tint with nothing drawn on it, so the washes left it softly, and where the design took her into rain they closed over her. Her after skyline, funnel and stern have no edge at all; the strongest edges the table measures are the bow's, kept on purpose. Bands, lamps and boats went on as above, with no veil needed.
+- **Rehearse on the CPU when the graphics card is busy.** `CUDA_VISIBLE_DEVICES= uv run watercolor ...` runs the harness without it; a 300 by 270 sheet takes about half a minute a pass, which is enough for edges and bands.
 
-## Copying a sea picture
+## Rules the first full sheet taught
 
-For a study after a painter. *The Shipwreck* was copied this way to a value gap of 0.017.
+The measured sequence brought the first sheet to a value gap of 0.031 and it read as the picture. Three corrections by hand then spoiled it (0.065):
 
-Two ways failed first. Foam and sails kept as paper under fluid, with a flat sea washed over them, gave white shapes with cut edges. A dark ground with every light laid over it in covering paint read as the picture at arm's length and as flat cream ribbons on black close up: laid from a low-key picture, a wet wash runs its darks into the middle tones beside them (on a crop the picture's lights dried at 0.27, its middle tones at 0.25, its darks at 0.15), and thin white over black dries cool and grey. Fixative under the white changed nothing (0.445 fixed, 0.438 unfixed).
+- **A dark glaze over the sky to sink the stray scumbles** (ivory black 1.1 in rows of a mop) dried as one flat black slab with a ruled lower edge. A sky that is already at its value takes no more paint. Keep the scumbles out of it instead.
+- **A warm glaze over the sail in six rows** dried as six stripes: the rows did not overlap. A glaze is laid as a wash (rows a radius apart, laid wet together) or not at all.
+- **Hulls and figures drawn in pen and charcoal** read as marks on top of the painting. The boats of these pictures are part of the water; measure them (step 5).
 
-So the wet washes are laid from a reference in which every light has been spread into its surround, the darks are built over them on dry paper, and a light with a firm edge is tinted and kept under fluid until the darks are done.
+So: when the measured sheet reads, stop. What it still lacks is rarely worth the risk of a correction.
 
-1. **A crop first.** 400 by 300 at the sheet's scale, where the picture is hardest, painted by steps 2 to 7. Several run at once, each changing one thing.
-2. **The references.** `wash_references.py` writes `ground.png` (the picture with every light spread 7 pixels into its surround) and, for one light to keep under fluid, its `shape.png`, its `tint.png` (its colour carried past its edge on white) and `filled.png` (the picture with the shape filled in by its surround):
+## How much light each stroke lays
 
-   ```bash
-   python scripts/wash_references.py reference.png plate --sheet 1024,736 --seed 660,320 --warmer-than 0.07
-   ```
-
-   Run it on the reference at the sheet's own size: fluid laid from a silhouette enlarged 1.77 times dried in steps.
-3. **The firm light: its tint, then fluid.** Three measured layers of a size 10 round from `tint.png` on the bare paper, each from a look of the dried sheet, then fluid on the silhouette. The tint runs under the fluid's edge, so the light comes out with no rim of paper and no ring of pooled paint; painting it after the fluid comes off left both. For an object with light and dark parts the tint is its lights only: from the whole of it, the layers laid a middle grey.
-
-   ```bash
-   python scripts/measured_layers.py plate/tint.png tint.json --sheet 1024,736 --look <look> --brush round --hair squirrel \
-       --size 10 --paints yellow_ochre,burnt_sienna,burnt_umber --gain 0.9 --least 0.03 --smoothing 0.5 --wobble 0.12 --tolerance 0.5
-   python scripts/mask_lights.py plate/shape.png mask.json --sheet 1024,736
-   ```
-
-4. **The ground, wet.** Stages 1 and 2 of `copy_reference.py --even-passages`, from `ground.png`:
-
-   ```bash
-   python scripts/copy_reference.py paintings/sea plate/ground.png --sheet 1024,736 --even-passages --last 2 \
-       --paints ivory_black,burnt_umber,burnt_sienna,hansa_yellow --out-of-washes burnt_umber
-   ```
-
-5. **The darks, on dry paper.** Stages 3 to 5 from `filled.png` (`--first 3 --last 5`), then a size 8 round twice more across them, then stages 6 to 8 (`--first 6 --last 8`). The darks must come from the picture: laid from the lightened reference they stopped at 0.20 to 0.25. Round a small boat, one finer pass of `shape_strokes.py` (`--threshold 0.2 --widest 2.5 --blur 3 --region ...`).
-
-   ```bash
-   python scripts/measured_layers.py plate/filled.png rows.json --sheet 1024,736 --look <look> --brush round --hair squirrel \
-       --size 8 --angle 60 --paints ivory_black,burnt_umber,burnt_sienna,hansa_yellow --gain 1.0 --least 0.08 --smoothing 0.5 --wobble 0.12 --tolerance 0.5
-   # and again with --angle -60
-   ```
-
-6. **Close the specks, then take the fluid off.** Before any light goes on, a small light patch in a dark passage is bare paper, and a dab of dark closes it: where the sheet is above 0.5 and the picture under 0.22, in patches of 90 pixels or fewer. A looser test (lighter than the picture by 0.25) peppered the edges of the foam with 361 dots.
-7. **The lights, few.** `scumble_lights.py` lays light where the dried sheet is still darker than the picture, in strokes that follow the picture's streaks:
-
-   ```bash
-   python scripts/scumble_lights.py reference.png body.json --sheet 1024,736 --look <look> --medium body_colour \
-       --radius 3 --threshold 0.08 --longest 120 --stick opaque_white:1.0,yellow_ochre:0.7 --top 0.68 --within water.png
-   python scripts/scumble_lights.py reference.png dabs.json ... --radius 2.5 --threshold 0.08 --longest 14 --within boats.png
-   ```
-
-   `--top` is the value a full coat of the mix dries at. Give every pass `--within` an image that is white only where the picture is streaked: in a sky or on smooth water the strokes wander into worms and loops, and among figures they curl into outlines. Cream for a warm sea; on a cool one it dried as warm patches, and pure `opaque_white` (`--stick opaque_white:1.2 --top 0.82`) did not. Pencil threads cost score every time (0.018 to 0.025 on a crop) and read as wires.
-8. **The hand, very little, and stop.** On the first Shipwreck sheet the measured sequence reached 0.031 and three corrections by hand took it to 0.065: a dark glaze over the sky dried as a flat slab, a glaze over the sail in six rows dried as six stripes, and hulls drawn in pen read as marks on top of the painting.
-
-**Each step, on a crop.** Scores are from `value_difference.py`: the value gap, then the colour distance. The last three columns are the mean value of the passages the picture has above 0.5, between 0.25 and 0.5, and under 0.15 (in the picture 0.59, 0.35 and 0.09).
-
-| After | Value gap | Colour distance | Lights | Middles | Darks |
-|---|---|---|---|---|---|
-| **A dark ground:** the five row stages from the picture | 0.083 | 0.145 | 0.27 | 0.25 | 0.15 |
-| Body colour at radius 5 over it | 0.047 | 0.086 | 0.44 | 0.35 | 0.15 |
-| **Layered:** the ground, wet, from `ground.png` | | | 0.67 | 0.61 | 0.42 |
-| Stages 3 to 5 from `filled.png` | | | 0.45 | 0.36 | 0.17 |
-| Stages 6 to 8 | | | 0.44 | 0.33 | 0.12 |
-| The fluid off | 0.019 | 0.038 | 0.44 | 0.33 | 0.12 |
-| Body colour at radius 3 | 0.018 | 0.037 | 0.50 | 0.35 | 0.12 |
-| Pencil threads | 0.025 | 0.050 | 0.54 | 0.37 | 0.13 |
-
-**The sheets.** *The Shipwreck* whole, 1024 by 736: 0.018 and 0.036 when the fluid came off, **0.017 and 0.035, edge agreement 0.55**, in 10,947 strokes (the dark shapes of stages 6 to 8 are half of them) and 108 minutes of the sheet's clock. A detail at 1.77 times the scale: **0.015 and 0.032**, in 13,424 strokes; figures need that scale, and a boat on the whole picture is thirty pixels of blots. The first study, by the dark ground: 0.041, 0.074 and 0.47. Run a sheet detached from the shell and wait on its log: a command left in the background is cut off at thirty minutes.
-
-**How much light a dry stroke lays.** Pale pastel (`opaque_white` 1.7, `yellow_ochre` 0.3, radius 3, rows 5 pixels apart) over a dried wash:
+Pale pastel (`opaque_white` 1.7, `yellow_ochre` 0.3, radius 3, rows 5 pixels apart) over a dried wash:
 
 | Pressure | 0.12 | 0.16 | 0.2 | 0.25 | 0.3 | 0.4 | 0.5 | 0.7 | 1.0 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -217,13 +214,14 @@ So the wet washes are laid from a reference in which every light has been spread
 | Over a middle value of 0.32, one coat | 0.39 | 0.42 | 0.43 | 0.49 | 0.50 | 0.57 | 0.62 | 0.71 | 0.72 |
 | The same, two coats | 0.44 | 0.47 | 0.50 | 0.52 | 0.54 | 0.68 | 0.73 | 0.79 | 0.80 |
 
-**What the copies do not reach.** Their lights are a little cooler than Turner's (red less blue 0.158 where the picture has 0.179) and their darks a little lighter (0.12 for 0.09). The sail is one flat tint. The sheets are softer than the picture (edge energy 0.043 against 0.052), and figures are suggested, not drawn.
+So pressure is a continuous control from a breath of light to a covering coat, and no dry light is lighter than about 0.8. A light that must be lighter than that is paper, kept under fluid.
 
-## What copying a render taught
+## What this does not reach
 
-Three sheets of the liner were made by rendering a design (a modelled sea and ship) and copying it with the method above, each scored against its own design (0.035 and 0.062; 0.041 and 0.071; 0.035 and 0.060). The scores say how like the render each sheet is. They say nothing about whether it is a painting, and a fourth, with foam painted into the render, was stopped. What they showed about paint still holds:
-
-- **Light carried in thin lines comes back as wire.** The first design's foam was lines; so was the sheet's.
-- **A crest added afterwards stays grey.** Body colour and pastel over the dried sea gave a pale band flecked with chalk. Left as paper against a dark sky it measured 0.75 where its design had 0.77.
-- **Nine trials of marks laid on a copied crest** (covering white on dry, into re-wetted paint, dragged, and on rough paper; pastel; dark cells for lace; veins under fluid; lifting from a glaze) left its foam at 0.73 to 0.78 and read as grey marks, chalk, fish scales or wires.
-- **A blemish in a dark sea is sunk by a glaze laid along the wave**, into clear water, not in level rows; measured dark touches did nothing to it.
+- The lights are still a little cooler than Turner's (red less blue 0.158 on the full sheet where the picture has 0.179), and the darks a little lighter (0.12 where it has 0.09).
+- The sail is one flat tint with the marks of its three layers in it. The picture's sail has a weave, a stain and a shadowed foot.
+- Body-colour strokes have even edges, and the pencil's threads are wires. Turner's paint is thick in one place and scraped thin in the next within one stroke; nothing here varies a stroke's cover along its length except its width.
+- The sheet is softer than the picture (edge energy 0.043 against 0.052). Its darks are built from many small touches with soft borders.
+- The scripts copy a picture that exists. They do not compose one. A sea from an idea is designed first and then copied ("A sea from an idea" above); deciding the pool of light, the one warm light and the diagonals is still the painter's.
+- A broad soft light, such as a breaking crest in spray, is not laid by any measured pass; it has to be left as paper. Left so, it is as light as the design, but it reads as a lit band, not as foam tearing: nothing here draws that.
+- Figures are suggested, not drawn. What the measured stages cannot find at the sheet's scale is not there.
