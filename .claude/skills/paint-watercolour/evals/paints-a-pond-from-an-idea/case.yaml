@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: paints-a-pond-from-an-idea
+expected_outcome: |
+  A finished 800 by 600 painting of a pond with lily pads, stones with shadows, reeds and a jetty.
+  The pond, pads and stones have smooth, rounded edges, with nothing stepped or built of bars.
+  The jetty's planks are straight with square ends. The whole is made of few strokes, each
+  about as wide as the shape it makes, and it is a picture seen from somewhere: the water and
+  its banks lie in a setting, not as a plan ringed with bare paper.

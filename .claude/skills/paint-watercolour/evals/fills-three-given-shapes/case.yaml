@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: fills-three-given-shapes
+expected_outcome: |
+  An 800 by 600 painting with three cobalt blue shapes, each covering its given outline with
+  little paint outside it, a smooth edge that stays close to the outline, and an even tone inside.
+context:
+  scaffold_script: place-files.sh

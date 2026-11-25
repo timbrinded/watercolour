@@ -8,13 +8,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 from measured_layers import PAPER
+from organic_marks import follow_inward, load, press, swelling
 from passbuilder import budgeted
 from PIL import Image, ImageDraw
-from preview_pass import painted_width
+from preview_pass import half_width, painted_width, path_points
 from style_target import remap_values
 
 from watercolor.brushes import BRUSH_TYPES
-from watercolor.session import BUDGETED_ACTIONS
+from watercolor.session import BUDGETED_ACTIONS, Configuration, Session
 
 SCRIPTS = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "paint-watercolour" / "scripts"
 
@@ -271,3 +272,72 @@ def test_a_softening_run_stays_outside_the_wash_and_out_of_what_must_keep_a_cris
     assert len(points) > 20
     assert all(np.hypot(x - 120, y - 100) > 60 for x, y in points)
     assert not any(60 <= x <= 180 and 20 <= y <= 70 for x, y in points)
+
+
+def blob(
+    wide: float, high: float, centre: tuple[float, float] = (150.0, 100.0), points: int = 48
+) -> list[tuple[float, float]]:
+    """An uneven outline about a centre, every point of it visible from the middle."""
+    turns = [2 * np.pi * i / points for i in range(points)]
+    return [
+        (
+            centre[0] + wide * (1 + 0.15 * np.cos(2 * t + 0.4) + 0.08 * np.cos(3 * t)) * np.cos(t),
+            centre[1] + high * (1 + 0.15 * np.cos(2 * t + 1.2)) * np.sin(t),
+        )
+        for t in turns
+    ]
+
+
+def laid(actions: list[dict], sheet: tuple[int, int]) -> np.ndarray:
+    """Where a pass's brush strokes lie on the sheet, at the width each brush paints."""
+    image = Image.new("L", sheet, 0)
+    draw = ImageDraw.Draw(image)
+    brush, size = "round", 1.0
+    for action in actions:
+        if action["action"] == "load":
+            brush, size = action["brush"], action["size"]
+            continue
+        for x, y, pressure in path_points(action, 0.7, False):
+            reach = half_width(action, brush, size, pressure)
+            draw.ellipse([x - reach, y - reach, x + reach, y + reach], fill=255)
+    return np.asarray(image) > 0
+
+
+@pytest.mark.parametrize(
+    ("wide", "high", "points"),
+    [(70.0, 62.0, 48), (120.0, 40.0, 48), (130.0, 60.0, 16)],
+    ids=["a round blob", "a long blob", "a long blob given in few points"],
+)
+def test_an_inward_fill_covers_a_blob_to_its_middle_and_keeps_inside_its_outline(
+    wide: float, high: float, points: int
+) -> None:
+    outline = blob(wide, high, points=points)
+    shape = Image.new("L", (300, 200), 0)
+    ImageDraw.Draw(shape).polygon(outline, fill=255)
+    wanted = np.asarray(shape) > 0
+    painted = laid(follow_inward(outline, "mop", 10, {"cobalt_blue": 1.0}), (300, 200))
+    assert (painted & wanted).sum() / wanted.sum() > 0.97
+    assert (painted & ~wanted).sum() / wanted.sum() < 0.05
+
+
+def test_the_harness_takes_every_organic_mark_and_paint_lands_where_each_is_made(tmp_path: Path) -> None:
+    configuration = Configuration(
+        prompt="marks",
+        size=96,
+        seed=1,
+        palette=["cobalt_blue"],
+        stroke_budget=None,
+        scrap_allowed=False,
+        pencil_allowed=False,
+        height=72,
+    )
+    session = Session.create(tmp_path / "painting", configuration)
+    blue = {"cobalt_blue": 2.0}
+    marks = [load("round", 6, blue), *press(16, 16)]
+    marks += [load("round", 5, blue), *swelling([(8, 60), (22, 56), (36, 60)])]
+    marks += follow_inward(blob(18.0, 14.0, centre=(68.0, 34.0)), "mop", 4, blue)
+    session.paint([*marks, {"action": "dry"}])
+    value = np.asarray(Image.open(session.look()).convert("L").resize((96, 72)), dtype=float)
+    paper = value[2:8, 40:48].mean()
+    for x, y in ((16, 16), (22, 57), (68, 34)):  # the press, the middle of the swelling stroke, the blob's middle
+        assert value[y - 2 : y + 3, x - 2 : x + 3].mean() < paper - 20
